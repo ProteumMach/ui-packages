@@ -1,0 +1,3 @@
+packages:
+  - examples/typescript
+  - packages/sdk-typescript
