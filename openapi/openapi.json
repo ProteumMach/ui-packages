@@ -1,0 +1,1058 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Toolpath Engine API",
+    "version": "1.0.0",
+    "description": "Public REST API for Toolpath engine operations.\n\n**Units.** All dimensional values — in reports and in feature datasheets — are in\nmillimetres; all angles are in radians. Each report also states this in its `units` field.\n\n**Browser use.** CORS is per API key: a request only receives an\n`Access-Control-Allow-Origin` header when its `Origin` is in the allowlist configured on the\nkey used (set when creating or editing the key in the portal). A key with no allowed origins\nis server-to-server only. A Bearer API key placed in client-side JavaScript is readable by\nanyone — restrict its origins, prefer a `read_only` key (read_only keys may call GET\noperations only; writes are rejected with 403), or proxy requests through your own server."
+  },
+  "tags": [
+    {
+      "name": "Service",
+      "description": "Service-discovery and health operations."
+    },
+    {
+      "name": "Parts",
+      "description": "Part upload and analysis operations."
+    },
+    {
+      "name": "Jobs",
+      "description": "Asynchronous job operations."
+    }
+  ],
+  "servers": [
+    {
+      "url": "https://api.toolpath.com",
+      "description": "Toolpath Engine API"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "A Toolpath API key supplied as a Bearer credential."
+      }
+    },
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "error"
+            ]
+          },
+          "db": {
+            "type": "string",
+            "enum": [
+              "up",
+              "down"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "db"
+        ]
+      },
+      "OpenApiDocument": {
+        "type": "object",
+        "properties": {
+          "openapi": {
+            "type": "string",
+            "example": "3.1.0"
+          }
+        },
+        "required": [
+          "openapi"
+        ],
+        "additionalProperties": {}
+      },
+      "CreatePartResponse": {
+        "type": "object",
+        "properties": {
+          "partId": {
+            "type": "string"
+          },
+          "uploadUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "sourceBucket": {
+            "type": "string"
+          },
+          "sourceS3Key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "partId",
+          "uploadUrl",
+          "sourceBucket",
+          "sourceS3Key"
+        ]
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri",
+            "description": "A URI identifying the problem type.",
+            "example": "https://api.toolpath.com/problems/invalid-api-key"
+          },
+          "title": {
+            "type": "string",
+            "description": "A short, human-readable summary of the problem.",
+            "example": "Invalid API key"
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 400,
+            "maximum": 599,
+            "description": "The HTTP status code for this occurrence.",
+            "example": 401
+          },
+          "detail": {
+            "type": "string",
+            "description": "A human-readable explanation specific to this occurrence."
+          },
+          "instance": {
+            "type": "string",
+            "description": "A URI reference identifying this occurrence."
+          },
+          "code": {
+            "type": "string",
+            "description": "A stable, machine-readable Toolpath error code.",
+            "example": "invalid_api_key"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "code"
+        ]
+      },
+      "AnalyzeJobResponse": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string"
+          },
+          "partId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued"
+            ]
+          }
+        },
+        "required": [
+          "jobId",
+          "partId",
+          "status"
+        ]
+      },
+      "PartReportResponse": {
+        "type": "object",
+        "properties": {
+          "partId": {
+            "type": "string"
+          },
+          "reportId": {
+            "type": "string"
+          },
+          "jobId": {
+            "type": "string"
+          },
+          "kernelVersion": {
+            "type": "string"
+          },
+          "units": {
+            "$ref": "#/components/schemas/ReportUnits"
+          },
+          "regions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Region"
+            }
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartFeature"
+            }
+          },
+          "candidateDirections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Vec3"
+            }
+          },
+          "meshPointCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "meshTriangleCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "thumbnailUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          },
+          "meshStlUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          },
+          "meshGlbUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          },
+          "downloadMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "analysisMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalMs": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "partId",
+          "reportId",
+          "jobId",
+          "kernelVersion",
+          "units",
+          "regions",
+          "features",
+          "candidateDirections",
+          "meshPointCount",
+          "meshTriangleCount",
+          "thumbnailUrl",
+          "meshStlUrl",
+          "meshGlbUrl",
+          "downloadMs",
+          "analysisMs",
+          "totalMs"
+        ]
+      },
+      "ReportUnits": {
+        "type": "object",
+        "properties": {
+          "length": {
+            "type": "string",
+            "enum": [
+              "mm"
+            ]
+          },
+          "angle": {
+            "type": "string",
+            "enum": [
+              "rad"
+            ]
+          }
+        },
+        "required": [
+          "length",
+          "angle"
+        ]
+      },
+      "Region": {
+        "type": "object",
+        "properties": {
+          "idx": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "shapeKind": {
+            "type": "string"
+          },
+          "area": {
+            "type": "number"
+          },
+          "triangleStart": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "triangleEnd": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "idx",
+          "shapeKind",
+          "area",
+          "triangleStart",
+          "triangleEnd"
+        ]
+      },
+      "PartFeature": {
+        "type": "object",
+        "properties": {
+          "featureTag": {
+            "type": "string"
+          },
+          "regionIdxs": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "featureType": {
+            "type": "string"
+          },
+          "machiningDirection": {
+            "$ref": "#/components/schemas/Vec3"
+          },
+          "axis": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Vec3"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "datasheet": {
+            "$ref": "#/components/schemas/FeatureDatasheet"
+          }
+        },
+        "required": [
+          "featureTag",
+          "regionIdxs",
+          "featureType",
+          "machiningDirection",
+          "axis"
+        ]
+      },
+      "Vec3": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "z"
+        ]
+      },
+      "FeatureDatasheet": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "Per-feature DFM datasheet. Depths (min/max/extended and a depthVariation reach sweep), stock-to-leave, tolerance band, floor/wall flags and areas, plus a per-kind `facts` object (narrow on `facts.kind` for diameters, tool bounds, corner/fillet radius). Lengths are mm, angles radians. The object is extensible; clients should narrow `facts` using `facts.kind`."
+      },
+      "ListJobsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobSummary"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ]
+      },
+      "JobSummary": {
+        "type": "object",
+        "properties": {
+          "partUuid": {
+            "type": "string"
+          },
+          "jobUuid": {
+            "type": "string"
+          },
+          "productType": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed"
+            ]
+          },
+          "progress": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "partUuid",
+          "jobUuid",
+          "productType",
+          "status",
+          "progress",
+          "createdAt"
+        ]
+      },
+      "JobDetail": {
+        "type": "object",
+        "properties": {
+          "partUuid": {
+            "type": "string"
+          },
+          "jobUuid": {
+            "type": "string"
+          },
+          "productType": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed"
+            ]
+          },
+          "progress": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reportId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "partUuid",
+          "jobUuid",
+          "productType",
+          "status",
+          "progress",
+          "error",
+          "reportId",
+          "createdAt"
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "tags": [
+          "Service"
+        ],
+        "summary": "Check Engine API health",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The Engine API is available.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The Engine API is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/openapi.json": {
+      "get": {
+        "operationId": "getOpenApiDocument",
+        "tags": [
+          "Service"
+        ],
+        "summary": "Get the Engine API OpenAPI document",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The exact OpenAPI document served by the Engine API.",
+            "headers": {
+              "ETag": {
+                "description": "An identifier derived from the document bytes.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "Cache revalidation policy for the mutable v1 document URL.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenApiDocument"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/parts": {
+      "post": {
+        "operationId": "createPart",
+        "tags": [
+          "Parts"
+        ],
+        "summary": "Create a part upload",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "example": "part.step"
+            },
+            "required": false,
+            "name": "filename",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The part was created and is ready for direct upload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatePartResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The part could not be created.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Authentication is temporarily unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/parts/{id}/analyze": {
+      "post": {
+        "operationId": "analyzePart",
+        "tags": [
+          "Parts"
+        ],
+        "summary": "Start part analysis",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "0195f02c-4b4a-7b5d-9b6e-8f139d5e2820"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "example": "analysis-request-123"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "The analysis job was accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyzeJobResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The part does not exist in the authorized organization.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The part source has not been uploaded.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The analysis job could not be submitted.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Authentication is temporarily unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/parts/{id}/report": {
+      "get": {
+        "operationId": "getPartReport",
+        "tags": [
+          "Parts"
+        ],
+        "summary": "Get the latest part report",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "0195f02c-4b4a-7b5d-9b6e-8f139d5e2820"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "0195f02c-4b4a-7b5d-9b6e-8f139d5e2820",
+              "description": "Return the report for this specific analyze run instead of the latest for the part."
+            },
+            "required": false,
+            "description": "Return the report for this specific analyze run instead of the latest for the part.",
+            "name": "jobId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The analysis report for the part (the latest, or the requested run).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The part or its report was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The part report could not be retrieved.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Authentication is temporarily unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs": {
+      "get": {
+        "operationId": "listJobs",
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "List jobs",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "example": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 20,
+              "example": 20,
+              "description": "Requested page size. Values above 100 are capped at 100."
+            },
+            "required": false,
+            "description": "Requested page size. Values above 100 are capped at 100.",
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "0195f02c-4b4a-7b5d-9b6e-8f139d5e2820",
+              "description": "Return only jobs for this part."
+            },
+            "required": false,
+            "description": "Return only jobs for this part.",
+            "name": "partId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "queued",
+                "running",
+                "succeeded",
+                "failed"
+              ],
+              "example": "succeeded",
+              "description": "Return only jobs in this state."
+            },
+            "required": false,
+            "description": "Return only jobs in this state.",
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of jobs owned by the authorized organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListJobsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The jobs could not be listed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Authentication is temporarily unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}": {
+      "get": {
+        "operationId": "getJob",
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Get a job",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "0195f02c-4b4a-7b5d-9b6e-8f139d5e2820"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The job, scoped to the authorized organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The job was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The job could not be retrieved.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Authentication is temporarily unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}

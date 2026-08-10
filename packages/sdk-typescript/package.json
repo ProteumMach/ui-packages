@@ -1,0 +1,46 @@
+{
+  "name": "@toolpath/api",
+  "version": "1.0.0",
+  "description": "Generated TypeScript client for the Toolpath Engine API",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/toolpath/toolpath.git",
+    "directory": "packages/sdk-typescript"
+  },
+  "homepage": "https://developers.toolpath.com",
+  "bugs": {
+    "url": "https://github.com/toolpath/toolpath/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  },
+  "toolpath": {
+    "openApiSha256": "f3dcba07908fdbdc10fa24aa3c6ea191fab9989106d9be6d3cea916c125df0d2",
+    "openApiVersion": "1.0.0"
+  }
+}

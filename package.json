@@ -1,0 +1,34 @@
+{
+  "name": "toolpath",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Toolpath open-source SDKs and reference implementations",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "packageManager": "pnpm@10.6.5",
+  "scripts": {
+    "openapi:adopt": "node scripts/adopt-openapi.mjs",
+    "openapi:verify": "node scripts/verify-openapi.mjs",
+    "generate": "node scripts/generate-sdks.mjs",
+    "generate:check": "pnpm generate && git diff --exit-code -- packages/sdk-typescript/src/schema.ts packages/sdk-python",
+    "build:sdk": "node scripts/build-sdks.mjs",
+    "build:examples": "pnpm --filter @toolpath/example-typescript build && uv run --project examples/python python -m compileall -q examples/python/src",
+    "build": "pnpm build:sdk && pnpm build:examples",
+    "test:sdk": "node scripts/test-sdks.mjs",
+    "test:examples": "pnpm --filter @toolpath/example-typescript test && uv run --project examples/python python -m unittest discover -s examples/python/tests",
+    "test": "pnpm test:sdk && pnpm test:examples",
+    "lint": "uvx --from ruff==0.16.2 ruff format --check packages/sdk-python tests/python examples/python && uvx --from ruff==0.16.2 ruff check --ignore UP042 packages/sdk-python tests/python examples/python && uvx --from yamllint==1.38.0 yamllint .github/workflows",
+    "check": "pnpm openapi:verify && pnpm generate:check && pnpm lint && pnpm build && pnpm test && pnpm format:check",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "release:dry-run": "pnpm check && node scripts/prepare-release.mjs"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.13.0",
+    "prettier": "3.6.2",
+    "typescript": "5.9.3"
+  }
+}

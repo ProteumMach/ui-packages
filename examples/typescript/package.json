@@ -1,0 +1,19 @@
+{
+  "name": "@toolpath/example-typescript",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "analyze": "tsx src/analyze-part.ts",
+    "build": "tsc --noEmit",
+    "test": "tsx --test src/analyze-part.test.ts"
+  },
+  "dependencies": {
+    "@toolpath/api": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "tsx": "4.23.5",
+    "typescript": "5.9.3"
+  }
+}

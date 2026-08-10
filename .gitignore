@@ -1,0 +1,16 @@
+node_modules/
+artifacts/
+release-artifacts/
+.tmp/
+.venv/
+__pycache__/
+*.pyc
+.ruff_cache/
+.pytest_cache/
+packages/sdk-typescript/dist/
+packages/sdk-python/build/
+packages/sdk-python/dist/
+packages/sdk-python/*.egg-info/
+packages/ui/dist/
+examples/react/dist/
+examples/**/.env

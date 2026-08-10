@@ -1,0 +1,3 @@
+openapi/openapi.json
+packages/sdk-python/
+packages/sdk-typescript/src/schema.ts
