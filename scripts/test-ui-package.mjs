@@ -45,7 +45,7 @@ module.exports = {
   )
   await writeFile(join(fixtureRoot, 'input.css'), '@tailwind utilities;\n')
 
-  await run('pnpm', ['install', '--ignore-scripts', '--no-lockfile', '--offline'], fixtureRoot, {
+  await run('pnpm', ['install', '--ignore-scripts', '--no-lockfile'], fixtureRoot, {
     quiet: true,
   })
   await run(
