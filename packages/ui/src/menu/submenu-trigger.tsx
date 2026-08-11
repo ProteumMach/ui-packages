@@ -5,7 +5,7 @@ import {
   ContextMenu,
 } from '@base-ui/react'
 import { cn } from '../helpers'
-import { ChevronIcon } from '../internal/icons'
+import { CaretRightIcon } from '@phosphor-icons/react'
 import { useMenu } from './menu-context'
 
 export type MenuSubmenuTriggerProps = BaseMenuSubmenuTriggerProps & RefAttributes<HTMLElement>
@@ -26,7 +26,7 @@ export const SubmenuTrigger = ({ className, children, ...props }: MenuSubmenuTri
         {...(props as MenuSubmenuTriggerProps)}
       >
         <div className="flex-1">{children}</div>
-        <ChevronIcon className="size-4" />
+        <CaretRightIcon className="size-4" />
       </ContextMenu.SubmenuTrigger>
     )
   }
@@ -37,7 +37,7 @@ export const SubmenuTrigger = ({ className, children, ...props }: MenuSubmenuTri
       render={(renderProps) => (
         <div {...renderProps} tabIndex={-1} className={submenuTriggerClass}>
           <div className="flex-1">{renderProps.children}</div>
-          <ChevronIcon className="size-4" />
+          <CaretRightIcon className="size-4" />
         </div>
       )}
       {...(props as MenuSubmenuTriggerProps)}

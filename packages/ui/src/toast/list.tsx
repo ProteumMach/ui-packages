@@ -3,7 +3,7 @@ import { Toast } from '@base-ui/react'
 import { Button } from '../button'
 import { cn } from '../helpers'
 import { IconButton } from '../icon-button'
-import { CloseIcon, SpinnerIcon } from '../internal/icons'
+import { SpinnerGapIcon, XIcon } from '@phosphor-icons/react'
 import { useToastManager } from './provider'
 
 export interface CustomToastData {
@@ -86,7 +86,7 @@ export const List = () => {
                     {/* Title row with optional spinner */}
                     <div className="flex items-center gap-2 px-2">
                       {isLoading && (
-                        <SpinnerIcon className="size-4 shrink-0 animate-spin text-gray-300 dark:text-zinc-200" />
+                        <SpinnerGapIcon className="size-4 shrink-0 animate-spin text-gray-300 dark:text-zinc-200" />
                       )}
                       <Toast.Title className="flex-1 whitespace-pre-line break-words text-sm font-bold text-gray-500 dark:text-zinc-200" />
                     </div>
@@ -116,7 +116,7 @@ export const List = () => {
                       return (
                         <div className="absolute right-2 top-2">
                           <IconButton size="lg" {...renderProps}>
-                            <CloseIcon className="text-gray-300 dark:text-zinc-400" />
+                            <XIcon className="text-gray-300 dark:text-zinc-400" />
                           </IconButton>
                         </div>
                       )

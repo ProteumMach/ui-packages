@@ -1,6 +1,6 @@
 import React, { FC } from 'react'
 import { cn } from '../helpers'
-import { ChevronIcon } from '../internal/icons'
+import { CaretRightIcon } from '@phosphor-icons/react'
 
 export type PaginationMetadata = {
   totalPages: number
@@ -60,7 +60,7 @@ export const Pagination: FC<PaginationProps> = ({ pagination, page, onClick, cla
         )}
         onClick={() => onClick(page - 1)}
       >
-        <ChevronIcon className="size-5 rotate-180" />
+        <CaretRightIcon className="size-5 rotate-180" />
         <span className="sr-only">Previous</span>
       </button>
       <nav className="text-sm text-gray-400 dark:text-zinc-300">
@@ -129,7 +129,7 @@ export const Pagination: FC<PaginationProps> = ({ pagination, page, onClick, cla
         onClick={() => onClick(page + 1)}
       >
         <span className="sr-only">Next</span>
-        <ChevronIcon className="size-5" />
+        <CaretRightIcon className="size-5" />
       </button>
     </div>
   )

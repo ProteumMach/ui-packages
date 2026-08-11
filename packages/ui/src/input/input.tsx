@@ -12,7 +12,7 @@ import React, {
 } from 'react'
 import { cn } from '../helpers'
 import { IconButton } from '../icon-button'
-import { CheckIcon, CopyIcon, SearchIcon } from '../internal/icons'
+import { CheckIcon, CopyIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 import { Tooltip } from '../tooltip'
 
 export type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'size' | 'prefix'> & {
@@ -138,7 +138,7 @@ export const Input = ({
 
   const iconElement =
     type === 'search' && !IconComponent ? (
-      <SearchIcon data-icon className={iconClassName} />
+      <MagnifyingGlassIcon data-icon className={iconClassName} />
     ) : IconComponent ? (
       <IconComponent data-icon className={iconClassName} />
     ) : null

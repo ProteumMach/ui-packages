@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react'
 import { cn } from '../helpers'
-import { ChevronIcon } from '../internal/icons'
+import { CaretRightIcon } from '@phosphor-icons/react'
 import { useTable } from './table-context'
 
 interface GroupHeaderProps {
@@ -50,7 +50,7 @@ export const GroupHeader = ({
         gridColumn: `span ${columns + (select ? 1 : 0)}`,
       }}
     >
-      <ChevronIcon
+      <CaretRightIcon
         className={cn(
           'pointer-events-none fill-current text-gray dark:text-zinc-100 size-3 -rotate-90',
           { 'rotate-90': isCollapsed },

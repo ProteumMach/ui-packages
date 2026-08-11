@@ -1,6 +1,6 @@
 import React, { ChangeEvent, MouseEvent, Ref } from 'react'
 import { cn } from '../helpers'
-import { MinusIcon, PlusIcon } from '../internal/icons'
+import { MinusIcon, PlusIcon } from '@phosphor-icons/react'
 
 export type QuantityInputProps = {
   value: number

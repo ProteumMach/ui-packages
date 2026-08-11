@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react'
 import { cn } from '../helpers'
-import { ChevronIcon } from '../internal/icons'
+import { CaretRightIcon } from '@phosphor-icons/react'
 import { Link } from '../link'
 import { useBreadcrumbs } from './breadcrumbs-context'
 
@@ -53,7 +53,7 @@ export const Item = ({
           >
             <>
               {previous && (
-                <ChevronIcon
+                <CaretRightIcon
                   data-previous
                   className={cn(
                     'flex size-5 rotate-180 truncate text-gray-300 dark:text-zinc-500',
@@ -69,7 +69,7 @@ export const Item = ({
               {children}
             </>
           </Link>
-          <ChevronIcon
+          <CaretRightIcon
             data-separator
             className={cn('hidden size-5 text-gray-300 dark:text-zinc-500', {
               'sm:flex': breakpoint === 'sm',

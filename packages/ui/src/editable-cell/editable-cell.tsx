@@ -1,6 +1,6 @@
 import React, { FC, ReactNode, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { cn } from '../helpers'
-import { ReturnIcon } from '../internal/icons'
+import { ArrowBendUpLeftIcon } from '@phosphor-icons/react'
 import { Input } from '../input'
 
 export interface EditingCell {
@@ -254,7 +254,7 @@ export const EditableCell: FC<EditableCellProps> = ({
           name={`editable-${field}-${rowId}`}
           id={`editable-${field}-${rowId}`}
           size="md"
-          icon={ReturnIcon}
+          icon={ArrowBendUpLeftIcon}
           iconPosition="right"
           inputMode={type === 'number' ? 'numeric' : undefined}
           onBlur={handleBlur}

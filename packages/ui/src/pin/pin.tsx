@@ -1,6 +1,6 @@
 import React, { useRef } from 'react'
 import { cn } from '../helpers'
-import { PinFillIcon, PinIcon } from '../internal/icons'
+import { PushPinIcon } from '@phosphor-icons/react'
 
 export interface PinChangeEvent {
   shiftKey: boolean
@@ -73,7 +73,8 @@ export const Pin = ({
         className,
       )}
     >
-      <PinFillIcon
+      <PushPinIcon
+        weight="fill"
         className={cn(
           sizeClasses[size],
           'col-start-1 row-start-1 transition-opacity duration-150 pointer-event-none',
@@ -84,7 +85,8 @@ export const Pin = ({
           },
         )}
       />
-      <PinIcon
+      <PushPinIcon
+        weight="regular"
         className={cn(sizeClasses[size], 'col-start-1 row-start-1 pointer-event-none', {
           'text-gray-200 dark:text-zinc-100': checked,
           'text-gray-200 group-hover:text-gray-200 dark:text-zinc-400 group-hover:dark:text-zinc-400':
