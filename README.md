@@ -1,26 +1,27 @@
 # Toolpath
 
-Official open-source SDKs and examples for building applications with the
+Official open-source SDKs, UI primitives, and examples for building applications with the
 [Toolpath Engine API](https://developers.toolpath.com).
 
 Toolpath analyzes a CAD part so you can understand whether it fits your shop, how it can be
 machined, and what it may cost. This repository helps you call that API from TypeScript, JavaScript,
 or Python.
 
-> **Release status:** The source code and examples are available now. The first npm and PyPI
+> **Release status:** The source code, UI package, and examples are available now. The first npm and PyPI
 > releases have not been published yet, so the registry installation commands below will return
 > “not found” until that release is complete. See [Run the examples from source](#run-the-examples-from-source)
 > if you want to evaluate the project today.
 
 ## Choose where to start
 
-| I want to…                          | Use                             | Documentation                                        |
-| ----------------------------------- | ------------------------------- | ---------------------------------------------------- |
-| Call Toolpath from JavaScript       | `@toolpath/api`                 | [TypeScript SDK](packages/sdk-typescript/README.md)  |
-| Call Toolpath from Python           | `toolpath`                      | [Python SDK](packages/sdk-python/README.md)          |
-| Run a complete analysis application | TypeScript or Python            | [Examples](#complete-part-analysis-examples)         |
-| Call the API without an SDK         | HTTP, cURL, or another language | [API documentation](https://developers.toolpath.com) |
-| Inspect the exact public API shape  | OpenAPI 3.1                     | [OpenAPI document](openapi/openapi.json)             |
+| I want to…                           | Use                             | Documentation                                        |
+| ------------------------------------ | ------------------------------- | ---------------------------------------------------- |
+| Call Toolpath from JavaScript        | `@toolpath/api`                 | [TypeScript SDK](packages/sdk-typescript/README.md)  |
+| Build a React UI with Toolpath style | `@toolpath/ui`                  | [Tailwind UI primitives](packages/ui/README.md)      |
+| Call Toolpath from Python            | `toolpath`                      | [Python SDK](packages/sdk-python/README.md)          |
+| Run a complete analysis application  | TypeScript or Python            | [Examples](#complete-part-analysis-examples)         |
+| Call the API without an SDK          | HTTP, cURL, or another language | [API documentation](https://developers.toolpath.com) |
+| Inspect the exact public API shape   | OpenAPI 3.1                     | [OpenAPI document](openapi/openapi.json)             |
 
 The SDKs are generated from the same OpenAPI document, so their request and response types match the
 public API contract retained in this repository.

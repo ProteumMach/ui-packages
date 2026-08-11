@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - sdk
+          - ui
       publish:
         description: Publish the reviewed tag to the registries
         required: true
@@ -68,6 +69,9 @@ jobs:
       - name: Publish TypeScript SDK
         if: inputs.package == 'sdk'
         run: npm publish release-artifacts/toolpath-api-*.tgz --access public
+      - name: Publish UI package
+        if: inputs.package == 'ui'
+        run: npm publish release-artifacts/toolpath-ui-*.tgz --access public
 
   publish-pypi:
     if: inputs.publish && inputs.package == 'sdk'

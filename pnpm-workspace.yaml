@@ -1,3 +1,4 @@
 packages:
   - examples/typescript
   - packages/sdk-typescript
+  - packages/ui
