@@ -1,25 +1,13 @@
-import createClient, { type Client } from 'openapi-fetch'
-import type { paths } from './schema.js'
+import { createToolpathClient, type ToolpathClientOptions } from './client.js'
+import { Toolpath } from './toolpath.js'
 
-export interface ToolpathClientOptions {
-  apiKey: string
-  baseUrl?: string
-  fetch?: typeof globalThis.fetch
-}
+export const createToolpath = (options: ToolpathClientOptions): Toolpath => new Toolpath(options)
 
-export type ToolpathClient = Client<paths>
-
-export const createToolpathClient = ({
-  apiKey,
-  baseUrl = 'https://api.toolpath.com',
-  fetch,
-}: ToolpathClientOptions): ToolpathClient =>
-  createClient<paths>({
-    baseUrl,
-    fetch,
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-    },
-  })
-
-export type { components, operations, paths } from './schema.js'
+export { createToolpathClient, type ToolpathClient, type ToolpathClientOptions } from './client.js'
+export {
+  Toolpath,
+  ToolpathWorkflowError,
+  type AnalyzePartOptions,
+  type WorkflowStage,
+} from './toolpath.js'
+export type { components, operations, paths } from './generated/schema.js'

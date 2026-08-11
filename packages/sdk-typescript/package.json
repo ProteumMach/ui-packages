@@ -1,7 +1,7 @@
 {
   "name": "@toolpath/api",
   "version": "1.0.0",
-  "description": "Generated TypeScript client for the Toolpath Engine API",
+  "description": "Async TypeScript SDK for the Toolpath Engine API",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -37,6 +37,7 @@
     "openapi-fetch": "0.17.0"
   },
   "devDependencies": {
+    "@types/node": "24.10.1",
     "typescript": "5.9.3"
   },
   "toolpath": {
