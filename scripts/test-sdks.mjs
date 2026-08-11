@@ -52,7 +52,15 @@ await copyFile(
   join(repositoryRoot, 'tests/typescript/client.node-test.mjs'),
   join(typescriptEnvironment, 'client.node-test.mjs'),
 )
+await copyFile(
+  join(repositoryRoot, 'tests/typescript/workflow.node-test.mjs'),
+  join(typescriptEnvironment, 'workflow.node-test.mjs'),
+)
 await run('pnpm', ['install', '--ignore-workspace', '--no-lockfile'], typescriptEnvironment)
-await run('node', ['--test', 'client.node-test.mjs'], typescriptEnvironment)
+await run(
+  'node',
+  ['--test', 'client.node-test.mjs', 'workflow.node-test.mjs'],
+  typescriptEnvironment,
+)
 
 process.stdout.write('Clean-install SDK package tests passed\n')

@@ -13,7 +13,7 @@
     "openapi:adopt": "node scripts/adopt-openapi.mjs",
     "openapi:verify": "node scripts/verify-openapi.mjs",
     "generate": "node scripts/generate-sdks.mjs",
-    "generate:check": "pnpm generate && git diff --exit-code -- packages/sdk-typescript/src/schema.ts packages/sdk-python",
+    "generate:check": "pnpm generate && git diff --exit-code -- packages/sdk-typescript/src/generated packages/sdk-python/toolpath/generated packages/sdk-python/pyproject.toml",
     "build:sdk": "node scripts/build-sdks.mjs",
     "build:ui": "node scripts/build-ui.mjs",
     "build:examples": "pnpm --filter @toolpath/example-typescript build && uv run --project examples/python python -m compileall -q examples/python/src",

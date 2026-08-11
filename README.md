@@ -46,7 +46,8 @@ Part analysis is asynchronous and currently uses polling:
 4. Request the report periodically until it is ready.
 5. Read or print the returned report.
 
-The SDKs expose these API operations directly.
+The SDKs provide an async `analyzePart` / `analyze_part` workflow for this lifecycle, while retaining
+generated low-level API bindings for custom integrations.
 
 ## Complete part-analysis examples
 

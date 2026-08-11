@@ -1,16 +1,18 @@
 # Toolpath TypeScript SDK
 
-Generated TypeScript client for the Toolpath Engine API.
+Async SDK for the Toolpath Engine API.
 
 ```typescript
-import { createToolpathClient } from '@toolpath/api'
+import { createToolpath } from '@toolpath/api'
 
-const client = createToolpathClient({
+const toolpath = createToolpath({
   apiKey: process.env.TOOLPATH_API_KEY!,
   baseUrl: 'https://api.toolpath.com',
 })
+
+const report = await toolpath.analyzePart('/path/to/part.step')
 ```
 
-See <https://developers.toolpath.com> for authentication and workflow documentation. This package is
-generated from the versioned OpenAPI input retained in this repository; do not edit
-`src/schema.ts` by hand.
+`Toolpath` is the stable, hand-written workflow façade. Its `api` property is the raw OpenAPI client;
+`createToolpathClient()` remains available for lower-level requests. The generated schema lives in
+`src/generated/schema.ts` and must not be edited by hand.

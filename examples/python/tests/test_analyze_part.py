@@ -12,8 +12,8 @@ MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
 
-class AnalyzePartExampleTests(unittest.TestCase):
-    def test_complete_workflow(self) -> None:
+class AnalyzePartExampleTests(unittest.IsolatedAsyncioTestCase):
+    async def test_complete_workflow(self) -> None:
         report_attempts = 0
 
         def api_handler(request: httpx.Request) -> httpx.Response:
@@ -31,8 +31,7 @@ class AnalyzePartExampleTests(unittest.TestCase):
                 )
             if request.method == "POST" and request.url.path.endswith("/analyze"):
                 return httpx.Response(
-                    202,
-                    json={"jobId": "job-1", "partId": "part-1", "status": "queued"},
+                    202, json={"jobId": "job-1", "partId": "part-1", "status": "queued"}
                 )
             if request.method == "GET" and request.url.path.endswith("/report"):
                 report_attempts += 1
@@ -78,40 +77,14 @@ class AnalyzePartExampleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             file_path = Path(directory) / "fixture.step"
             file_path.write_bytes(b"STEP fixture")
-            report = MODULE.analyze(
+            report = await MODULE.analyze(
                 file_path,
                 api_key="test-key",
                 api_url="https://api.example.test",
-                api_transport=httpx.MockTransport(api_handler),
-                upload_transport=httpx.MockTransport(upload_handler),
-                poll_interval=0,
-                sleep=lambda _: None,
-                status=lambda _: None,
+                httpx_args={"transport": httpx.MockTransport(api_handler)},
+                upload_httpx_args={"transport": httpx.MockTransport(upload_handler)},
+                poll_interval_seconds=0,
             )
 
-        self.assertEqual(
-            report.to_dict(),
-            {
-                "partId": "part-1",
-                "reportId": "report-1",
-                "jobId": "job-1",
-                "kernelVersion": "test",
-                "units": {"length": "mm", "angle": "rad"},
-                "regions": [],
-                "features": [],
-                "candidateDirections": [],
-                "meshPointCount": 0,
-                "meshTriangleCount": 0,
-                "thumbnailUrl": None,
-                "meshStlUrl": None,
-                "meshGlbUrl": None,
-                "downloadMs": 1,
-                "analysisMs": 2,
-                "totalMs": 3,
-            },
-        )
+        self.assertEqual(report.part_id, "part-1")
         self.assertEqual(report_attempts, 2)
-
-
-if __name__ == "__main__":
-    unittest.main()

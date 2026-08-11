@@ -4,8 +4,8 @@ from unittest import TestCase
 
 import httpx
 from toolpath import AuthenticatedClient
-from toolpath.api.parts import create_part, get_part_report
-from toolpath.models import CreatePartResponse, ProblemDetails
+from toolpath.generated.api.parts import create_part, get_part_report
+from toolpath.generated.models import CreatePartResponse, ProblemDetails
 
 
 class GeneratedClientTests(TestCase):

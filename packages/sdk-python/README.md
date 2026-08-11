@@ -1,21 +1,23 @@
 # Toolpath Python SDK
 
-Generated Python client for the Toolpath Engine API.
+Async SDK for the Toolpath Engine API.
 
 ```python
+import asyncio
 import os
 
-from toolpath import AuthenticatedClient
+from toolpath import Toolpath
 
-client = AuthenticatedClient(
-    base_url="https://api.toolpath.com",
-    token=os.environ["TOOLPATH_API_KEY"],
-)
+
+async def main() -> None:
+    toolpath = Toolpath(os.environ["TOOLPATH_API_KEY"])
+    report = await toolpath.analyze_part("/path/to/part.step")
+    print(report.to_dict())
+
+
+asyncio.run(main())
 ```
 
-See <https://developers.toolpath.com> for authentication and workflow documentation. Generated
-operations are grouped under `toolpath.api`, and response models are exported from `toolpath.models`.
-
-This package is generated from the versioned OpenAPI input retained in the
-[`toolpath/toolpath`](https://github.com/toolpath/toolpath) repository. Do not edit generated modules
-by hand.
+`Toolpath` is the stable, hand-written workflow façade. Its `api` property exposes the generated
+authenticated client for lower-level use. Generated operations and models are available under
+`toolpath.generated`; do not edit them by hand.

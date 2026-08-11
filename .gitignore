@@ -11,6 +11,7 @@ packages/sdk-typescript/dist/
 packages/sdk-python/build/
 packages/sdk-python/dist/
 packages/sdk-python/*.egg-info/
+packages/sdk-python/uv.lock
 packages/ui/dist/
 examples/react/dist/
 examples/**/.env
