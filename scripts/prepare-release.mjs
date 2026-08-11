@@ -4,8 +4,8 @@ import { basename, join } from 'node:path'
 import { repositoryRoot } from './lib.mjs'
 
 const releasePackage = process.env.RELEASE_PACKAGE ?? process.argv[2]
-if (releasePackage !== 'sdk') {
-  throw new Error('Set RELEASE_PACKAGE to sdk')
+if (releasePackage !== 'sdk' && releasePackage !== 'ui') {
+  throw new Error('Set RELEASE_PACKAGE to sdk or ui')
 }
 
 const publishing = process.env.PUBLISH === 'true'
@@ -35,6 +35,15 @@ if (releasePackage === 'sdk') {
     `https://registry.npmjs.org/${encodeURIComponent('@toolpath/api')}/${version}`,
     `https://pypi.org/pypi/toolpath/${version}/json`,
   )
+}
+
+if (releasePackage === 'ui') {
+  const uiPackage = JSON.parse(
+    await readFile(join(repositoryRoot, 'packages/ui/package.json'), 'utf8'),
+  )
+  version = uiPackage.version
+  files.push(join(artifactsRoot, `toolpath-ui-${version}.tgz`))
+  registryUrls.push(`https://registry.npmjs.org/${encodeURIComponent('@toolpath/ui')}/${version}`)
 }
 
 const expectedTag = `${releasePackage}-v${version}`
