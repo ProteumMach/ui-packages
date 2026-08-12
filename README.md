@@ -14,14 +14,15 @@ or Python.
 
 ## Choose where to start
 
-| I want to…                           | Use                             | Documentation                                        |
-| ------------------------------------ | ------------------------------- | ---------------------------------------------------- |
-| Call Toolpath from JavaScript        | `@toolpath/api`                 | [TypeScript SDK](packages/sdk-typescript/README.md)  |
-| Build a React UI with Toolpath style | `@toolpath/ui`                  | [Tailwind UI primitives](packages/ui/README.md)      |
-| Call Toolpath from Python            | `toolpath`                      | [Python SDK](packages/sdk-python/README.md)          |
-| Run a complete analysis application  | TypeScript or Python            | [Examples](#complete-part-analysis-examples)         |
-| Call the API without an SDK          | HTTP, cURL, or another language | [API documentation](https://developers.toolpath.com) |
-| Inspect the exact public API shape   | OpenAPI 3.1                     | [OpenAPI document](openapi/openapi.json)             |
+| I want to…                           | Use                             | Documentation                                         |
+| ------------------------------------ | ------------------------------- | ----------------------------------------------------- |
+| Call Toolpath from JavaScript        | `@toolpath/api`                 | [TypeScript SDK](packages/sdk-typescript/README.md)   |
+| Build a React UI with Toolpath style | `@toolpath/ui`                  | [Tailwind UI primitives](packages/ui/README.md)       |
+| Explore a Toolpath part in 3D        | `@toolpath/viewer`              | [React Three Fiber viewer](packages/viewer/README.md) |
+| Call Toolpath from Python            | `toolpath`                      | [Python SDK](packages/sdk-python/README.md)           |
+| Run a complete analysis application  | TypeScript or Python            | [Examples](#complete-part-analysis-examples)          |
+| Call the API without an SDK          | HTTP, cURL, or another language | [API documentation](https://developers.toolpath.com)  |
+| Inspect the exact public API shape   | OpenAPI 3.1                     | [OpenAPI document](openapi/openapi.json)              |
 
 The SDKs are generated from the same OpenAPI document, so their request and response types match the
 public API contract retained in this repository.
@@ -51,9 +52,10 @@ generated low-level API bindings for custom integrations.
 
 ## Complete part-analysis examples
 
-The runnable examples perform the entire workflow and print the final report as formatted JSON:
+The runnable examples include complete analysis workflows and a local interactive viewer:
 
 - [TypeScript example](examples/typescript/README.md)
+- [React viewer example](examples/react-viewer/README.md)
 - [Python example](examples/python/README.md)
 
 ## Run the examples from source

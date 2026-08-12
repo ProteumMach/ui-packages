@@ -10,6 +10,7 @@ on:
         options:
           - sdk
           - ui
+          - viewer
       publish:
         description: Publish the reviewed tag to the registries
         required: true
@@ -72,6 +73,9 @@ jobs:
       - name: Publish UI package
         if: inputs.package == 'ui'
         run: npm publish release-artifacts/toolpath-ui-*.tgz --access public
+      - name: Publish viewer package
+        if: inputs.package == 'viewer'
+        run: npm publish release-artifacts/toolpath-viewer-*.tgz --access public
 
   publish-pypi:
     if: inputs.publish && inputs.package == 'sdk'

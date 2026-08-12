@@ -2,7 +2,7 @@ import React from 'react'
 import { Toast, ToastObject } from '@base-ui/react'
 import { cn } from '../helpers'
 import { IconButton } from '../icon-button'
-import { CloseIcon } from '../internal/icons'
+import { XIcon } from '@phosphor-icons/react'
 import { useNotificationToastManager } from './provider'
 
 export type NotificationVariant = 'info' | 'warning' | 'danger' | 'success'
@@ -102,7 +102,7 @@ export const List = () => {
                         className="[&_svg]:size-5 rounded active:bg-black/10 hover:bg-black/10 focus-visible:bg-black/10 focus-visible:ring-0 dark:active:bg-black/20 dark:hover:bg-black/20 dark:focus-visible:bg-black/20"
                         {...renderProps}
                       >
-                        <CloseIcon
+                        <XIcon
                           className={cn({
                             'text-gray dark:text-zinc-950': variant === 'warning',
                             'text-white dark:text-zinc-50':

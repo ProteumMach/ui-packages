@@ -1,6 +1,6 @@
 import React, { FC, ReactNode, SVGProps } from 'react'
 import { cn } from '../helpers'
-import { UnfoldIcon } from '../internal/icons'
+import { ArrowsOutLineVerticalIcon } from '@phosphor-icons/react'
 import { useCombobox } from './combobox-context'
 import { Icon } from './icon'
 import { Trigger } from './trigger'
@@ -92,7 +92,7 @@ export const Button = ({
             variant === 'ghost',
         })}
       >
-        <UnfoldIcon className="size-3.5 text-gray-200 dark:text-zinc-400" />
+        <ArrowsOutLineVerticalIcon className="size-3.5 text-gray-200 dark:text-zinc-400" />
       </Icon>
     </Trigger>
   )

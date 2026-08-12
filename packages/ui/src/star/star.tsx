@@ -1,6 +1,6 @@
 import React, { useRef } from 'react'
 import { cn } from '../helpers'
-import { StarIcon, StarOutlineIcon } from '../internal/icons'
+import { StarIcon } from '@phosphor-icons/react'
 
 export interface StarChangeEvent {
   shiftKey: boolean
@@ -74,6 +74,7 @@ export const Star = ({
       )}
     >
       <StarIcon
+        weight="fill"
         className={cn(
           sizeClasses[size],
           'col-start-1 row-start-1 transition-opacity duration-150 pointer-event-none',
@@ -84,7 +85,8 @@ export const Star = ({
           },
         )}
       />
-      <StarOutlineIcon
+      <StarIcon
+        weight="regular"
         className={cn(sizeClasses[size], 'col-start-1 row-start-1 pointer-event-none', {
           'text-[#F0D360]': checked,
           'text-gray-200 group-hover:text-gray-200 dark:text-zinc-500 group-hover:dark:text-warning-darken/75':

@@ -6,7 +6,7 @@
   "scripts": {
     "analyze": "tsx src/analyze-part.ts",
     "build": "tsc --noEmit",
-    "test": "tsx --test src/analyze-part.test.ts"
+    "test": "vitest run"
   },
   "dependencies": {
     "@toolpath/api": "workspace:*"
@@ -14,6 +14,7 @@
   "devDependencies": {
     "@types/node": "24.10.1",
     "tsx": "4.23.5",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
   }
 }

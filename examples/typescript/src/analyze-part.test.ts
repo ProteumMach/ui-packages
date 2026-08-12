@@ -1,8 +1,7 @@
-import assert from 'node:assert/strict'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { test } from 'node:test'
+import { expect, test } from 'vitest'
 import { analyzePart } from './analyze-part.js'
 
 test('runs the complete analysis workflow', async () => {
@@ -18,7 +17,7 @@ test('runs the complete analysis workflow', async () => {
     const url = new URL(request.url)
 
     if (request.method === 'POST' && url.pathname === '/v1/parts') {
-      assert.equal(request.headers.get('Authorization'), 'Bearer test-key')
+      expect(request.headers.get('Authorization')).toBe('Bearer test-key')
       return Response.json(
         {
           partId: 'part-1',
@@ -30,8 +29,8 @@ test('runs the complete analysis workflow', async () => {
       )
     }
     if (request.method === 'PUT' && url.hostname === 'uploads.example.test') {
-      assert.equal(request.headers.get('Authorization'), null)
-      assert.equal(await request.text(), 'STEP fixture')
+      expect(request.headers.get('Authorization')).toBeNull()
+      expect(await request.text()).toBe('STEP fixture')
       return new Response(null, { status: 200 })
     }
     if (request.method === 'POST' && url.pathname.endsWith('/analyze')) {
@@ -81,7 +80,7 @@ test('runs the complete analysis workflow', async () => {
       pollIntervalMs: 0,
       onStatus: () => undefined,
     })
-    assert.deepEqual(report, {
+    expect(report).toEqual({
       partId: 'part-1',
       reportId: 'report-1',
       jobId: 'job-1',
@@ -99,7 +98,7 @@ test('runs the complete analysis workflow', async () => {
       analysisMs: 2,
       totalMs: 3,
     })
-    assert.equal(requests.length, 5)
+    expect(requests).toHaveLength(5)
   } finally {
     await rm(directory, { recursive: true })
   }

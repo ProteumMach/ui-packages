@@ -1,9 +1,8 @@
-import assert from 'node:assert/strict'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { test } from 'node:test'
 import { createToolpath, ToolpathWorkflowError } from '@toolpath/api'
+import { expect, test } from 'vitest'
 
 const report = {
   partId: 'part-1',
@@ -29,8 +28,8 @@ test('the installed package runs the async analysis workflow', async () => {
   const filePath = join(directory, 'fixture.step')
   await writeFile(filePath, 'STEP fixture')
   let reportAttempts = 0
-  const statuses = []
-  const fetch = async (input, init) => {
+  const statuses: string[] = []
+  const fetch: typeof globalThis.fetch = async (input, init) => {
     const request = new Request(input, init)
     const url = new URL(request.url)
     if (request.method === 'POST' && url.pathname === '/v1/parts') {
@@ -45,11 +44,11 @@ test('the installed package runs the async analysis workflow', async () => {
       )
     }
     if (request.method === 'PUT') {
-      assert.equal(await request.text(), 'STEP fixture')
+      expect(await request.text()).toBe('STEP fixture')
       return new Response(null, { status: 200 })
     }
     if (request.method === 'POST' && url.pathname.endsWith('/analyze')) {
-      assert.ok(request.headers.get('Idempotency-Key'))
+      expect(request.headers.get('Idempotency-Key')).toBeTruthy()
       return Response.json({ jobId: 'job-1', partId: 'part-1', status: 'queued' }, { status: 202 })
     }
     if (request.method === 'GET' && url.pathname.endsWith('/report')) {
@@ -79,9 +78,9 @@ test('the installed package runs the async analysis workflow', async () => {
       pollIntervalMs: 0,
       onStatus: (status) => statuses.push(status),
     })
-    assert.deepEqual(actual, report)
-    assert.deepEqual(statuses, ['Analysis started as job job-1', 'Waiting for the report...'])
-    assert.equal(toolpath.api !== undefined, true)
+    expect(actual).toEqual(report)
+    expect(statuses).toEqual(['Analysis started as job job-1', 'Waiting for the report...'])
+    expect(toolpath.api).toBeDefined()
   } finally {
     await rm(directory, { recursive: true })
   }
@@ -92,7 +91,7 @@ for (const stage of ['create', 'upload', 'analyze', 'report']) {
     const directory = await mkdtemp(join(tmpdir(), 'toolpath-sdk-'))
     const filePath = join(directory, 'fixture.step')
     await writeFile(filePath, 'STEP fixture')
-    const fetch = async (input, init) => {
+    const fetch: typeof globalThis.fetch = async (input, init) => {
       const request = new Request(input, init)
       const url = new URL(request.url)
       if (request.method === 'POST' && url.pathname === '/v1/parts') {
@@ -124,10 +123,10 @@ for (const stage of ['create', 'upload', 'analyze', 'report']) {
         baseUrl: 'https://api.example.test',
         fetch,
       })
-      await assert.rejects(
-        toolpath.analyzePart(filePath, { pollIntervalMs: 0 }),
-        (error) => error instanceof ToolpathWorkflowError && error.stage === stage,
-      )
+      await expect(toolpath.analyzePart(filePath, { pollIntervalMs: 0 })).rejects.toMatchObject({
+        name: ToolpathWorkflowError.name,
+        stage,
+      })
     } finally {
       await rm(directory, { recursive: true })
     }

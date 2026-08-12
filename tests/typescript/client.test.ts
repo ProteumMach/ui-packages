@@ -1,16 +1,16 @@
-import assert from 'node:assert/strict'
-import { test } from 'node:test'
 import { createToolpathClient } from '@toolpath/api'
+import { expect, test } from 'vitest'
 
 test('the installed package authenticates requests and decodes responses', async () => {
-  const requests = []
-  const fetch = async (request) => {
+  const requests: Request[] = []
+  const fetch: typeof globalThis.fetch = async (input, init) => {
+    const request = new Request(input, init)
     requests.push(request)
-    assert.equal(request.headers.get('Authorization'), 'Bearer sdk-test-key')
+    expect(request.headers.get('Authorization')).toBe('Bearer sdk-test-key')
 
     const url = new URL(request.url)
     if (request.method === 'POST' && url.pathname === '/v1/parts') {
-      assert.equal(url.searchParams.get('filename'), 'fixture.step')
+      expect(url.searchParams.get('filename')).toBe('fixture.step')
       return Response.json(
         {
           partId: 'part-1',
@@ -44,13 +44,13 @@ test('the installed package authenticates requests and decodes responses', async
   const created = await client.POST('/v1/parts', {
     params: { query: { filename: 'fixture.step' } },
   })
-  assert.equal(created.data?.partId, 'part-1')
-  assert.equal(created.error, undefined)
+  expect(created.data?.partId).toBe('part-1')
+  expect(created.error).toBeUndefined()
 
   const problem = await client.GET('/v1/parts/{id}/report', {
     params: { path: { id: 'missing' } },
   })
-  assert.equal(problem.data, undefined)
-  assert.equal(problem.error?.code, 'report_not_found')
-  assert.equal(requests.length, 2)
+  expect(problem.data).toBeUndefined()
+  expect(problem.error?.code).toBe('report_not_found')
+  expect(requests).toHaveLength(2)
 })

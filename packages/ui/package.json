@@ -37,7 +37,7 @@
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean --external react --external react-dom",
     "check-types": "tsc --noEmit",
-    "test": "pnpm build && vitest run --environment jsdom"
+    "test": "pnpm build && vitest run"
   },
   "peerDependencies": {
     "react": "^19.2.0",
@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "@base-ui/react": "1.2.0",
+    "@phosphor-icons/react": "2.1.10",
     "@table-library/react-table-library": "^4.1.15",
     "clsx": "^2.1.1",
     "lodash-es": "^4.18.1",

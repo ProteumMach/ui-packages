@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "lib": ["ES2024", "DOM"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": true,
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@toolpath/api": ["packages/sdk-typescript/src/index.ts"]
+    }
+  },
+  "include": ["tests/typescript/**/*.ts"]
+}

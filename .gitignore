@@ -13,5 +13,9 @@ packages/sdk-python/dist/
 packages/sdk-python/*.egg-info/
 packages/sdk-python/uv.lock
 packages/ui/dist/
+packages/viewer/dist/
 examples/react/dist/
+examples/react-viewer/dist/
+examples/react-viewer/test-results/
+examples/react-viewer/playwright-report/
 examples/**/.env
