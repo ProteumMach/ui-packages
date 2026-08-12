@@ -2,38 +2,56 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any, TypeVar
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="FeatureDatasheet")
+T = TypeVar("T", bound="ComputeFeatureDatasheetsRequest")
 
 
 @_attrs_define
-class FeatureDatasheet:
-    """Per-feature DFM measurement facts. Z bounds in the direction frame (zMin/zMax; local height is zMax − zMin), stock-
-    to-leave, tolerance band, floor/wall flags and areas, plus a per-kind `facts` object (narrow on `facts.kind` for
-    diameters, tool bounds, corner/fillet radius). Lengths are mm, angles degrees. The exact shape is the kernel’s
-    FeatureDatasheet (@toolpath/tp-kernel).
-
+class ComputeFeatureDatasheetsRequest:
+    """
+    Attributes:
+        feature_ids (list[UUID]):
     """
 
+    feature_ids: list[UUID]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        feature_ids = []
+        for feature_ids_item_data in self.feature_ids:
+            feature_ids_item = str(feature_ids_item_data)
+            feature_ids.append(feature_ids_item)
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
+        field_dict.update(
+            {
+                "featureIds": feature_ids,
+            }
+        )
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        feature_datasheet = cls()
+        feature_ids = []
+        _feature_ids = d.pop("featureIds")
+        for feature_ids_item_data in _feature_ids:
+            feature_ids_item = UUID(feature_ids_item_data)
 
-        feature_datasheet.additional_properties = d
-        return feature_datasheet
+            feature_ids.append(feature_ids_item)
+
+        compute_feature_datasheets_request = cls(
+            feature_ids=feature_ids,
+        )
+
+        compute_feature_datasheets_request.additional_properties = d
+        return compute_feature_datasheets_request
 
     @property
     def additional_keys(self) -> list[str]:

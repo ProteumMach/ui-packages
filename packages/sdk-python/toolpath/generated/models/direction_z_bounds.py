@@ -1,39 +1,70 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="FeatureDatasheet")
+if TYPE_CHECKING:
+    from ..models.vec_3 import Vec3
+
+
+T = TypeVar("T", bound="DirectionZBounds")
 
 
 @_attrs_define
-class FeatureDatasheet:
-    """Per-feature DFM measurement facts. Z bounds in the direction frame (zMin/zMax; local height is zMax − zMin), stock-
-    to-leave, tolerance band, floor/wall flags and areas, plus a per-kind `facts` object (narrow on `facts.kind` for
-    diameters, tool bounds, corner/fillet radius). Lengths are mm, angles degrees. The exact shape is the kernel’s
-    FeatureDatasheet (@toolpath/tp-kernel).
-
+class DirectionZBounds:
+    """
+    Attributes:
+        direction (Vec3):
+        z_min (float):
+        z_max (float):
     """
 
+    direction: Vec3
+    z_min: float
+    z_max: float
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        direction = self.direction.to_dict()
+
+        z_min = self.z_min
+
+        z_max = self.z_max
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
+        field_dict.update(
+            {
+                "direction": direction,
+                "zMin": z_min,
+                "zMax": z_max,
+            }
+        )
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        d = dict(src_dict)
-        feature_datasheet = cls()
+        from ..models.vec_3 import Vec3
 
-        feature_datasheet.additional_properties = d
-        return feature_datasheet
+        d = dict(src_dict)
+        direction = Vec3.from_dict(d.pop("direction"))
+
+        z_min = d.pop("zMin")
+
+        z_max = d.pop("zMax")
+
+        direction_z_bounds = cls(
+            direction=direction,
+            z_min=z_min,
+            z_max=z_max,
+        )
+
+        direction_z_bounds.additional_properties = d
+        return direction_z_bounds
 
     @property
     def additional_keys(self) -> list[str]:

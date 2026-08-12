@@ -7,6 +7,7 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 if TYPE_CHECKING:
+    from ..models.direction_z_bounds import DirectionZBounds
     from ..models.part_feature import PartFeature
     from ..models.region import Region
     from ..models.report_units import ReportUnits
@@ -28,13 +29,15 @@ class PartReportResponse:
         regions (list[Region]):
         features (list[PartFeature]):
         candidate_directions (list[Vec3]):
+        direction_z_bounds (list[DirectionZBounds] | None):
         mesh_point_count (int):
         mesh_triangle_count (int):
         thumbnail_url (None | str):
         mesh_stl_url (None | str):
         mesh_glb_url (None | str):
         download_ms (int):
-        analysis_ms (int):
+        recognition_ms (int):
+        enrichment_ms (int):
         total_ms (int):
     """
 
@@ -46,13 +49,15 @@ class PartReportResponse:
     regions: list[Region]
     features: list[PartFeature]
     candidate_directions: list[Vec3]
+    direction_z_bounds: list[DirectionZBounds] | None
     mesh_point_count: int
     mesh_triangle_count: int
     thumbnail_url: None | str
     mesh_stl_url: None | str
     mesh_glb_url: None | str
     download_ms: int
-    analysis_ms: int
+    recognition_ms: int
+    enrichment_ms: int
     total_ms: int
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -82,6 +87,16 @@ class PartReportResponse:
             candidate_directions_item = candidate_directions_item_data.to_dict()
             candidate_directions.append(candidate_directions_item)
 
+        direction_z_bounds: list[dict[str, Any]] | None
+        if isinstance(self.direction_z_bounds, list):
+            direction_z_bounds = []
+            for direction_z_bounds_type_0_item_data in self.direction_z_bounds:
+                direction_z_bounds_type_0_item = direction_z_bounds_type_0_item_data.to_dict()
+                direction_z_bounds.append(direction_z_bounds_type_0_item)
+
+        else:
+            direction_z_bounds = self.direction_z_bounds
+
         mesh_point_count = self.mesh_point_count
 
         mesh_triangle_count = self.mesh_triangle_count
@@ -97,7 +112,9 @@ class PartReportResponse:
 
         download_ms = self.download_ms
 
-        analysis_ms = self.analysis_ms
+        recognition_ms = self.recognition_ms
+
+        enrichment_ms = self.enrichment_ms
 
         total_ms = self.total_ms
 
@@ -113,13 +130,15 @@ class PartReportResponse:
                 "regions": regions,
                 "features": features,
                 "candidateDirections": candidate_directions,
+                "directionZBounds": direction_z_bounds,
                 "meshPointCount": mesh_point_count,
                 "meshTriangleCount": mesh_triangle_count,
                 "thumbnailUrl": thumbnail_url,
                 "meshStlUrl": mesh_stl_url,
                 "meshGlbUrl": mesh_glb_url,
                 "downloadMs": download_ms,
-                "analysisMs": analysis_ms,
+                "recognitionMs": recognition_ms,
+                "enrichmentMs": enrichment_ms,
                 "totalMs": total_ms,
             }
         )
@@ -128,6 +147,7 @@ class PartReportResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.direction_z_bounds import DirectionZBounds
         from ..models.part_feature import PartFeature
         from ..models.region import Region
         from ..models.report_units import ReportUnits
@@ -165,6 +185,26 @@ class PartReportResponse:
 
             candidate_directions.append(candidate_directions_item)
 
+        def _parse_direction_z_bounds(data: object) -> list[DirectionZBounds] | None:
+            if data is None:
+                return data
+            try:
+                if not isinstance(data, list):
+                    raise TypeError()
+                direction_z_bounds_type_0 = []
+                _direction_z_bounds_type_0 = data
+                for direction_z_bounds_type_0_item_data in _direction_z_bounds_type_0:
+                    direction_z_bounds_type_0_item = DirectionZBounds.from_dict(direction_z_bounds_type_0_item_data)
+
+                    direction_z_bounds_type_0.append(direction_z_bounds_type_0_item)
+
+                return direction_z_bounds_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(list[DirectionZBounds] | None, data)
+
+        direction_z_bounds = _parse_direction_z_bounds(d.pop("directionZBounds"))
+
         mesh_point_count = d.pop("meshPointCount")
 
         mesh_triangle_count = d.pop("meshTriangleCount")
@@ -192,7 +232,9 @@ class PartReportResponse:
 
         download_ms = d.pop("downloadMs")
 
-        analysis_ms = d.pop("analysisMs")
+        recognition_ms = d.pop("recognitionMs")
+
+        enrichment_ms = d.pop("enrichmentMs")
 
         total_ms = d.pop("totalMs")
 
@@ -205,13 +247,15 @@ class PartReportResponse:
             regions=regions,
             features=features,
             candidate_directions=candidate_directions,
+            direction_z_bounds=direction_z_bounds,
             mesh_point_count=mesh_point_count,
             mesh_triangle_count=mesh_triangle_count,
             thumbnail_url=thumbnail_url,
             mesh_stl_url=mesh_stl_url,
             mesh_glb_url=mesh_glb_url,
             download_ms=download_ms,
-            analysis_ms=analysis_ms,
+            recognition_ms=recognition_ms,
+            enrichment_ms=enrichment_ms,
             total_ms=total_ms,
         )
 
