@@ -4,8 +4,8 @@ import { basename, join } from 'node:path'
 import { repositoryRoot } from './lib.mjs'
 
 const releasePackage = process.env.RELEASE_PACKAGE ?? process.argv[2]
-if (releasePackage !== 'sdk' && releasePackage !== 'ui') {
-  throw new Error('Set RELEASE_PACKAGE to sdk or ui')
+if (releasePackage !== 'sdk' && releasePackage !== 'ui' && releasePackage !== 'viewer') {
+  throw new Error('Set RELEASE_PACKAGE to sdk, ui, or viewer')
 }
 
 const publishing = process.env.PUBLISH === 'true'
@@ -44,6 +44,17 @@ if (releasePackage === 'ui') {
   version = uiPackage.version
   files.push(join(artifactsRoot, `toolpath-ui-${version}.tgz`))
   registryUrls.push(`https://registry.npmjs.org/${encodeURIComponent('@toolpath/ui')}/${version}`)
+}
+
+if (releasePackage === 'viewer') {
+  const viewerPackage = JSON.parse(
+    await readFile(join(repositoryRoot, 'packages/viewer/package.json'), 'utf8'),
+  )
+  version = viewerPackage.version
+  files.push(join(artifactsRoot, `toolpath-viewer-${version}.tgz`))
+  registryUrls.push(
+    `https://registry.npmjs.org/${encodeURIComponent('@toolpath/viewer')}/${version}`,
+  )
 }
 
 const expectedTag = `${releasePackage}-v${version}`

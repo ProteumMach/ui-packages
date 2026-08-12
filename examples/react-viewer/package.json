@@ -1,0 +1,27 @@
+{
+  "name": "@toolpath/example-react-viewer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "test": "pnpm build && playwright test"
+  },
+  "dependencies": {
+    "@react-three/drei": "10.7.8",
+    "@react-three/fiber": "9.7.0",
+    "@toolpath/viewer": "workspace:*",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.59.1",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/three": "0.185.0",
+    "typescript": "5.9.3",
+    "vite": "8.2.1"
+  }
+}
