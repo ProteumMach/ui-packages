@@ -37,7 +37,7 @@
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean --external react --external react-dom",
     "check-types": "tsc --noEmit",
-    "test": "pnpm build && vitest run --environment jsdom"
+    "test": "pnpm build && vitest run"
   },
   "peerDependencies": {
     "react": "^19.2.0",

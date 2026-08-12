@@ -19,7 +19,7 @@
     "build:viewer": "node scripts/build-viewer.mjs",
     "build:examples": "pnpm --filter @toolpath/example-typescript build && pnpm --filter @toolpath/example-react-viewer build && uv run --project examples/python python -m compileall -q examples/python/src",
     "build": "pnpm build:sdk && pnpm build:ui && pnpm build:viewer && pnpm build:examples",
-    "test:sdk": "node scripts/test-sdks.mjs",
+    "test:sdk": "pnpm build:sdk && tsc --project tsconfig.tests.json && vitest run --config vitest.sdk.config.ts && node scripts/test-sdks.mjs",
     "test:ui": "pnpm --filter @toolpath/ui check-types && pnpm --filter @toolpath/ui test && node scripts/test-ui-package.mjs",
     "test:viewer": "pnpm --filter @toolpath/viewer check-types && pnpm --filter @toolpath/viewer test",
     "test:examples": "pnpm --filter @toolpath/example-typescript test && pnpm --filter @toolpath/example-react-viewer test && uv run --project examples/python python -m unittest discover -s examples/python/tests",
@@ -31,8 +31,10 @@
     "release:dry-run": "pnpm check && node scripts/prepare-release.mjs"
   },
   "devDependencies": {
+    "@types/node": "24.10.1",
     "openapi-typescript": "7.13.0",
     "prettier": "3.6.2",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
   }
 }
