@@ -33,6 +33,9 @@ export const registerPartRoutes = (app: Hono<AppEnv>) => {
       await createEngineClient(apiKey).POST('/v1/parts/{id}/analyze', {
         params: {
           path: { id: partId },
+          // Reports no longer embed these measurements. Ask Engine to compute them so the
+          // ready-report path can retrieve them from /v1/features/datasheets.
+          query: { featureDetails: 'true' },
           header: { 'Idempotency-Key': crypto.randomUUID() },
         },
       }),
