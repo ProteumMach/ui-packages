@@ -1,9 +1,17 @@
-import { Axes, DirectionArrows, Grid, ViewCube, Viewer, type ViewerHandle } from '@toolpath/viewer'
+import {
+  Axes,
+  DirectionArrows,
+  Grid,
+  ViewCube,
+  Viewer,
+  type ViewerHandle,
+  sectionFromPick,
+} from '@toolpath/viewer'
 import { EnginePart } from '@toolpath/viewer/engine'
 import { Button } from '@toolpath/ui'
 import { Component, Suspense, useMemo, useRef, useState } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
-import type { PartPick } from '@toolpath/viewer'
+import type { PartPick, SectionPlacement, SectionState } from '@toolpath/viewer'
 import type { PartReport, PublicInspectionReport } from '../shared/contracts'
 
 class MeshErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -46,6 +54,8 @@ export const FeatureViewer = ({
   jobId,
   selectedFeatureTag,
   highlightedFeatureTags,
+  activeDirection,
+  onPickDirection,
   onPick,
 }: {
   report: PublicInspectionReport
@@ -53,6 +63,9 @@ export const FeatureViewer = ({
   selectedFeatureTag: string | null
   /** Features under the pointer in the feature list. */
   highlightedFeatureTags: readonly string[]
+  /** Scopes picking to one way up, and shows that arrow on its own. */
+  activeDirection: number | null
+  onPickDirection: (index: number) => void
   onPick: (pick: PartPick | null) => void
 }) => {
   const viewerRef = useRef<ViewerHandle>(null)
@@ -60,6 +73,36 @@ export const FeatureViewer = ({
   // where an orbit starts, so leaving it on would swallow the gesture.
   const [sectioning, setSectioning] = useState(false)
   const [cut, setCut] = useState(0.35)
+  // A cut keyed off a face, rather than swept along an axis. `armed` is the
+  // moment between asking for one and clicking the face it starts from.
+  const [armed, setArmed] = useState(false)
+  const [plane, setPlane] = useState<SectionPlacement | null>(null)
+  const [depth, setDepth] = useState(0)
+  const [depthRange, setDepthRange] = useState<SectionState['depthRange']>(null)
+
+  const pickInViewport = (pick: PartPick | null) => {
+    if (armed && pick) {
+      // The click places the cut instead of selecting: it is the question that
+      // was just asked, and answering both at once would select whatever the
+      // cut is about to hide.
+      setPlane(
+        sectionFromPick({
+          point: { x: pick.point[0], y: pick.point[1], z: pick.point[2] },
+          normal: { x: pick.normal[0], y: pick.normal[1], z: pick.normal[2] },
+        }),
+      )
+      setDepth(0)
+      setArmed(false)
+      return
+    }
+    onPick(pick)
+  }
+
+  const stopSectioning = () => {
+    setSectioning(false)
+    setArmed(false)
+    setPlane(null)
+  }
   const viewerReport = useMemo<PartReport>(
     () => ({
       ...report,
@@ -83,24 +126,54 @@ export const FeatureViewer = ({
           size="sm"
           variant={sectioning ? 'info' : 'secondary'}
           aria-pressed={sectioning}
-          onClick={() => setSectioning((on) => !on)}
+          onClick={() => (sectioning ? stopSectioning() : setSectioning(true))}
         >
           Section
         </Button>
         {sectioning ? (
-          <label className="flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900/80 px-3 text-xs text-zinc-300">
-            <span className="sr-only">Cut depth</span>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={cut}
-              onChange={(event) => setCut(Number(event.target.value))}
-              className="w-32 accent-info"
-            />
-            <span className="w-8 text-right font-mono">{Math.round(cut * 100)}%</span>
-          </label>
+          <>
+            <Button
+              size="sm"
+              variant={armed ? 'info' : 'secondary'}
+              aria-pressed={armed}
+              onClick={() => {
+                setArmed((on) => !on)
+                setPlane(null)
+              }}
+            >
+              {armed ? 'Click a face…' : 'From face'}
+            </Button>
+            <label className="flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900/80 px-3 text-xs text-zinc-300">
+              <span className="sr-only">Cut depth</span>
+              {plane && depthRange ? (
+                <>
+                  <input
+                    type="range"
+                    min={Math.max(0, depthRange.min)}
+                    max={depthRange.max}
+                    step={0.1}
+                    value={depth}
+                    onChange={(event) => setDepth(Number(event.target.value))}
+                    className="w-32 accent-info"
+                  />
+                  <span className="w-14 text-right font-mono">{depth.toFixed(1)} mm</span>
+                </>
+              ) : (
+                <>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={cut}
+                    onChange={(event) => setCut(Number(event.target.value))}
+                    className="w-32 accent-info"
+                  />
+                  <span className="w-14 text-right font-mono">{Math.round(cut * 100)}%</span>
+                </>
+              )}
+            </label>
+          </>
         ) : null}
       </div>
       {report.hasMeshGlb || report.hasMeshStl ? (
@@ -117,11 +190,28 @@ export const FeatureViewer = ({
                 report={viewerReport}
                 selection={selectedFeatureTag ? [selectedFeatureTag] : []}
                 hoveredFeatureIds={highlightedFeatureTags}
-                onPick={onPick}
-                section={{ enabled: sectioning, normal: { x: 0, y: 0, z: -1 }, offset: cut }}
-                onSectionChange={(state) => setCut(state.offset)}
+                onPick={pickInViewport}
+                activeDirection={activeDirection}
+                section={{
+                  enabled: sectioning,
+                  normal: { x: 0, y: 0, z: -1 },
+                  offset: cut,
+                  plane,
+                  depth,
+                }}
+                onSectionChange={(state) => {
+                  // The handle reports its drag through the same path the
+                  // sliders write to, so the two never disagree.
+                  if (state.plane && state.depth !== null) setDepth(state.depth)
+                  else setCut(state.offset)
+                  setDepthRange(state.depthRange)
+                }}
               />
-              <DirectionArrows directions={report.candidateDirections} />
+              <DirectionArrows
+                directions={report.candidateDirections}
+                activeDirection={activeDirection}
+                onPickDirection={onPickDirection}
+              />
               <Grid />
               <Axes size={35} />
               <ViewCube />

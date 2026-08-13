@@ -30,6 +30,7 @@ import {
   sectionConstant,
   sectionDepth,
   sectionDepthConstant,
+  sectionDepthRange,
   sectionOffset,
 } from './render/section.js'
 import { EXCLUDE_FROM_FRAME, type ViewerCamera } from './render/camera.js'
@@ -57,6 +58,15 @@ export interface SectionState {
   readonly constant: number
   readonly plane: SectionPlacement | null
   readonly depth: number | null
+  /**
+   * How far the cut can travel from its anchor, in model units, or `null` for a
+   * sweep — which is measured as a fraction of the part rather than a distance.
+   *
+   * Reported because a control that moves the cut has to be bounded by the same
+   * numbers the cut is, and only the viewer knows the part's extent along a
+   * given normal.
+   */
+  readonly depthRange: { readonly min: number; readonly max: number } | null
 }
 
 const DEFAULT_NORMAL: Vec3 = { x: 0, y: 0, z: 1 }
@@ -96,6 +106,7 @@ export function resolveSectionPlane(
       constant,
       plane: options.plane ?? null,
       depth: anchor === null ? null : sectionDepth(normal, anchor, constant),
+      depthRange: anchor === null ? null : sectionDepthRange(bounds, normal, anchor),
     },
   }
 }

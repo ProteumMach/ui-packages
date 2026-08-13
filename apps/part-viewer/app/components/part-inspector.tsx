@@ -1,8 +1,9 @@
 import { focusForPick, type PartPick } from '@toolpath/viewer'
 import { Panels, Tabs } from '@toolpath/ui'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import type { PublicInspectionReport } from '../shared/contracts'
+import { holdFace, sharedReadings } from '../shared/picks'
 import { directionLabel, featureFromTags, filterFeatures } from '../shared/report'
 import { AppHeader } from './app-header'
 import { FeatureDetail } from './feature-detail'
@@ -26,7 +27,16 @@ export const PartInspector = ({
   const [focusedTag, setFocusedTag] = useState<string | null>(null)
   const [hoveredTags, setHoveredTags] = useState<string[]>([])
   const [candidateTags, setCandidateTags] = useState<string[]>([])
-  const [pickedRegion, setPickedRegion] = useState<number | null>(null)
+  /**
+   * The faces being held, most recent last.
+   *
+   * Held rather than reduced to one answer: the readings that own *all* of them
+   * are what a second click is asking for, and that set cannot be recovered
+   * from a single tag afterwards.
+   */
+  const [picks, setPicks] = useState<PartPick[]>([])
+  const [activeDirection, setActiveDirection] = useState<number | null>(null)
+  const pickedRegion = picks.length === 1 ? (picks[0]?.region ?? null) : null
   const focused = useMemo(
     () => report.features.find((feature) => feature.featureTag === focusedTag) ?? null,
     [focusedTag, report.features],
@@ -40,7 +50,13 @@ export const PartInspector = ({
   const choose = (featureTag: string) => {
     setFocusedTag(featureTag)
     setCandidateTags([])
-    setPickedRegion(null)
+    setPicks([])
+  }
+
+  const clearSelection = () => {
+    setFocusedTag(null)
+    setCandidateTags([])
+    setPicks([])
   }
 
   /**
@@ -63,9 +79,21 @@ export const PartInspector = ({
    * would say nothing new.
    */
   const pickFromPart = (pick: PartPick | null) => {
-    if (!pick) {
-      setCandidateTags([])
-      setPickedRegion(null)
+    if (!pick) return clearSelection()
+
+    const adding = pick.modifiers.meta || pick.modifiers.ctrl
+    const held = adding ? holdFace(picks, pick) : [pick]
+
+    if (held.length === 0) return clearSelection()
+    setPicks(held)
+
+    // Several faces held: the readings that own every one of them. Two walls of
+    // a pocket resolve to the pocket, which is how you name a reading without
+    // hunting for it in a list of eight.
+    if (held.length > 1) {
+      const shared = sharedReadings(held)
+      setCandidateTags(shared)
+      setFocusedTag(shared[0] ?? null)
       return
     }
 
@@ -74,8 +102,40 @@ export const PartInspector = ({
 
     setCandidateTags(unselecting ? [] : [...pick.ranked])
     setFocusedTag(unselecting ? null : next)
-    setPickedRegion(unselecting ? null : pick.region)
+    if (unselecting) setPicks([])
   }
+
+  /**
+   * Arrow keys walk the readings of the face that was clicked.
+   *
+   * On the window rather than on the list: the click that produced the
+   * candidates left focus on the canvas, and asking somebody to click the list
+   * before they can arrow through it defeats the point of the shortcut.
+   */
+  useEffect(() => {
+    if (candidateTags.length < 2) return
+
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return
+
+      if (event.key === 'Escape') {
+        clearSelection()
+        return
+      }
+
+      const step = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
+      if (step === 0) return
+      event.preventDefault()
+
+      const at = focusedTag === null ? -1 : candidateTags.indexOf(focusedTag)
+      const next = (at + step + candidateTags.length) % candidateTags.length
+      setFocusedTag(candidateTags[next] ?? null)
+    }
+
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
 
   const tabPanel =
     tab === 'inspector' ? (
@@ -179,6 +239,10 @@ export const PartInspector = ({
         <Panels.Separator className={separatorClassName} />
         <Panels.Panel minSize={400}>
           <FeatureViewer
+            activeDirection={activeDirection}
+            onPickDirection={(index) =>
+              setActiveDirection((current) => (current === index ? null : index))
+            }
             report={report}
             jobId={jobId}
             selectedFeatureTag={focusedTag}
