@@ -3,7 +3,8 @@
 **Goal:** make the 3D viewer on `toolpath@pc-part-viewer` behave like the one on
 `tp-ui@pc-feature-picker`, **staying on React Three Fiber**.
 
-Status: plan only, nothing implemented.
+Status: **Phase A landed** (PRs 1–5, one branch each off `pc-part-viewer`).
+Phase B is next.
 
 ---
 
@@ -104,16 +105,17 @@ Conventions for every port PR: convert to this repo's style (no semicolons,
 single quotes, `.js` import specifiers), bring the corresponding `tp-ui` tests
 across, keep `pnpm check-types` / `test` / `build` green.
 
-### Phase A — the renderer (PRs 1–5)
+### Phase A — the renderer (PRs 1–5) — **done**
 
-**PR 1 — the pure layer** · ~800 LOC + tests
+**PR 1 — the pure layer** · `paul/viewer-pure-layer` ✅
 Port `model/{types,region-index,normals,directions,errors}.ts`, `core/theme.ts`
 and `core/selection.ts` verbatim (modulo style). No three, no React, no scene.
 Nothing consumes it yet. Tests port unchanged: `region-index`, `directions`,
 `theme`, `selection`. The easiest PR here to review, and the vocabulary
 everything later uses.
 
-**PR 2 — Engine adapter: report → `PartModel`, and mesh loading** · ~350 LOC + tests
+**PR 2 — Engine adapter: report → `PartModel`, and mesh loading** ·
+`paul/viewer-engine-adapter` ✅
 Port the normalizer out of `api/report.ts` as `engine/normalize.ts`, typed
 against `@toolpath/api`'s `PartReportResponse` instead of a hand-rolled guard
 set — keeping the `MIN_KERNEL_VERSION` 0.3.0 gate, `PartReportFormatError`
@@ -124,7 +126,7 @@ Port `core/loaders.ts` for its report/mesh agreement check, which
 _Decide here:_ copy `tp-ui`'s `packages/viewer/fixtures` (reports + meshes) as
 the shared test corpus. Recommended — the agreement test needs a real pair.
 
-**PR 3 — `<PartMesh>` becomes one mesh, one material** · ~450 LOC + tests
+**PR 3 — `<PartMesh>` becomes one mesh, one material** · `paul/viewer-part-mesh` ✅
 The core parity change, in R3F. Port `buildRegionAttribute` / `buildRegionTexels`
 and the `onBeforeCompile` material; attach the region attribute to the geometry
 and the `DataTexture` as a uniform; expose `paintRegion` / `paintFeature` /
@@ -133,13 +135,13 @@ material-group path. Selection and hover keep working through the new mechanism,
 so behaviour is unchanged and performance is not — a good PR to attach a
 before/after draw-call count to. Tests: `part.test.ts`, adapted.
 
-**PR 4 — the highlight layer stack** · ~350 LOC + tests
+**PR 4 — the highlight layer stack** · `paul/viewer-highlights` ✅
 Props for `selection`, `hover`, `candidates`, `highlights` (feature → colour +
 weight) and `regionHighlights`, painted weakest-first in the order
 `highlighting.md` §2 specifies. Now that a layer is a texel write, this is
 mostly ordering logic plus its test.
 
-**PR 5 — picking, ranking and cycling** · ~300 LOC + tests
+**PR 5 — picking, ranking and cycling** · `paul/viewer-picking` ✅
 Resolve an R3F pointer hit to region → owners; rank owners with PR 1's
 `selection.ts`; emit `onPick` with `owners` alongside `best` so a consumer
 cannot wire the viewport up without seeing the ambiguity. Implements
@@ -205,6 +207,21 @@ rules engine, so this likely reduces to Plain + Directions.
 **PR 13 — chrome and polish** · view-cube-driven named views, projection toggle,
 control-scheme setting, `zoomToFeature` from a feature row, keyboard nav in the
 feature list.
+
+## 4b. What Phase A actually did differently
+
+- **The app moved earlier than planned.** Keeping the R3F component API meant
+  `apps/part-viewer` and `examples/react-viewer` could follow each PR instead of
+  waiting for a cut-over, so both are already on `PartModel`, the candidate
+  layer, and ranked picks. There is no big-bang migration left to do.
+- **`region-mapping.ts` and `mesh-loader.ts` went in PR 3, not PR 10.** Both were
+  superseded outright; leaving them would have been dead code with tests.
+- **No `datasheet` on `PartModelFeature`.** The public report carries none —
+  datasheets come from a separate endpoint — so the field was dropped rather
+  than ported.
+- **The example is the end-to-end test.** Its Playwright run exercises the
+  shader path against real WebGL, which is the only place the texture
+  highlighting can actually be observed working.
 
 ## 5. Sequencing notes
 
