@@ -33,12 +33,16 @@ export const FeatureViewer = ({
   report,
   jobId,
   selectedFeatureTag,
+  candidateFeatureTags,
   highlightedFeatureTags,
   onFeatureClick,
 }: {
   report: PublicInspectionReport
   jobId: string
   selectedFeatureTag: string | null
+  /** Every feature the last click on the part could have meant. */
+  candidateFeatureTags: readonly string[]
+  /** Features under the pointer in the feature list. */
   highlightedFeatureTags: readonly string[]
   onFeatureClick: (featureTags: string[]) => void
 }) => {
@@ -75,8 +79,9 @@ export const FeatureViewer = ({
             <Viewer ref={viewerRef}>
               <EnginePart
                 report={viewerReport}
-                selectedFeatureIds={selectedFeatureTag ? [selectedFeatureTag] : []}
-                hoveredFeatureIds={[...highlightedFeatureTags]}
+                selection={selectedFeatureTag ? [selectedFeatureTag] : []}
+                candidates={candidateFeatureTags}
+                hoveredFeatureIds={highlightedFeatureTags}
                 onFeatureClick={(event) => onFeatureClick([...event.featureIds])}
                 showEdges={false}
               />

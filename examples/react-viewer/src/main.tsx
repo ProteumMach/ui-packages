@@ -100,8 +100,7 @@ const App = () => {
           <PartMesh
             model={cube}
             geometry={geometry}
-            hoveredFeatureIds={hovered}
-            selectedFeatureIds={selected}
+            selection={selected}
             onFeatureHover={onHover}
             onFeatureClick={(event) => setSelected([...event.featureIds])}
           />

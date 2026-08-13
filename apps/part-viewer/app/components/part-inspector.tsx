@@ -29,8 +29,6 @@ export const PartInspector = ({
     () => featureFromTags(report.features, candidateTags),
     [candidateTags, report.features],
   )
-  const highlightedTags = candidateTags.length ? candidateTags : hoveredTags
-
   const choose = (featureTag: string) => {
     setFocusedTag(featureTag)
     setCandidateTags([])
@@ -92,7 +90,8 @@ export const PartInspector = ({
           report={report}
           jobId={jobId}
           selectedFeatureTag={focusedTag}
-          highlightedFeatureTags={highlightedTags}
+          candidateFeatureTags={candidateTags}
+          highlightedFeatureTags={hoveredTags}
           onFeatureClick={selectMeshFeatures}
         />
 

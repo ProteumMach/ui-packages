@@ -61,6 +61,7 @@ export type {
 export type { DirectionGroup } from './model/directions.js'
 export type { RankingContext } from './render/selection.js'
 export type { PartObject, RegionPaint } from './render/part.js'
+export type { FeatureHighlight, HighlightLayers, RegionHighlight } from './render/paint.js'
 export type { ViewerTheme } from './render/theme.js'
 export type { PartMeshProps } from './part-mesh.js'
 export type { AxesProps, GridProps, OrientationCubeProps } from './primitives.js'
