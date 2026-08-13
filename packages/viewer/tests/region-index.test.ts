@@ -5,12 +5,8 @@ import {
   type BuildRegionIndexInput,
   type IndexableRegion,
 } from '../src/model/region-index.js'
-import {
-  assertInstanceOf,
-  createRandom,
-  loadReportFixture,
-  partModelFromReport,
-} from './fixtures.js'
+import { assertInstanceOf, createRandom, cubeModel, loadReportFixture } from './fixtures.js'
+import { normalizePartReport } from '../src/engine/normalize.js'
 
 /**
  * `RegionIndex` is the correctness core of feature selection and it is entirely
@@ -44,7 +40,7 @@ function index(input: Partial<BuildRegionIndexInput> = {}) {
 
 describe('buildRegionIndex — triangle lookup', () => {
   it('resolves every triangle of the demo fixture to its region', () => {
-    const { regionIndex, mesh } = partModelFromReport(loadReportFixture('local-0.3.0-demo'))
+    const { regionIndex, mesh } = normalizePartReport(loadReportFixture('local-0.3.0-demo'))
 
     expect(mesh.triangleCount).toBe(96)
 
@@ -174,7 +170,7 @@ describe('buildRegionIndex — feature ↔ region', () => {
   })
 
   it('holds the cube fixture at five to eight owners on every region', () => {
-    const { regions, regionIndex } = partModelFromReport(loadReportFixture('local-0.3.0-cube'))
+    const { regions, regionIndex } = cubeModel()
 
     const owners = regions.map((region) => regionIndex.featuresForRegion(region.idx).length)
 
