@@ -21,7 +21,10 @@ export function sameDirection(a: Vec3, b: Vec3): boolean {
 }
 
 /** The index of a direction in `candidateDirections`, or `-1`. */
-export function directionIndexOf(model: PartModel, direction: Vec3): number {
+export function directionIndexOf(
+  model: Pick<PartModel, 'candidateDirections'>,
+  direction: Vec3,
+): number {
   return model.candidateDirections.findIndex((candidate) => sameDirection(candidate, direction))
 }
 

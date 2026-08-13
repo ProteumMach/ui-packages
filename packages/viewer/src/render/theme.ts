@@ -22,6 +22,11 @@ export interface ViewerTheme {
   readonly hoverEmissive: number
   /** Selected features; see also {@link HIGHLIGHT_COLORS}. */
   readonly highlight: number
+  /**
+   * The faces a click just picked — the one thing on the part that is about
+   * this moment rather than about the plan.
+   */
+  readonly picked: number
   /** `EdgesGeometry` line color and opacity. */
   readonly edge: number
   readonly edgeOpacity: number
@@ -50,7 +55,7 @@ export interface ViewerTheme {
  * the other two mark a feature the analysis flagged.
  */
 export const HIGHLIGHT_COLORS = {
-  default: 0xff8000,
+  default: 0xffa31a,
   toolIssue: 0x9333ea,
   geometryIssue: 0xff0000,
 } as const
@@ -99,7 +104,7 @@ export const DEFAULT_THEME: ViewerTheme = {
   part: 0xffffff,
   partEmissive: 0x3c4051,
   /*
-   * Pale amber, a step off the selection orange it leads to.
+   * A paler form of the selection orange it leads to.
    *
    * It was a teal, which sat between two of the nine direction colors — on a
    * part painted by direction, "what the pointer is on" and "cut from way up
@@ -107,9 +112,10 @@ export const DEFAULT_THEME: ViewerTheme = {
    * moment rather than to the plan: what is under the pointer, and what has
    * been picked. Nothing in the direction cycle is warm.
    */
-  hover: 0xffc275,
-  hoverEmissive: 0x5c3a10,
+  hover: 0xffb066,
+  hoverEmissive: 0x7a4a10,
   highlight: HIGHLIGHT_COLORS.default,
+  picked: 0xf97316,
   edge: 0x000000,
   edgeOpacity: 0.5,
   sectionCap: 0xc7cbd8,
@@ -145,6 +151,7 @@ export function themesEqual(a: ViewerTheme, b: ViewerTheme): boolean {
     a.hover === b.hover &&
     a.hoverEmissive === b.hoverEmissive &&
     a.highlight === b.highlight &&
+    a.picked === b.picked &&
     a.edge === b.edge &&
     a.edgeOpacity === b.edgeOpacity &&
     a.sectionCap === b.sectionCap &&

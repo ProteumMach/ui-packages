@@ -9,17 +9,25 @@ import {
   useMemo,
   useRef,
 } from 'react'
-import type { PropsWithChildren, ReactNode } from 'react'
-import type { Group, PerspectiveCamera } from 'three'
-import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
+import type { CSSProperties, PropsWithChildren, ReactNode } from 'react'
+import { Box3, Group, Vector3 } from 'three'
+import { CadCameraControls } from './camera.js'
 import {
-  CadOrbitControls,
+  DEFAULT_FIT_MARGIN,
+  PERSPECTIVE_FOV,
+  type Projection,
+  type SceneBounds,
+  type ViewerCamera,
+  applyProjection,
   cadViewDirections,
-  configureCadCamera,
-  currentCadViewDirection,
-  frameCadCamera,
-} from './camera.js'
-import type { CameraPanBounds } from './camera.js'
+  contentBounds,
+  currentViewDirection,
+  defaultBounds,
+  fitDistance,
+  startPosition,
+} from './render/camera.js'
+import type { ControlScheme, ExtendedCameraControls } from './render/controls.js'
+import { type ViewerTheme, resolveTheme } from './render/theme.js'
 import type { ViewerControls, ViewerHandle, ViewerView } from './types.js'
 
 const ViewerControlsContext = createContext<ViewerControls | null>(null)
@@ -32,65 +40,154 @@ export const useViewerControls = (): ViewerControls => {
 
 interface SceneProps extends PropsWithChildren {
   setControls: (controls: ViewerControls) => void
+  projection: Projection
+  scheme: ControlScheme
+  freeOrbit: boolean
+  theme: ViewerTheme
 }
 
-const ViewerScene = ({ children, setControls }: SceneProps) => {
-  const { camera, invalidate } = useThree()
-  const controlsRef = useRef<OrbitControlsImpl>(null)
+const ViewerScene = ({
+  children,
+  setControls,
+  projection,
+  scheme,
+  freeOrbit,
+  theme,
+}: SceneProps) => {
+  const camera = useThree((state) => state.camera) as ViewerCamera
+  const size = useThree((state) => state.size)
+  const invalidate = useThree((state) => state.invalidate)
+  const controlsRef = useRef<ExtendedCameraControls | null>(null)
   const contentRef = useRef<Group>(null)
+  const lightsRef = useRef<Group>(null)
   const initialFrameComplete = useRef(false)
-  const panBoundsRef = useRef<CameraPanBounds | null>(null)
+  const boundsRef = useRef<SceneBounds>(defaultBounds())
+  const scratchBox = useMemo(() => new Box3(), [])
+  const scratchDirection = useMemo(() => new Vector3(), [])
+  const scratchView = useMemo(() => new Vector3(), [])
 
-  const frameContent = useCallback(
-    (direction = cadViewDirections.isometric): boolean => {
-      const content = contentRef.current
-      if (!content) return false
-      const framed = frameCadCamera({
-        camera: camera as PerspectiveCamera,
-        content,
-        controls: controlsRef.current,
-        direction,
-        panBoundsRef,
-      })
+  /** The bounds of whatever the consumer put in the scene, grid and axes aside. */
+  const measure = useCallback((): SceneBounds => {
+    const content = contentRef.current
+    boundsRef.current = content ? contentBounds(content, scratchBox) : defaultBounds()
+    return boundsRef.current
+  }, [scratchBox])
+
+  /**
+   * Frames the content from `direction`, sizing the frustum to it first.
+   *
+   * The frustum is derived from the bounds rather than from the camera's
+   * distance, so orbiting and dollying afterwards never need it recomputed.
+   */
+  const frame = useCallback(
+    (direction: Vector3, transition = false): boolean => {
+      const controls = controlsRef.current
+      if (!controls) return false
+
+      const bounds = measure()
+      applyProjection(camera, size, bounds, DEFAULT_FIT_MARGIN)
+
+      const distance = fitDistance(projection, size, bounds, DEFAULT_FIT_MARGIN)
+      const position = scratchDirection.copy(direction).normalize().multiplyScalar(distance)
+      position.add(bounds.center)
+
+      void controls.setLookAt(
+        position.x,
+        position.y,
+        position.z,
+        bounds.center.x,
+        bounds.center.y,
+        bounds.center.z,
+        transition,
+      )
+      // The orthographic frustum is already sized to the bounds, so anything
+      // the wheel did to zoom would otherwise survive a Fit.
+      if (projection === 'orthographic') void controls.zoomTo(1, transition)
+
       invalidate()
-      return framed
+      return true
     },
-    [camera, invalidate],
+    [camera, invalidate, measure, projection, scratchDirection, size],
   )
 
   const fitContent = useCallback(() => {
     const controls = controlsRef.current
-    return frameContent(
-      controls
-        ? currentCadViewDirection(camera as PerspectiveCamera, controls.target)
-        : cadViewDirections.isometric,
-    )
-  }, [camera, frameContent])
+    if (!controls) return false
+    const target = controls.getTarget(new Vector3())
+    return frame(currentViewDirection(camera, target, new Vector3()), true)
+  }, [camera, frame])
+
+  const resetContent = useCallback(() => {
+    const bounds = measure()
+    const start = startPosition(projection, size, bounds).sub(bounds.center)
+    return frame(start, true)
+  }, [frame, measure, projection, size])
 
   useEffect(() => {
-    const controls: ViewerControls = {
-      fit: fitContent,
-      reset: () => frameContent(cadViewDirections.isometric),
-      setView: (view) => frameContent(cadViewDirections[view]),
-    }
-    setControls(controls)
-    frameContent()
-  }, [fitContent, frameContent, setControls])
+    setControls({
+      fit: () => {
+        fitContent()
+      },
+      reset: () => {
+        resetContent()
+      },
+      setView: (view) => {
+        frame(cadViewDirections[view], true)
+      },
+      setViewDirection: (direction) => {
+        frame(scratchView.set(direction.x, direction.y, direction.z), true)
+      },
+    })
+  }, [fitContent, frame, resetContent, scratchView, setControls])
 
-  // A Suspense-loaded mesh may not exist during the first effect. Frame once its scene nodes have
-  // actually mounted, while leaving later camera movement under the consumer's control.
+  // Reframe when the projection changes: a perspective distance and an
+  // orthographic frustum are not interchangeable.
+  useEffect(() => {
+    if (initialFrameComplete.current) resetContent()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projection])
+
+  // Keep the frustum matched to the viewport without moving the camera.
+  useEffect(() => {
+    applyProjection(camera, size, boundsRef.current, DEFAULT_FIT_MARGIN)
+    invalidate()
+  }, [camera, invalidate, size])
+
+  /**
+   * The light rig turns with the camera, so a part is lit the same way from
+   * every angle.
+   *
+   * Fixed to the world, the lighting is physically honest and practically
+   * useless: a face that starts in shadow stays in shadow however the view is
+   * orbited, so the only way to see it is to guess which way to turn the part
+   * that is not turning.
+   */
+  useFrame(() => {
+    const lights = lightsRef.current
+    if (lights && !lights.quaternion.equals(camera.quaternion)) {
+      lights.quaternion.copy(camera.quaternion)
+      invalidate()
+    }
+  })
+
+  // A Suspense-loaded mesh does not exist during the first effect, so the
+  // opening frame waits for something to actually be in the scene.
   useFrame(() => {
     if (!initialFrameComplete.current && contentRef.current?.children.length) {
-      initialFrameComplete.current = frameContent()
+      initialFrameComplete.current = resetContent()
     }
   })
 
   return (
     <>
-      <ambientLight intensity={1.8} />
-      <hemisphereLight args={['#ffffff', '#25283a', 1.2]} />
+      <group ref={lightsRef}>
+        <ambientLight color={theme.ambient} intensity={theme.ambientIntensity} />
+        <hemisphereLight
+          args={[theme.hemisphereSky, theme.hemisphereGround, theme.hemisphereIntensity]}
+        />
+      </group>
       <group ref={contentRef}>{children}</group>
-      <CadOrbitControls controlsRef={controlsRef} panBoundsRef={panBoundsRef} />
+      <CadCameraControls controlsRef={controlsRef} scheme={scheme} freeOrbit={freeOrbit} />
     </>
   )
 }
@@ -98,38 +195,77 @@ const ViewerScene = ({ children, setControls }: SceneProps) => {
 export interface ViewerProps {
   children?: ReactNode
   className?: string
-  style?: React.CSSProperties
+  style?: CSSProperties
+  /**
+   * Perspective by default. Orthographic is what a machinist reads a part in —
+   * parallel edges stay parallel, so two features the same size measure the
+   * same size wherever they sit.
+   */
+  projection?: Projection
+  /**
+   * `toolpath` — left-drag orbits, right-drag pans. `fusion` — middle-drag and
+   * two-finger scroll pan, shift makes them orbit, pinch zooms; it matches
+   * Fusion 360, which is what most users have open in the other window.
+   */
+  controls?: ControlScheme
+  /** Orbit past the poles instead of stopping there. On by default. */
+  freeOrbit?: boolean
+  /** Lighting and background. The part's own colours are tuned against this rig. */
+  theme?: Partial<ViewerTheme>
 }
 
 export const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
-  { children, className, style },
+  {
+    children,
+    className,
+    style,
+    projection = 'perspective',
+    controls = 'toolpath',
+    freeOrbit = true,
+    theme,
+  },
   ref,
 ) {
   const actionsRef = useRef<ViewerControls | null>(null)
+  const resolved = useMemo(() => resolveTheme(theme), [theme])
   const proxy = useMemo<ViewerControls>(
     () => ({
       fit: () => actionsRef.current?.fit(),
       reset: () => actionsRef.current?.reset(),
-      setView: (view) => actionsRef.current?.setView(view),
+      setView: (view: ViewerView) => actionsRef.current?.setView(view),
+      setViewDirection: (direction) => actionsRef.current?.setViewDirection(direction),
     }),
     [],
   )
   useImperativeHandle(ref, () => proxy, [proxy])
-  const setControls = useCallback((controls: ViewerControls) => {
-    actionsRef.current = controls
+  const setControls = useCallback((next: ViewerControls) => {
+    actionsRef.current = next
   }, [])
 
   return (
     <ViewerControlsContext.Provider value={proxy}>
       <div className={className} style={{ height: '100%', width: '100%', ...style }}>
         <Canvas
-          camera={{ fov: 42, position: [1, -1, 1], near: 0.001, far: 100000 }}
+          key={projection}
+          orthographic={projection === 'orthographic'}
+          camera={{ fov: PERSPECTIVE_FOV, up: [0, 0, 1], position: [1, -1, 1] }}
           dpr={[1, 2]}
           frameloop="demand"
-          gl={{ antialias: true, alpha: true }}
-          onCreated={({ camera }) => configureCadCamera(camera as PerspectiveCamera)}
+          // `stencil` is off by default in three, and the section cap is a
+          // stencil trick — without it the cut still happens and the part just
+          // looks hollow. `localClippingEnabled` is what lets a material carry
+          // its own clipping plane rather than the whole scene sharing one.
+          gl={{ antialias: true, alpha: true, stencil: true, localClippingEnabled: true }}
         >
-          <ViewerScene setControls={setControls}>{children}</ViewerScene>
+          <ViewerScene
+            setControls={setControls}
+            projection={projection}
+            scheme={controls}
+            freeOrbit={freeOrbit}
+            theme={resolved}
+          >
+            {children}
+          </ViewerScene>
         </Canvas>
       </div>
     </ViewerControlsContext.Provider>

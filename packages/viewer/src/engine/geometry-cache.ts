@@ -1,6 +1,10 @@
 import type { BufferGeometry } from 'three'
-import type { PartMeshRefs } from '../model/types.js'
+import type { PartMeshRefs, PartModel } from '../model/types.js'
 import { loadPartMesh } from './geometry.js'
+import { smoothRegionNormals } from './normals.js'
+
+/** What the cache needs of a part: the artifact to fetch, and how to shade it. */
+export type CacheablePart = Pick<PartModel, 'mesh' | 'regions'>
 
 export interface EngineGeometryResource {
   status: 'pending' | 'fulfilled' | 'rejected'
@@ -12,7 +16,7 @@ export interface EngineGeometryResource {
 }
 
 export interface EngineGeometryCache {
-  get(mesh: PartMeshRefs): EngineGeometryResource
+  get(part: CacheablePart): EngineGeometryResource
   retain(resource: EngineGeometryResource): void
   release(resource: EngineGeometryResource): void
   clear(): void
@@ -35,7 +39,13 @@ export function engineGeometryResourceKey(mesh: PartMeshRefs): string {
  * the cache exceeds its capacity.
  */
 export function createEngineGeometryCache(
-  loadGeometry: (mesh: PartMeshRefs) => Promise<BufferGeometry> = (mesh) => loadPartMesh(mesh),
+  loadGeometry: (part: CacheablePart) => Promise<BufferGeometry> = async (part) => {
+    const geometry = await loadPartMesh(part.mesh)
+    // Shaded here rather than in the loader: the normals depend on the report's
+    // region table, and the cached geometry is per report anyway.
+    smoothRegionNormals(geometry, part.regions)
+    return geometry
+  },
   maximumEntries = 8,
 ): EngineGeometryCache {
   const resources = new Map<string, EngineGeometryResource>()
@@ -65,8 +75,8 @@ export function createEngineGeometryCache(
   }
 
   return {
-    get(mesh) {
-      const key = engineGeometryResourceKey(mesh)
+    get(part) {
+      const key = engineGeometryResourceKey(part.mesh)
       const existing = resources.get(key)
       if (existing) {
         touch(existing)
@@ -79,7 +89,7 @@ export function createEngineGeometryCache(
         references: 0,
         lastAccess: ++accessSequence,
       } as EngineGeometryResource
-      resource.promise = loadGeometry(mesh).then(
+      resource.promise = loadGeometry(part).then(
         (geometry) => {
           resource.status = 'fulfilled'
           resource.geometry = geometry

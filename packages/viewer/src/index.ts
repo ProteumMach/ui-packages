@@ -2,19 +2,63 @@
 // the generic scene API and the Engine adapter boundary explicit. The root
 // re-exports the adapter's entry points for callers that only ever render a
 // report.
-export { EnginePart, normalizePartReport } from './engine/index.js'
+export { EnginePart, normalizePartReport, smoothRegionNormals } from './engine/index.js'
 export { PartMesh } from './part-mesh.js'
-export { Axes, Grid, OrientationCube } from './primitives.js'
+export { Axes, Grid, ViewCube } from './primitives.js'
+export { DirectionArrows } from './direction-arrows.js'
+export { SectionView, resolveSectionPlane } from './section-view.js'
+export {
+  HANDLE_PIXELS,
+  PICKED_SURFACE_LABEL,
+  SECTION_RENDER_ORDER,
+  dragPlane,
+  pickedStartDepth,
+  screenLength,
+  sectionBounds,
+  sectionConstant,
+  sectionDepth,
+  sectionDepthConstant,
+  sectionDepthRange,
+  sectionFromPick,
+  sectionOffset,
+  sectionPlane,
+} from './render/section.js'
+export { arrowPlacement } from './render/directions.js'
+export { useContentBox } from './content-box.js'
+export {
+  CHAMFER,
+  VIEW_NAMES,
+  VIEW_SIGNS,
+  cubeOutlineGeometry,
+  cubeZones,
+  labelGeometry,
+  labelTexture,
+  panelGeometry,
+  viewKind,
+  viewUp,
+  viewVector,
+} from './render/view-cube.js'
+export { gridGeometry, gridSpec } from './render/grid.js'
+export { regionEdgesGeometry } from './render/edges.js'
+export { CadCameraControls } from './camera.js'
 export {
   CAD_CAMERA_UP,
-  CadOrbitControls,
+  DEFAULT_FIT_MARGIN,
+  EXCLUDE_FROM_FRAME,
+  PERSPECTIVE_FOV,
+  applyProjection,
+  aspectRatio,
+  boundsFromBox,
   cadViewDirections,
-  cameraDistanceLimits,
-  clampCameraTarget,
-  configureCadCamera,
-  currentCadViewDirection,
-  frameCadCamera,
-} from './camera.js'
+  contentBounds,
+  currentViewDirection,
+  defaultBounds,
+  fitDistance,
+  orthographicHalfHeight,
+  perspectiveFitDistance,
+  startPosition,
+} from './render/camera.js'
+export { ExtendedCameraControls } from './render/controls.js'
 export { useViewerControls, Viewer } from './viewer.js'
 export { PartReportFormatError, UnsupportedKernelVersionError } from './model/errors.js'
 export { buildRegionIndex } from './model/region-index.js'
@@ -72,6 +116,14 @@ export type { PartObject, RegionPaint } from './render/part.js'
 export type { FeatureHighlight, HighlightLayers, RegionHighlight } from './render/paint.js'
 export type { ViewerTheme } from './render/theme.js'
 export type { PartMeshProps } from './part-mesh.js'
-export type { AxesProps, GridProps, OrientationCubeProps } from './primitives.js'
-export type { CameraDistanceLimits, CameraPanBounds } from './camera.js'
+export type { AxesProps, GridProps, ViewCubeProps } from './primitives.js'
+export type { CubeZone, ViewKind, ViewName } from './render/view-cube.js'
+export type { DirectionArrowsProps, NamedDirection } from './direction-arrows.js'
+export type { ArrowPlacement } from './render/directions.js'
+export type { SectionOptions, SectionState } from './section-view.js'
+export type { SectionAnchor, SectionBounds, SectionPlacement } from './render/section.js'
+export type { GridSpec } from './render/grid.js'
+export type { CadCameraControlsProps } from './camera.js'
+export type { Projection, SceneBounds, ViewerCamera, ViewportSize } from './render/camera.js'
+export type { ControlScheme, ExtendedCameraControlsOptions } from './render/controls.js'
 export type { ViewerProps } from './viewer.js'

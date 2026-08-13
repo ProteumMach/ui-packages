@@ -1,7 +1,7 @@
 {
   "name": "@toolpath/viewer",
-  "version": "0.1.0",
-  "description": "React Three Fiber part viewer primitives for Toolpath Engine reports",
+  "version": "0.2.0",
+  "description": "React Three Fiber viewer for Toolpath Engine part reports",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -61,5 +61,8 @@
     "tsup": "8.5.1",
     "typescript": "5.9.3",
     "vitest": "4.1.10"
+  },
+  "dependencies": {
+    "camera-controls": "3.1.0"
   }
 }

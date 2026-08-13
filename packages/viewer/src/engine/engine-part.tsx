@@ -25,7 +25,7 @@ export interface EnginePartProps extends Omit<PartMeshProps, 'model' | 'geometry
  */
 export const EnginePart = ({ report, ...props }: EnginePartProps) => {
   const model = useMemo(() => normalizePartReport(report), [report])
-  const resource = useGeometryResource(model.mesh)
+  const resource = useGeometryResource(model)
 
   useEffect(() => {
     engineGeometryCache.retain(resource)
@@ -35,8 +35,8 @@ export const EnginePart = ({ report, ...props }: EnginePartProps) => {
   return <PartMesh model={model} geometry={resource.geometry!} {...props} />
 }
 
-function useGeometryResource(mesh: Parameters<typeof engineGeometryCache.get>[0]) {
-  const resource: EngineGeometryResource = engineGeometryCache.get(mesh)
+function useGeometryResource(part: Parameters<typeof engineGeometryCache.get>[0]) {
+  const resource: EngineGeometryResource = engineGeometryCache.get(part)
   if (resource.status === 'pending') throw resource.promise
   if (resource.status === 'rejected') throw resource.error
   return resource

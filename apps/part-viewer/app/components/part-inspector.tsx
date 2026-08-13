@@ -1,8 +1,16 @@
-import { focusForPick, type PartPick } from '@toolpath/viewer'
+import { directionIndexOf, type PartPick } from '@toolpath/viewer'
 import { Panels, Tabs } from '@toolpath/ui'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import type { PublicInspectionReport } from '../shared/contracts'
+import {
+  NOTHING_SELECTED,
+  type SelectionState,
+  heldRegions,
+  isEmptySelection,
+  pickFace,
+  stepCandidate,
+} from '../shared/selection'
 import { directionLabel, featureFromTags, filterFeatures } from '../shared/report'
 import { AppHeader } from './app-header'
 import { FeatureDetail } from './feature-detail'
@@ -23,24 +31,34 @@ export const PartInspector = ({
 }) => {
   const [tab, setTab] = useState<ViewerTab>('inspector')
   const [query, setQuery] = useState('')
-  const [focusedTag, setFocusedTag] = useState<string | null>(null)
   const [hoveredTags, setHoveredTags] = useState<string[]>([])
-  const [candidateTags, setCandidateTags] = useState<string[]>([])
-  const [pickedRegion, setPickedRegion] = useState<number | null>(null)
+  const [selection, setSelection] = useState<SelectionState>(NOTHING_SELECTED)
+  const [activeDirection, setActiveDirection] = useState<number | null>(null)
+  const candidateTags = selection.candidates
+  const focusedTag = selection.focused
   const focused = useMemo(
     () => report.features.find((feature) => feature.featureTag === focusedTag) ?? null,
     [focusedTag, report.features],
   )
   const features = useMemo(() => filterFeatures(report.features, query), [query, report.features])
+  /**
+   * Once a feature is being read, its own way up is the only one worth drawing.
+   * An explicit direction still wins: choosing one is a question about that
+   * direction, and it stays on screen while readings are looked at within it.
+   */
+  const shownDirection = useMemo(() => {
+    if (activeDirection !== null) return activeDirection
+    if (!focused) return null
+    const index = directionIndexOf(report, focused.machiningDirection)
+    return index === -1 ? null : index
+  }, [activeDirection, focused, report])
   const candidates = useMemo(
     () => featureFromTags(report.features, candidateTags),
     [candidateTags, report.features],
   )
   /** Naming a feature in the list is a different question from the one a click asked. */
   const choose = (featureTag: string) => {
-    setFocusedTag(featureTag)
-    setCandidateTags([])
-    setPickedRegion(null)
+    setSelection({ picks: [], candidates: [], focused: featureTag })
   }
 
   /**
@@ -49,24 +67,52 @@ export const PartInspector = ({
    * Keeps the candidate list up: it is the control being used, and clearing it
    * on the first press left nothing to switch back with.
    */
-  const focusCandidate = (featureTag: string) => setFocusedTag(featureTag)
+  const focusCandidate = (featureTag: string) =>
+    setSelection((current) => ({ ...current, focused: featureTag }))
 
   /**
    * A click on the part offers its readings rather than deciding between them.
    * The best one is focused so there is something to read, and clicking the
    * same face again walks the rest — the list beside it is how you pick another
    * outright.
+   *
+   * A click that lands back on the reading already being read clears it. On a
+   * face with one reading that makes a click a toggle; on a face with eight it
+   * is the end of the cycle, which is the point at which walking them again
+   * would say nothing new.
    */
-  const pickFromPart = (pick: PartPick | null) => {
-    if (!pick) {
-      setCandidateTags([])
-      setPickedRegion(null)
-      return
+  const pickFromPart = (pick: PartPick | null) => setSelection((current) => pickFace(current, pick))
+
+  /**
+   * Arrow keys walk the readings of the face that was clicked.
+   *
+   * On the window rather than on the list: the click that produced the
+   * candidates left focus on the canvas, and asking somebody to click the list
+   * before they can arrow through it defeats the point of the shortcut.
+   */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return
+
+      // Escape works outward: the selection first, then the direction being
+      // worked in. Clearing both at once throws away a scope somebody set
+      // deliberately along with the click they are undoing.
+      if (event.key === 'Escape') {
+        if (isEmptySelection(selection)) setActiveDirection(null)
+        else setSelection(NOTHING_SELECTED)
+        return
+      }
+
+      const step = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
+      if (step === 0) return
+      event.preventDefault()
+      setSelection((current) => stepCandidate(current, step))
     }
-    setCandidateTags([...pick.ranked])
-    setFocusedTag(focusForPick(pick, pickedRegion, focusedTag))
-    setPickedRegion(pick.region)
-  }
+
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selection])
 
   const tabPanel =
     tab === 'inspector' ? (
@@ -170,10 +216,16 @@ export const PartInspector = ({
         <Panels.Separator className={separatorClassName} />
         <Panels.Panel minSize={400}>
           <FeatureViewer
+            activeDirection={activeDirection}
+            onPickDirection={(index) =>
+              setActiveDirection((current) => (current === index ? null : index))
+            }
             report={report}
             jobId={jobId}
             selectedFeatureTag={focusedTag}
             highlightedFeatureTags={hoveredTags}
+            heldRegions={heldRegions(selection)}
+            shownDirection={shownDirection}
             onPick={pickFromPart}
           />
         </Panels.Panel>

@@ -60,10 +60,35 @@ export interface HighlightLayers {
   readonly candidates?: readonly FeatureTag[]
   /** The features being read. */
   readonly selection?: readonly FeatureTag[]
+  /**
+   * The faces a click just picked, painted over the reading they resolved to.
+   *
+   * Above the selection rather than below it, which is where the feature picker
+   * puts them — because the picker paints nothing for a guessed reading, so its
+   * picked faces are never covered. Here the guess *is* painted, so held faces
+   * under it would vanish and a modifier-click would look like it did nothing.
+   */
+  readonly pickedRegions?: readonly number[]
   /** Features shown as hovered from outside the viewport — a list row. */
   readonly hoveredFeatures?: readonly FeatureTag[]
   /** The face under the pointer. */
   readonly hoverRegion?: number | null
+}
+
+/**
+ * The faces the selection already owns.
+ *
+ * Hover does not repaint them: pointing at something and having it answer in
+ * the same colour it had before the click reads as the click not having landed.
+ * Everywhere else the pointer still wins — it is only the face it just selected
+ * that it leaves alone.
+ */
+function selectedRegions(part: PartObject, layers: HighlightLayers): Set<number> {
+  const regions = new Set<number>()
+  for (const tag of layers.selection ?? []) {
+    for (const region of part.model.regionIndex.regionsForFeature(tag)) regions.add(region)
+  }
+  return regions
 }
 
 /**
@@ -105,11 +130,15 @@ export function applyHighlightLayers(
     part.paintFeature(tag, theme.highlight, 1)
   }
 
+  for (const region of layers.pickedRegions ?? []) {
+    part.paintRegion(region, theme.picked, 1)
+  }
+
   for (const tag of layers.hoveredFeatures ?? []) {
     part.paintFeature(tag, theme.hover, HOVER_WEIGHT)
   }
 
-  if (layers.hoverRegion != null) {
+  if (layers.hoverRegion != null && !selectedRegions(part, layers).has(layers.hoverRegion)) {
     part.paintRegion(layers.hoverRegion, theme.hover, HOVER_WEIGHT)
   }
 }

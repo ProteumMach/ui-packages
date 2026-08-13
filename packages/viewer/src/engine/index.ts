@@ -4,6 +4,7 @@ export {
   engineGeometryCache,
   engineGeometryResourceKey,
 } from './geometry-cache.js'
+export { smoothRegionNormals } from './normals.js'
 export {
   PartMeshError,
   loadPartGeometry,
@@ -17,7 +18,11 @@ export {
   normalizePartReport,
 } from './normalize.js'
 export type { EnginePartProps } from './engine-part.js'
-export type { EngineGeometryCache, EngineGeometryResource } from './geometry-cache.js'
+export type {
+  CacheablePart,
+  EngineGeometryCache,
+  EngineGeometryResource,
+} from './geometry-cache.js'
 export type {
   FetchLike,
   LoadPartGeometryOptions,
