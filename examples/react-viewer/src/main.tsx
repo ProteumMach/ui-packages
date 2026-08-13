@@ -68,6 +68,7 @@ const App = () => {
   const [selected, setSelected] = useState<string[]>([])
   const [cut, setCut] = useState(0.45)
   const [sectioning, setSectioning] = useState(false)
+  const [direction, setDirection] = useState<number | null>(null)
 
   return (
     <main>
@@ -86,6 +87,9 @@ const App = () => {
         </p>
         <p>
           <strong>Cut:</strong> {sectioning ? `${Math.round(cut * 100)}%` : 'off'}
+        </p>
+        <p>
+          <strong>Direction:</strong> {direction === null ? 'all' : String(direction)}
         </p>
       </section>
       <div className="viewer">
@@ -113,7 +117,11 @@ const App = () => {
             onHover={(pick: PartPick | null) => setHovered(pick ? [...pick.owners] : [])}
             onPick={(pick: PartPick | null) => setSelected(pick ? [...pick.ranked] : [])}
           />
-          <DirectionArrows directions={cube.candidateDirections} />
+          <DirectionArrows
+            directions={cube.candidateDirections}
+            shownDirection={direction}
+            onPickDirection={(index) => setDirection((held) => (held === index ? null : index))}
+          />
           <Grid />
           <Axes size={35} />
           <ViewCube />

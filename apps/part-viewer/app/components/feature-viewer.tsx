@@ -13,7 +13,9 @@ import { Component, Suspense, useMemo, useRef, useState } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import type { PartPick, SectionPlacement, SectionState } from '@toolpath/viewer'
 import { type Arrows, nextArrows } from '../shared/arrows'
+import { directionLabel } from '../shared/report'
 import { PAINT_MODE_LABELS, type PaintMode, paintWash } from '../shared/paint'
+import { Button } from '@toolpath/ui'
 import { ToolButton } from './tool-button'
 import type { PartReport, PublicInspectionReport } from '../shared/contracts'
 
@@ -47,6 +49,9 @@ const meshUrl = (partId: string, jobId: string, format: 'glb' | 'stl'): string =
  * A solid head and nothing else: at this size extra lines read as smudges, and
  * the button's own colour already says which state it is in.
  */
+/** A direction the report does not have, so the label says something. */
+const ORIGIN = { x: 0, y: 0, z: 0 }
+
 const ArrowGlyph = () => (
   <svg
     aria-hidden="true"
@@ -176,105 +181,116 @@ export const FeatureViewer = ({
 
   return (
     <section className="relative size-full min-h-[32rem] bg-zinc-900">
-      <div
-        className="absolute left-3 top-3 z-10 flex items-center gap-1.5"
-        aria-label="Viewer controls"
-      >
-        {/* A shelf rather than a toggle: what the part is coloured by is the
+      <div className="absolute left-3 top-3 z-10 flex flex-col items-start gap-1.5">
+        <div className="flex items-center gap-1.5" aria-label="Viewer controls">
+          {/* A shelf rather than a toggle: what the part is coloured by is the
             first thing anybody changes, and a switch that hides the other mode
             makes you press it to find out what it was. */}
-        <span
-          className="flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-900/80 p-1"
-          role="group"
-          aria-label="Colour the part by"
-        >
-          {PAINT_MODE_LABELS.map(([mode, label]) => (
+          <span
+            className="flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-900/80 p-1"
+            role="group"
+            aria-label="Colour the part by"
+          >
+            {PAINT_MODE_LABELS.map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={paintMode === mode}
+                onClick={() => onPaintMode(mode)}
+                className={`rounded px-2 py-0.5 text-xs font-semibold transition ${
+                  paintMode === mode
+                    ? 'bg-info/20 text-info'
+                    : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
+                } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/75`}
+              >
+                {label}
+              </button>
+            ))}
+            {/* In the same shelf as the modes: it is another thing to do to the
+              part in front of you, and it is the arrows' only home. */}
             <button
-              key={mode}
               type="button"
-              aria-pressed={paintMode === mode}
-              onClick={() => onPaintMode(mode)}
-              className={`rounded px-2 py-0.5 text-xs font-semibold transition ${
-                paintMode === mode
+              aria-pressed={arrows === 'all'}
+              aria-label={`Direction arrows: ${arrows === 'all' ? 'all arrows' : 'no arrows'}`}
+              title={
+                arrows === 'off'
+                  ? 'No arrows — one appears on its own while a feature is selected'
+                  : 'All arrows — click to turn them off'
+              }
+              onClick={() => onArrows(nextArrows(arrows))}
+              className={`grid size-6 place-items-center rounded transition ${
+                arrows === 'all'
                   ? 'bg-info/20 text-info'
                   : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
               } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/75`}
             >
-              {label}
+              <ArrowGlyph />
             </button>
-          ))}
-          {/* In the same shelf as the modes: it is another thing to do to the
-              part in front of you, and it is the arrows' only home. */}
-          <button
-            type="button"
-            aria-pressed={arrows === 'all'}
-            aria-label={`Direction arrows: ${arrows === 'all' ? 'all arrows' : 'no arrows'}`}
-            title={
-              arrows === 'off'
-                ? 'No arrows — one appears on its own while a feature is selected'
-                : 'All arrows — click to turn them off'
-            }
-            onClick={() => onArrows(nextArrows(arrows))}
-            className={`grid size-6 place-items-center rounded transition ${
-              arrows === 'all'
-                ? 'bg-info/20 text-info'
-                : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
-            } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/75`}
+          </span>
+          <ToolButton
+            label={sectioning ? 'Section (on)' : 'Section'}
+            pressed={sectioning}
+            onClick={() => (sectioning ? stopSectioning() : setSectioning(true))}
           >
-            <ArrowGlyph />
-          </button>
-        </span>
-        <ToolButton
-          label={sectioning ? 'Section (on)' : 'Section'}
-          pressed={sectioning}
-          onClick={() => (sectioning ? stopSectioning() : setSectioning(true))}
-        >
-          <SquareHalfIcon />
-        </ToolButton>
-        {sectioning ? (
-          <>
-            <ToolButton
-              label={armed ? 'Now click a face' : 'Cut from a face'}
-              pressed={armed}
-              onClick={() => {
-                setArmed((on) => !on)
-                setPlane(null)
-              }}
-            >
-              <CrosshairSimpleIcon />
-            </ToolButton>
-            <label className="flex h-8 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900/80 px-3 text-xs text-zinc-300">
-              <span className="sr-only">Cut depth</span>
-              {plane && depthRange ? (
-                <>
-                  <input
-                    type="range"
-                    min={Math.max(0, depthRange.min)}
-                    max={depthRange.max}
-                    step={0.1}
-                    value={depth}
-                    onChange={(event) => setDepth(Number(event.target.value))}
-                    className="w-32 accent-info"
-                  />
-                  <span className="w-14 text-right font-mono">{depth.toFixed(1)} mm</span>
-                </>
-              ) : (
-                <>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={cut}
-                    onChange={(event) => setCut(Number(event.target.value))}
-                    className="w-32 accent-info"
-                  />
-                  <span className="w-14 text-right font-mono">{Math.round(cut * 100)}%</span>
-                </>
-              )}
-            </label>
-          </>
-        ) : null}
+            <SquareHalfIcon />
+          </ToolButton>
+          {sectioning ? (
+            <>
+              <ToolButton
+                label={armed ? 'Now click a face' : 'Cut from a face'}
+                pressed={armed}
+                onClick={() => {
+                  setArmed((on) => !on)
+                  setPlane(null)
+                }}
+              >
+                <CrosshairSimpleIcon />
+              </ToolButton>
+              <label className="flex h-8 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900/80 px-3 text-xs text-zinc-300">
+                <span className="sr-only">Cut depth</span>
+                {plane && depthRange ? (
+                  <>
+                    <input
+                      type="range"
+                      min={Math.max(0, depthRange.min)}
+                      max={depthRange.max}
+                      step={0.1}
+                      value={depth}
+                      onChange={(event) => setDepth(Number(event.target.value))}
+                      className="w-32 accent-info"
+                    />
+                    <span className="w-14 text-right font-mono">{depth.toFixed(1)} mm</span>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={cut}
+                      onChange={(event) => setCut(Number(event.target.value))}
+                      className="w-32 accent-info"
+                    />
+                    <span className="w-14 text-right font-mono">{Math.round(cut * 100)}%</span>
+                  </>
+                )}
+              </label>
+            </>
+          ) : null}
+        </div>
+        {/* A filter switched on from the part has to be visible on the part, and
+          clearable from there: one you can only switch off from another view is
+          a filter people get stuck in. */}
+        {activeDirection === null ? null : (
+          <span className="flex items-center gap-2 rounded bg-warning/20 px-2 py-1 text-2xs text-zinc-100 shadow-sm">
+            Only {directionLabel(report.candidateDirections[activeDirection] ?? ORIGIN)} ·
+            everything else is hidden from a click
+            <Button size="sm" variant="secondary" onClick={() => onPickDirection(activeDirection)}>
+              Clear
+            </Button>
+          </span>
+        )}
       </div>
       {report.hasMeshGlb || report.hasMeshStl ? (
         <MeshErrorBoundary key={`${report.partId}:${jobId}`}>

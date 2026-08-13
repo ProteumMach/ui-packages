@@ -242,9 +242,14 @@ export const PartInspector = ({
         <Panels.Panel minSize={400}>
           <FeatureViewer
             activeDirection={activeDirection}
-            onPickDirection={(index) =>
-              setActiveDirection((current) => (current === index ? null : index))
-            }
+            onPickDirection={(index) => {
+              const holding = activeDirection === index ? null : index
+              setActiveDirection(holding)
+              // Narrow the arrows to the one being held. Left showing all of
+              // them, pressing an arrow changed nothing anybody could see, and
+              // a filter with no sign of itself reads as a click that missed.
+              if (holding !== null) setArrows('off')
+            }}
             report={report}
             jobId={jobId}
             selectedFeatureTag={focusedTag}
