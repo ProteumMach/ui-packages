@@ -63,6 +63,7 @@ const ViewerScene = ({
   const boundsRef = useRef<SceneBounds>(defaultBounds())
   const scratchBox = useMemo(() => new Box3(), [])
   const scratchDirection = useMemo(() => new Vector3(), [])
+  const scratchView = useMemo(() => new Vector3(), [])
 
   /** The bounds of whatever the consumer put in the scene, grid and axes aside. */
   const measure = useCallback((): SceneBounds => {
@@ -132,8 +133,11 @@ const ViewerScene = ({
       setView: (view) => {
         frame(cadViewDirections[view], true)
       },
+      setViewDirection: (direction) => {
+        frame(scratchView.set(direction.x, direction.y, direction.z), true)
+      },
     })
-  }, [fitContent, frame, resetContent, setControls])
+  }, [fitContent, frame, resetContent, scratchView, setControls])
 
   // Reframe when the projection changes: a perspective distance and an
   // orthographic frustum are not interchangeable.
@@ -209,6 +213,7 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
       fit: () => actionsRef.current?.fit(),
       reset: () => actionsRef.current?.reset(),
       setView: (view: ViewerView) => actionsRef.current?.setView(view),
+      setViewDirection: (direction) => actionsRef.current?.setViewDirection(direction),
     }),
     [],
   )

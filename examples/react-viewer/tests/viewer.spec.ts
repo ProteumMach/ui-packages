@@ -23,4 +23,17 @@ test('selects a feature and responds to CAD camera navigation', async ({ page })
   const afterOrbit = await canvas.screenshot()
   await page.getByRole('button', { name: 'Top view' }).click()
   await expect.poll(async () => Buffer.compare(afterOrbit, await canvas.screenshot())).not.toBe(0)
+
+  // The orientation cube sits in the top-right corner and drives the camera
+  // through the same path the buttons do. Clicking its centre from the top view
+  // hits the TOP panel; clicking below its centre hits a chamfer, which is an
+  // edge view and must move the camera.
+  const cube = { x: box.width - 80, y: 80 }
+  const beforeCube = await canvas.screenshot()
+  const selected = await page.getByText('Selected:', { exact: false }).textContent()
+  await canvas.click({ position: { x: cube.x, y: cube.y + 34 } })
+  await expect.poll(async () => Buffer.compare(beforeCube, await canvas.screenshot())).not.toBe(0)
+  // Moving the camera is not picking a feature: if this click had fallen
+  // through to the part, the selection would have changed with it.
+  await expect(page.getByText('Selected:', { exact: false })).toHaveText(selected ?? '')
 })

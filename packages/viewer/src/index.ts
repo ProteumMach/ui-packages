@@ -4,7 +4,21 @@
 // report.
 export { EnginePart, normalizePartReport } from './engine/index.js'
 export { PartMesh } from './part-mesh.js'
-export { Axes, Grid, OrientationCube } from './primitives.js'
+export { Axes, Grid, OrientationCube, ViewCube } from './primitives.js'
+export {
+  CHAMFER,
+  VIEW_NAMES,
+  VIEW_SIGNS,
+  cubeOutlineGeometry,
+  cubeZones,
+  labelGeometry,
+  labelTexture,
+  panelGeometry,
+  viewKind,
+  viewUp,
+  viewVector,
+} from './render/view-cube.js'
+export { gridGeometry, gridSpec } from './render/grid.js'
 export { CadCameraControls } from './camera.js'
 export {
   CAD_CAMERA_UP,
@@ -81,7 +95,9 @@ export type { PartObject, RegionPaint } from './render/part.js'
 export type { FeatureHighlight, HighlightLayers, RegionHighlight } from './render/paint.js'
 export type { ViewerTheme } from './render/theme.js'
 export type { PartMeshProps } from './part-mesh.js'
-export type { AxesProps, GridProps, OrientationCubeProps } from './primitives.js'
+export type { AxesProps, GridProps, OrientationCubeProps, ViewCubeProps } from './primitives.js'
+export type { CubeZone, ViewKind, ViewName } from './render/view-cube.js'
+export type { GridSpec } from './render/grid.js'
 export type { CadCameraControlsProps } from './camera.js'
 export type { Projection, SceneBounds, ViewerCamera, ViewportSize } from './render/camera.js'
 export type { ControlScheme, ExtendedCameraControlsOptions } from './render/controls.js'

@@ -1,7 +1,7 @@
 import { type RootState, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
 import type { RefObject } from 'react'
-import type { ViewerCamera } from './render/camera.js'
+import { CAD_CAMERA_UP, type ViewerCamera } from './render/camera.js'
 import { type ControlScheme, ExtendedCameraControls } from './render/controls.js'
 
 export interface CadCameraControlsProps {
@@ -45,6 +45,11 @@ export const CadCameraControls = ({
 
   useEffect(() => {
     controlsRef.current = controls
+    // `camera-controls` derives its frame of reference from the camera's up
+    // vector and caches it, so the part data's Z-up is declared here rather
+    // than left to whenever R3F gets round to applying the camera props.
+    camera.up.copy(CAD_CAMERA_UP)
+    controls.updateCameraUp()
     controls.attach()
     const request = () => invalidate()
     controls.addEventListener('control', request)
@@ -57,7 +62,7 @@ export const CadCameraControls = ({
       controls.dispose()
       if (controlsRef.current === controls) controlsRef.current = null
     }
-  }, [controls, controlsRef, invalidate])
+  }, [camera, controls, controlsRef, invalidate])
 
   useEffect(() => {
     // R3F types this slot as three's own EventDispatcher; `camera-controls`

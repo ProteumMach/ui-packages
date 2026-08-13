@@ -6,9 +6,18 @@ export type { ViewerView }
 export interface ViewerControls {
   /** Frames the part without changing the current viewing direction. */
   fit(): void
-  /** Returns to the canonical isometric view and frames the part. */
+  /** Returns to the opening view and frames the part. */
   reset(): void
   setView(view: ViewerView): void
+  /**
+   * Frames the part from an arbitrary direction — a unit vector from the part
+   * toward the camera.
+   *
+   * The named views are the six a keyboard shortcut reaches; the orientation
+   * cube offers twenty-six, and the twenty that are not axis-aligned have no
+   * names worth inventing.
+   */
+  setViewDirection(direction: { x: number; y: number; z: number }): void
 }
 
 export interface ViewerHandle extends ViewerControls {}

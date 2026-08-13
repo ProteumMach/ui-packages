@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import {
   Axes,
   Grid,
-  OrientationCube,
+  ViewCube,
   PartMesh,
   Viewer,
   buildRegionIndex,
@@ -102,9 +102,9 @@ const App = () => {
             onHover={(pick: PartPick | null) => setHovered(pick ? [...pick.owners] : [])}
             onPick={(pick: PartPick | null) => setSelected(pick ? [...pick.ranked] : [])}
           />
-          <Grid size={100} divisions={20} />
+          <Grid />
           <Axes size={35} />
-          <OrientationCube />
+          <ViewCube />
         </Viewer>
       </div>
     </main>

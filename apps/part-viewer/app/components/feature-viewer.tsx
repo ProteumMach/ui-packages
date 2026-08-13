@@ -1,4 +1,4 @@
-import { Axes, Grid, OrientationCube, Viewer, type ViewerHandle } from '@toolpath/viewer'
+import { Axes, Grid, ViewCube, Viewer, type ViewerHandle } from '@toolpath/viewer'
 import { EnginePart } from '@toolpath/viewer/engine'
 import { Button } from '@toolpath/ui'
 import { Component, Suspense, useMemo, useRef } from 'react'
@@ -93,9 +93,9 @@ export const FeatureViewer = ({
                 onPick={onPick}
                 showEdges={false}
               />
-              <Grid size={100} divisions={20} />
+              <Grid />
               <Axes size={35} />
-              <OrientationCube />
+              <ViewCube />
             </Viewer>
           </Suspense>
         </MeshErrorBoundary>
