@@ -91,7 +91,6 @@ export const FeatureViewer = ({
                 selection={selectedFeatureTag ? [selectedFeatureTag] : []}
                 hoveredFeatureIds={highlightedFeatureTags}
                 onPick={onPick}
-                showEdges={false}
               />
               <Grid />
               <Axes size={35} />
