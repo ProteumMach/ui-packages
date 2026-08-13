@@ -40,31 +40,33 @@ const readyEvent = {
 
 test('connects, uploads, opens a redacted inspector, and focuses a feature', async ({ page }) => {
   let connected = false
-  await page.route('**/api/session', async (route) => {
-    if (route.request().method() === 'GET') return route.fulfill({ json: { connected } })
-    if (route.request().method() === 'POST') {
-      connected = true
-      return route.fulfill({ status: 201, json: { connected: true } })
+  await page.route('**/api/**', async (route) => {
+    const request = route.request()
+    const url = new URL(request.url())
+    if (url.pathname === '/api/session') {
+      if (request.method() === 'GET') return route.fulfill({ json: { connected } })
+      if (request.method() === 'POST') {
+        connected = true
+        return route.fulfill({ status: 201, json: { connected: true } })
+      }
+      connected = false
+      return route.fulfill({ status: 204 })
     }
-    connected = false
-    return route.fulfill({ status: 204 })
+    if (url.pathname === '/api/parts' && request.method() === 'POST')
+      return route.fulfill({
+        status: 201,
+        json: { partId: 'part-1', uploadUrl: 'https://upload.test/source' },
+      })
+    if (url.pathname === '/api/parts/part-1/analyze' && request.method() === 'POST')
+      return route.fulfill({ status: 202, json: { partId: 'part-1', jobId: 'job-1' } })
+    if (url.pathname === '/api/parts/part-1/events' && url.searchParams.get('jobId') === 'job-1')
+      return route.fulfill({
+        contentType: 'text/event-stream',
+        body: `event: analysis\ndata: ${JSON.stringify(readyEvent)}\n\n`,
+      })
+    return route.fallback()
   })
-  await page.route('**/api/parts', (route) =>
-    route.fulfill({
-      status: 201,
-      json: { partId: 'part-1', uploadUrl: 'https://upload.test/source' },
-    }),
-  )
   await page.route('https://upload.test/source', (route) => route.fulfill({ status: 200 }))
-  await page.route('**/api/parts/part-1/analyze', (route) =>
-    route.fulfill({ status: 202, json: { partId: 'part-1', jobId: 'job-1' } }),
-  )
-  await page.route('**/api/parts/part-1/events?jobId=job-1', (route) =>
-    route.fulfill({
-      contentType: 'text/event-stream',
-      body: `event: analysis\ndata: ${JSON.stringify(readyEvent)}\n\n`,
-    }),
-  )
 
   await page.goto('/')
   await page.getByLabel('Toolpath Engine API key').fill('tp_key_must_not_render')

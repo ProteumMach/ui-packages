@@ -26,7 +26,7 @@ const api = async <T>(path: string, init?: RequestInit): Promise<T> => {
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T)
 }
 
-/** Never leave the connection screen pending forever if a local server is restarting. */
+/** Reads only connection state; the encrypted API key stays in the HttpOnly cookie. */
 export const getSession = () =>
   api<{ connected: boolean }>('/api/session', { signal: AbortSignal.timeout(5_000) })
 
