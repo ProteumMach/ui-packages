@@ -250,6 +250,11 @@ export interface ViewerProps {
   freeOrbit?: boolean
   /** Lighting and background. The part's own colours are tuned against this rig. */
   theme?: Partial<ViewerTheme>
+  /**
+   * A click that hit nothing in the scene — not the part, not an arrow, not a
+   * section handle. The usual meaning is "put the selection down".
+   */
+  onPointerMissed?: () => void
 }
 
 export const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
@@ -261,6 +266,7 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
     controls = 'toolpath',
     freeOrbit = true,
     theme,
+    onPointerMissed,
   },
   ref,
 ) {
@@ -295,6 +301,7 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
           // looks hollow. `localClippingEnabled` is what lets a material carry
           // its own clipping plane rather than the whole scene sharing one.
           gl={{ antialias: true, alpha: true, stencil: true, localClippingEnabled: true }}
+          onPointerMissed={onPointerMissed}
         >
           <ViewerScene
             setControls={setControls}

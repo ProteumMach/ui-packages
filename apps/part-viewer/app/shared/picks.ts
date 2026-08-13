@@ -21,5 +21,15 @@ export const holdFace = (held: readonly PartPick[], pick: PartPick): PartPick[] 
 export const sharedReadings = (held: readonly PartPick[]): string[] => {
   const newest = held.at(-1)
   if (!newest) return []
-  return newest.ranked.filter((tag) => held.every((pick) => pick.owners.includes(tag)))
+
+  // From `owners` rather than `ranked`, because `ranked` was already narrowed
+  // by whatever direction was in force when the face was clicked — and these
+  // faces outlive that direction. `ranked` still supplies the order.
+  const order = new Map(newest.ranked.map((tag, at) => [tag, at]))
+  return newest.owners
+    .filter((tag) => held.every((pick) => pick.owners.includes(tag)))
+    .sort(
+      (a, b) =>
+        (order.get(a) ?? Number.MAX_SAFE_INTEGER) - (order.get(b) ?? Number.MAX_SAFE_INTEGER),
+    )
 }

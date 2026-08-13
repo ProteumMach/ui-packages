@@ -41,16 +41,22 @@ every direction's `profile` overlaps the surfaces it traces. Nothing can reduce 
 so `onPick` hands over the whole set:
 
 ```tsx
-<EnginePart
-  report={report}
-  onPick={(pick) => {
-    if (!pick) return clearSelection() // empty space
-    setCandidates(pick.ranked) // every reading, best first
-    setFocused(focusForPick(pick, lastRegion, focused)) // clicking again walks them
-    setLastRegion(pick.region)
-  }}
-/>
+<Viewer onPointerMissed={clearSelection}>
+  <EnginePart
+    report={report}
+    onPick={(pick) => {
+      setCandidates(pick.ranked) // every reading, best first
+      setFocused(focusForPick(pick, lastRegion, focused)) // clicking again walks them
+      setLastRegion(pick.region)
+    }}
+  />
+</Viewer>
 ```
+
+Putting the selection down belongs to `<Viewer onPointerMissed>` rather than to
+`onPick`: a mesh's own missed event fires whenever _that mesh_ was not hit,
+including when the click landed on a direction arrow or a section handle, so
+reporting it from the part made pressing an arrow clear the selection.
 
 `ranked` orders the owners by type specificity — a hole beats the wall it is bored through, and a
 `profile` never wins the surface it traces — then by which reading faces the camera. `best` is the

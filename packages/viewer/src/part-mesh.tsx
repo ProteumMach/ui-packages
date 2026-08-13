@@ -80,8 +80,16 @@ export interface PartMeshProps {
    */
   focusFeature?: FeatureTag | null
   onHover?: (pick: PartPick | null) => void
-  /** A click on the part, or `null` for one on empty space. */
-  onPick?: (pick: PartPick | null) => void
+  /**
+   * A click on the part.
+   *
+   * Never `null`: a mesh's own "missed" event fires whenever *it* was not hit,
+   * including when the click landed on an arrow or a section handle, so
+   * emitting an empty pick from here made pressing an arrow clear the
+   * selection. Clicking nothing at all is a fact about the scene, and
+   * `<Viewer onPointerMissed>` is where it is reported.
+   */
+  onPick?: (pick: PartPick) => void
   theme?: Partial<ViewerTheme>
   showEdges?: boolean
 }
@@ -273,9 +281,6 @@ export const PartMesh = ({
           const pick = pickFor(event)
           if (pick) onPick?.(pick)
         }}
-        // A click that hits nothing clears the selection, the same as clicking
-        // away from a selection anywhere else.
-        onPointerMissed={() => onPick?.(null)}
       />
       {cut ? (
         <SectionView

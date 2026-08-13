@@ -107,7 +107,7 @@ const App = () => {
             Section
           </button>
         </div>
-        <Viewer ref={viewerRef}>
+        <Viewer ref={viewerRef} onPointerMissed={() => setSelected([])}>
           <PartMesh
             model={cube}
             geometry={geometry}
@@ -115,7 +115,7 @@ const App = () => {
             section={{ enabled: sectioning, normal: { x: 0, y: 0, z: -1 }, offset: cut }}
             onSectionChange={(state) => setCut(state.offset)}
             onHover={(pick: PartPick | null) => setHovered(pick ? [...pick.owners] : [])}
-            onPick={(pick: PartPick | null) => setSelected(pick ? [...pick.ranked] : [])}
+            onPick={(pick: PartPick) => setSelected([...pick.ranked])}
           />
           <DirectionArrows
             directions={cube.candidateDirections}

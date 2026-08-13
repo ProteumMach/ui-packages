@@ -94,6 +94,7 @@ export const FeatureViewer = ({
   focusFeature,
   onPickDirection,
   onPick,
+  onClearSelection,
 }: {
   report: PublicInspectionReport
   jobId: string
@@ -127,7 +128,9 @@ export const FeatureViewer = ({
   /** A feature to zoom to. Framed when it changes. */
   focusFeature: string | null
   onPickDirection: (index: number) => void
-  onPick: (pick: PartPick | null) => void
+  onPick: (pick: PartPick) => void
+  /** A click that hit nothing in the scene. */
+  onClearSelection: () => void
 }) => {
   const viewerRef = useRef<ViewerHandle>(null)
   // The cut is a mode: its handle stands over the part's centre, which is also
@@ -146,8 +149,8 @@ export const FeatureViewer = ({
     [paintMode, report.candidateDirections, report.features],
   )
 
-  const pickInViewport = (pick: PartPick | null) => {
-    if (armed && pick) {
+  const pickInViewport = (pick: PartPick) => {
+    if (armed) {
       // The click places the cut instead of selecting: it is the question that
       // was just asked, and answering both at once would select whatever the
       // cut is about to hide.
@@ -301,7 +304,7 @@ export const FeatureViewer = ({
               </div>
             }
           >
-            <Viewer ref={viewerRef}>
+            <Viewer ref={viewerRef} onPointerMissed={onClearSelection}>
               <EnginePart
                 report={viewerReport}
                 selection={selectedFeatureTag ? [selectedFeatureTag] : []}
