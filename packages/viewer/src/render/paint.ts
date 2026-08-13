@@ -67,6 +67,22 @@ export interface HighlightLayers {
 }
 
 /**
+ * The faces the selection already owns.
+ *
+ * Hover does not repaint them: pointing at something and having it answer in
+ * the same colour it had before the click reads as the click not having landed.
+ * Everywhere else the pointer still wins — it is only the face it just selected
+ * that it leaves alone.
+ */
+function selectedRegions(part: PartObject, layers: HighlightLayers): Set<number> {
+  const regions = new Set<number>()
+  for (const tag of layers.selection ?? []) {
+    for (const region of part.model.regionIndex.regionsForFeature(tag)) regions.add(region)
+  }
+  return regions
+}
+
+/**
  * Paints the layer stack onto a part.
  *
  * **A face can only be one colour.** The part is one mesh and each region
@@ -109,7 +125,7 @@ export function applyHighlightLayers(
     part.paintFeature(tag, theme.hover, HOVER_WEIGHT)
   }
 
-  if (layers.hoverRegion != null) {
+  if (layers.hoverRegion != null && !selectedRegions(part, layers).has(layers.hoverRegion)) {
     part.paintRegion(layers.hoverRegion, theme.hover, HOVER_WEIGHT)
   }
 }

@@ -56,6 +56,11 @@ export const PartInspector = ({
    * The best one is focused so there is something to read, and clicking the
    * same face again walks the rest — the list beside it is how you pick another
    * outright.
+   *
+   * A click that lands back on the reading already being read clears it. On a
+   * face with one reading that makes a click a toggle; on a face with eight it
+   * is the end of the cycle, which is the point at which walking them again
+   * would say nothing new.
    */
   const pickFromPart = (pick: PartPick | null) => {
     if (!pick) {
@@ -63,9 +68,13 @@ export const PartInspector = ({
       setPickedRegion(null)
       return
     }
-    setCandidateTags([...pick.ranked])
-    setFocusedTag(focusForPick(pick, pickedRegion, focusedTag))
-    setPickedRegion(pick.region)
+
+    const next = focusForPick(pick, pickedRegion, focusedTag)
+    const unselecting = next !== null && next === focusedTag
+
+    setCandidateTags(unselecting ? [] : [...pick.ranked])
+    setFocusedTag(unselecting ? null : next)
+    setPickedRegion(unselecting ? null : pick.region)
   }
 
   const tabPanel =

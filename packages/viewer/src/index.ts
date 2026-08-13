@@ -39,6 +39,7 @@ export {
   viewVector,
 } from './render/view-cube.js'
 export { gridGeometry, gridSpec } from './render/grid.js'
+export { regionEdgesGeometry } from './render/edges.js'
 export { CadCameraControls } from './camera.js'
 export {
   CAD_CAMERA_UP,

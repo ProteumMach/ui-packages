@@ -3,7 +3,6 @@ import {
   type BufferGeometry,
   Color,
   DataTexture,
-  EdgesGeometry,
   Float32BufferAttribute,
   Group,
   LineBasicMaterial,
@@ -16,6 +15,7 @@ import {
   Vector3,
 } from 'three'
 import type { FeatureTag, PartModel } from '../model/types.js'
+import { regionEdgesGeometry } from './edges.js'
 import type { ViewerTheme } from './theme.js'
 
 /** The vertex attribute carrying each vertex's column in the state texture. */
@@ -206,7 +206,9 @@ export function createPart(
   // otherwise be painted over by the very surface they exist to cap.
   mesh.renderOrder = 3
 
-  const edgeGeometry = new EdgesGeometry(geometry, 15)
+  // Region boundaries rather than an angle threshold: a small bore's facets sit
+  // 30 degrees apart and would each be drawn as an edge.
+  const edgeGeometry = regionEdgesGeometry(geometry, model)
   const edgeMaterial = new LineBasicMaterial({
     color: theme.edge,
     opacity: theme.edgeOpacity,

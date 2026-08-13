@@ -59,6 +59,7 @@ const ViewerScene = ({
   const invalidate = useThree((state) => state.invalidate)
   const controlsRef = useRef<ExtendedCameraControls | null>(null)
   const contentRef = useRef<Group>(null)
+  const lightsRef = useRef<Group>(null)
   const initialFrameComplete = useRef(false)
   const boundsRef = useRef<SceneBounds>(defaultBounds())
   const scratchBox = useMemo(() => new Box3(), [])
@@ -152,6 +153,23 @@ const ViewerScene = ({
     invalidate()
   }, [camera, invalidate, size])
 
+  /**
+   * The light rig turns with the camera, so a part is lit the same way from
+   * every angle.
+   *
+   * Fixed to the world, the lighting is physically honest and practically
+   * useless: a face that starts in shadow stays in shadow however the view is
+   * orbited, so the only way to see it is to guess which way to turn the part
+   * that is not turning.
+   */
+  useFrame(() => {
+    const lights = lightsRef.current
+    if (lights && !lights.quaternion.equals(camera.quaternion)) {
+      lights.quaternion.copy(camera.quaternion)
+      invalidate()
+    }
+  })
+
   // A Suspense-loaded mesh does not exist during the first effect, so the
   // opening frame waits for something to actually be in the scene.
   useFrame(() => {
@@ -162,10 +180,12 @@ const ViewerScene = ({
 
   return (
     <>
-      <ambientLight color={theme.ambient} intensity={theme.ambientIntensity} />
-      <hemisphereLight
-        args={[theme.hemisphereSky, theme.hemisphereGround, theme.hemisphereIntensity]}
-      />
+      <group ref={lightsRef}>
+        <ambientLight color={theme.ambient} intensity={theme.ambientIntensity} />
+        <hemisphereLight
+          args={[theme.hemisphereSky, theme.hemisphereGround, theme.hemisphereIntensity]}
+        />
+      </group>
       <group ref={contentRef}>{children}</group>
       <CadCameraControls controlsRef={controlsRef} scheme={scheme} freeOrbit={freeOrbit} />
     </>

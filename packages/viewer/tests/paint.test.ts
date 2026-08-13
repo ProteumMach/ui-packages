@@ -69,16 +69,34 @@ describe('applyHighlightLayers — the order is the specification', () => {
     expect(part.regionPaint(face.region)?.weight).toBe(1)
   })
 
-  it('lets the pointer beat the selection', async () => {
+  it('lets the pointer beat everything it has not just selected', async () => {
+    const { model, part } = await loadCube()
+    const top = faceOn(model, 1)
+    const bottom = faceOn(model, -1)
+
+    paint(part, {
+      highlights: [{ tag: bottom.tag, color: BAND }],
+      selection: [top.tag],
+      hoverRegion: bottom.region,
+    })
+
+    // A question asked with the mouse wins over a decision already made — the
+    // decision is still there when the pointer moves away.
+    expect(part.regionPaint(bottom.region)?.color).toBe(quantized(part, DEFAULT_THEME.hover))
+    expect(part.regionPaint(bottom.region)?.weight).toBeCloseTo(HOVER_WEIGHT, 2)
+  })
+
+  it('leaves the face it just selected in the selection colour', async () => {
     const { model, part } = await loadCube()
     const face = faceOn(model, 1)
 
     paint(part, { selection: [face.tag], hoverRegion: face.region })
 
-    // A question asked with the mouse wins over a decision already made — the
-    // decision is still there when the pointer moves away.
-    expect(part.regionPaint(face.region)?.color).toBe(quantized(part, DEFAULT_THEME.hover))
-    expect(part.regionPaint(face.region)?.weight).toBeCloseTo(HOVER_WEIGHT, 2)
+    // Clicking a face and having it answer in the colour it already had reads
+    // as the click not having landed. The pointer is still on it, but there is
+    // nothing left to ask.
+    expect(part.regionPaint(face.region)?.color).toBe(quantized(part, DEFAULT_THEME.highlight))
+    expect(part.regionPaint(face.region)?.weight).toBe(1)
   })
 
   it('lets a named face beat the feature colouring under it', async () => {
