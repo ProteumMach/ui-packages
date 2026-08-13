@@ -1,0 +1,74 @@
+{
+  "partId": "7c3e91a4-5d2b-4f18-9a6c-e83b17d40f52",
+  "kernelVersion": "0.3.0",
+  "features": [
+    {
+      "featureTag": "f1e2d3c4b5a69788",
+      "featureType": "through_hole",
+      "machiningDirection": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "regionIdxs": [1, 2],
+      "datasheet": {
+        "facts": {
+          "kind": "Hole",
+          "diameter": 10
+        },
+        "maxDepth": 25.4,
+        "minDepth": 0,
+        "featureType": "ThroughHole"
+      }
+    },
+    {
+      "featureTag": "00a1b2c3d4e5f607",
+      "featureType": "face",
+      "machiningDirection": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "regionIdxs": [0],
+      "datasheet": null
+    }
+  ],
+  "regions": [
+    {
+      "idx": 0,
+      "shapeKind": "Plane",
+      "area": 1200,
+      "triangleStart": 0,
+      "triangleEnd": 40
+    },
+    {
+      "idx": 1,
+      "shapeKind": "Cylinder",
+      "area": 314.16,
+      "triangleStart": 40,
+      "triangleEnd": 72
+    },
+    {
+      "idx": 2,
+      "shapeKind": "Plane",
+      "area": 78.54,
+      "triangleStart": 72,
+      "triangleEnd": 96
+    }
+  ],
+  "candidateDirections": [
+    {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  ],
+  "meshPointCount": 248,
+  "meshTriangleCount": 96,
+  "thumbnailUrl": "http://localhost:4566/engine-parts/parts/demo/thumbnail.png?<presigned-redacted>",
+  "meshStlUrl": "http://localhost:4566/engine-parts/parts/demo/reports/r1/mesh.stl?<presigned-redacted>",
+  "meshGlbUrl": "http://localhost:4566/engine-parts/parts/demo/reports/r1/mesh.glb?<presigned-redacted>",
+  "downloadMs": 12,
+  "analysisMs": 840,
+  "totalMs": 902
+}
