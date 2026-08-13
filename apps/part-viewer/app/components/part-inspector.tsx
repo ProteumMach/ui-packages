@@ -7,6 +7,7 @@ import {
   NOTHING_SELECTED,
   type SelectionState,
   heldRegions,
+  isEmptySelection,
   pickFace,
   stepCandidate,
 } from '../shared/selection'
@@ -94,7 +95,14 @@ export const PartInspector = ({
       const target = event.target as HTMLElement | null
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return
 
-      if (event.key === 'Escape') return setSelection(NOTHING_SELECTED)
+      // Escape works outward: the selection first, then the direction being
+      // worked in. Clearing both at once throws away a scope somebody set
+      // deliberately along with the click they are undoing.
+      if (event.key === 'Escape') {
+        if (isEmptySelection(selection)) setActiveDirection(null)
+        else setSelection(NOTHING_SELECTED)
+        return
+      }
 
       const step = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
       if (step === 0) return
@@ -104,7 +112,7 @@ export const PartInspector = ({
 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [selection])
 
   const tabPanel =
     tab === 'inspector' ? (

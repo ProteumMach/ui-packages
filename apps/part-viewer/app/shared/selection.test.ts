@@ -1,6 +1,12 @@
 import type { PartPick } from '@toolpath/viewer'
 import { describe, expect, it } from 'vitest'
-import { NOTHING_SELECTED, heldRegions, pickFace, stepCandidate } from './selection'
+import {
+  NOTHING_SELECTED,
+  heldRegions,
+  isEmptySelection,
+  pickFace,
+  stepCandidate,
+} from './selection'
 
 const pick = (region: number, ranked: string[], holding = false): PartPick => ({
   region,
@@ -76,6 +82,15 @@ describe('pickFace', () => {
 
   it('clears on a click that hits nothing', () => {
     expect(pickFace(pickFace(NOTHING_SELECTED, wallA), null)).toEqual(NOTHING_SELECTED)
+  })
+})
+
+describe('isEmptySelection', () => {
+  it('is true only when nothing is held, offered, or read', () => {
+    expect(isEmptySelection(NOTHING_SELECTED)).toBe(true)
+    expect(isEmptySelection(pickFace(NOTHING_SELECTED, wallA))).toBe(false)
+    // A reading named in the list holds no faces, and is still a selection.
+    expect(isEmptySelection({ picks: [], candidates: [], focused: 'pocket' })).toBe(false)
   })
 })
 

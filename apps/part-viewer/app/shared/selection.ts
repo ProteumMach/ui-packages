@@ -63,6 +63,18 @@ export function stepCandidate(state: SelectionState, step: number): SelectionSta
   return { ...state, focused: state.candidates[next] ?? null }
 }
 
+/**
+ * Whether anything is being read at all.
+ *
+ * Escape works outward: it clears the selection first, and only once there is
+ * no selection does it give up the direction being worked in. Clearing both at
+ * once would throw away the scope somebody set deliberately along with the
+ * click they are undoing.
+ */
+export function isEmptySelection(state: SelectionState): boolean {
+  return state.picks.length === 0 && state.candidates.length === 0 && state.focused === null
+}
+
 /** The faces being held, for painting them so a second click has something to aim at. */
 export function heldRegions(state: SelectionState): number[] {
   return state.picks.map((pick) => pick.region)
