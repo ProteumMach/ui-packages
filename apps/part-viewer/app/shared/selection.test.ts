@@ -5,6 +5,7 @@ import {
   heldRegions,
   isEmptySelection,
   pickFace,
+  scopeToDirection,
   stepCandidate,
 } from './selection'
 
@@ -82,6 +83,56 @@ describe('pickFace', () => {
 
   it('clears on a click that hits nothing', () => {
     expect(pickFace(pickFace(NOTHING_SELECTED, wallA), null)).toEqual(NOTHING_SELECTED)
+  })
+})
+
+describe('scopeToDirection', () => {
+  // The same face read two ways: a wall reached from +Z, a face cut from -Y.
+  const shared = pick(1, ['pz-wall', 'ny-face', 'pz-profile'])
+  const fromPz = (tag: string) => tag.startsWith('pz')
+  const fromNy = (tag: string) => tag.startsWith('ny')
+
+  it('re-reads the held face from the new direction', () => {
+    const state = scopeToDirection(pickFace(NOTHING_SELECTED, shared), fromNy)
+
+    // Pressing an arrow with a face selected asks which reading covers *that
+    // face* from over there — not "put the selection down".
+    expect(state.focused).toBe('ny-face')
+    expect(state.candidates).toEqual(['ny-face'])
+    expect(heldRegions(state)).toEqual([1])
+  })
+
+  it('keeps the reading being read when that direction still reaches it', () => {
+    const held = pickFace(NOTHING_SELECTED, shared)
+    const walked = stepCandidate(held, 2)
+    expect(walked.focused).toBe('pz-profile')
+
+    // A filter that changes nothing about the answer should not move it.
+    expect(scopeToDirection(walked, fromPz).focused).toBe('pz-profile')
+  })
+
+  it('reads nothing when the face cannot be reached that way', () => {
+    const state = scopeToDirection(pickFace(NOTHING_SELECTED, shared), () => false)
+
+    // A real answer: nothing here is cut from over there.
+    expect(state.candidates).toEqual([])
+    expect(state.focused).toBeNull()
+  })
+
+  it('leaves an empty selection alone, since a direction is then only a scope', () => {
+    expect(scopeToDirection(NOTHING_SELECTED, fromPz)).toEqual(NOTHING_SELECTED)
+  })
+
+  /**
+   * `ranked` was narrowed by whatever direction was in force when the face was
+   * clicked, so re-reading has to start from `owners` or the readings from the
+   * new direction would already have been filtered out.
+   */
+  it('finds readings that the direction at click time had ruled out', () => {
+    const scoped: PartPick = { ...shared, ranked: ['pz-wall', 'pz-profile'] }
+    const state = scopeToDirection(pickFace(NOTHING_SELECTED, scoped), fromNy)
+
+    expect(state.focused).toBe('ny-face')
   })
 })
 

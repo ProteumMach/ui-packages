@@ -64,6 +64,37 @@ export function stepCandidate(state: SelectionState, step: number): SelectionSta
 }
 
 /**
+ * Re-reads the faces already held, from a different direction.
+ *
+ * Pressing an arrow with a face selected is a question about *that face*: which
+ * reading covers it from over there. Dropping the selection answered a
+ * different question, and left somebody to click the same face again to ask the
+ * one they meant.
+ *
+ * With nothing held there is nothing to re-read, and the direction is simply a
+ * scope for the next click.
+ */
+export function scopeToDirection(
+  state: SelectionState,
+  reachable: (tag: string) => boolean,
+): SelectionState {
+  if (state.picks.length === 0) return state
+
+  const candidates = sharedReadings(state.picks).filter(reachable)
+
+  return {
+    picks: state.picks,
+    candidates,
+    // The reading being read survives if that direction can still reach it, so
+    // a filter that changes nothing about the answer does not move it either.
+    focused:
+      state.focused !== null && candidates.includes(state.focused)
+        ? state.focused
+        : (candidates[0] ?? null),
+  }
+}
+
+/**
  * Whether anything is being read at all.
  *
  * Escape works outward: it clears the selection first, and only once there is

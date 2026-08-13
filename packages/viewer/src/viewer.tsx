@@ -19,6 +19,7 @@ import {
   type SceneBounds,
   type ViewerCamera,
   applyProjection,
+  boundsFromBox,
   cadViewDirections,
   contentBounds,
   currentViewDirection,
@@ -110,6 +111,40 @@ const ViewerScene = ({
     [camera, invalidate, measure, projection, scratchDirection, size],
   )
 
+  /**
+   * Frames bounds other than the whole part's, from where the camera already
+   * is. The frustum still comes from the *scene's* bounds rather than these, so
+   * a feature framed up close does not clip the part around it.
+   */
+  const frameBounds = useCallback(
+    (bounds: SceneBounds): boolean => {
+      const controls = controlsRef.current
+      if (!controls) return false
+
+      const target = controls.getTarget(new Vector3())
+      const direction = currentViewDirection(camera, target, new Vector3())
+      const distance = fitDistance(projection, size, bounds, DEFAULT_FIT_MARGIN)
+      const position = direction.multiplyScalar(distance).add(bounds.center)
+
+      void controls.setLookAt(
+        position.x,
+        position.y,
+        position.z,
+        bounds.center.x,
+        bounds.center.y,
+        bounds.center.z,
+        true,
+      )
+      if (projection === 'orthographic') {
+        void controls.zoomTo(boundsRef.current.radius / bounds.radius, true)
+      }
+
+      invalidate()
+      return true
+    },
+    [camera, invalidate, projection, size],
+  )
+
   const fitContent = useCallback(() => {
     const controls = controlsRef.current
     if (!controls) return false
@@ -137,8 +172,11 @@ const ViewerScene = ({
       setViewDirection: (direction) => {
         frame(scratchView.set(direction.x, direction.y, direction.z), true)
       },
+      frameBox: (box) => {
+        frameBounds(boundsFromBox(box))
+      },
     })
-  }, [fitContent, frame, resetContent, scratchView, setControls])
+  }, [fitContent, frame, frameBounds, resetContent, scratchView, setControls])
 
   // Reframe when the projection changes: a perspective distance and an
   // orthographic frustum are not interchangeable.
@@ -212,6 +250,11 @@ export interface ViewerProps {
   freeOrbit?: boolean
   /** Lighting and background. The part's own colours are tuned against this rig. */
   theme?: Partial<ViewerTheme>
+  /**
+   * A click that hit nothing in the scene — not the part, not an arrow, not a
+   * section handle. The usual meaning is "put the selection down".
+   */
+  onPointerMissed?: () => void
 }
 
 export const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
@@ -223,6 +266,7 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
     controls = 'toolpath',
     freeOrbit = true,
     theme,
+    onPointerMissed,
   },
   ref,
 ) {
@@ -234,6 +278,7 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
       reset: () => actionsRef.current?.reset(),
       setView: (view: ViewerView) => actionsRef.current?.setView(view),
       setViewDirection: (direction) => actionsRef.current?.setViewDirection(direction),
+      frameBox: (box) => actionsRef.current?.frameBox(box),
     }),
     [],
   )
@@ -256,6 +301,7 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
           // looks hollow. `localClippingEnabled` is what lets a material carry
           // its own clipping plane rather than the whole scene sharing one.
           gl={{ antialias: true, alpha: true, stencil: true, localClippingEnabled: true }}
+          onPointerMissed={onPointerMissed}
         >
           <ViewerScene
             setControls={setControls}

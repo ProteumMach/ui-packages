@@ -68,6 +68,7 @@ const App = () => {
   const [selected, setSelected] = useState<string[]>([])
   const [cut, setCut] = useState(0.45)
   const [sectioning, setSectioning] = useState(false)
+  const [direction, setDirection] = useState<number | null>(null)
 
   return (
     <main>
@@ -87,6 +88,9 @@ const App = () => {
         <p>
           <strong>Cut:</strong> {sectioning ? `${Math.round(cut * 100)}%` : 'off'}
         </p>
+        <p>
+          <strong>Direction:</strong> {direction === null ? 'all' : String(direction)}
+        </p>
       </section>
       <div className="viewer">
         <div className="viewer-toolbar" aria-label="Viewer controls">
@@ -102,8 +106,21 @@ const App = () => {
           <button type="button" onClick={() => setSectioning((on) => !on)}>
             Section
           </button>
+          {sectioning ? (
+            <label>
+              <span className="sr-only">Cut depth</span>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={cut}
+                onChange={(event) => setCut(Number(event.target.value))}
+              />
+            </label>
+          ) : null}
         </div>
-        <Viewer ref={viewerRef}>
+        <Viewer ref={viewerRef} onPointerMissed={() => setSelected([])}>
           <PartMesh
             model={cube}
             geometry={geometry}
@@ -111,9 +128,13 @@ const App = () => {
             section={{ enabled: sectioning, normal: { x: 0, y: 0, z: -1 }, offset: cut }}
             onSectionChange={(state) => setCut(state.offset)}
             onHover={(pick: PartPick | null) => setHovered(pick ? [...pick.owners] : [])}
-            onPick={(pick: PartPick | null) => setSelected(pick ? [...pick.ranked] : [])}
+            onPick={(pick: PartPick) => setSelected([...pick.ranked])}
           />
-          <DirectionArrows directions={cube.candidateDirections} />
+          <DirectionArrows
+            directions={cube.candidateDirections}
+            shownDirection={direction}
+            onPickDirection={(index) => setDirection((held) => (held === index ? null : index))}
+          />
           <Grid />
           <Axes size={35} />
           <ViewCube />

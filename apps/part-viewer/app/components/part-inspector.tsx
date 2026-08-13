@@ -1,4 +1,6 @@
-import { directionIndexOf, type PartPick } from '@toolpath/viewer'
+import { directionIndexOf, sameDirection, type PartPick } from '@toolpath/viewer'
+import { type Arrows, arrowsVisible, shownArrow } from '../shared/arrows'
+import { type PaintMode, loadPaintMode, savePaintMode } from '../shared/paint'
 import { Panels, Tabs } from '@toolpath/ui'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
@@ -9,6 +11,7 @@ import {
   heldRegions,
   isEmptySelection,
   pickFace,
+  scopeToDirection,
   stepCandidate,
 } from '../shared/selection'
 import { directionLabel, featureFromTags, filterFeatures } from '../shared/report'
@@ -34,6 +37,54 @@ export const PartInspector = ({
   const [hoveredTags, setHoveredTags] = useState<string[]>([])
   const [selection, setSelection] = useState<SelectionState>(NOTHING_SELECTED)
   const [activeDirection, setActiveDirection] = useState<number | null>(null)
+  const [paintMode, setPaintMode] = useState<PaintMode>('plain')
+  const [arrows, setArrows] = useState<Arrows>('off')
+  const [focusFeature, setFocusFeature] = useState<string | null>(null)
+
+  // Read after mount rather than during render: the server has no localStorage,
+  // and a mode that differed between the two would hydrate as a flash of the
+  // wrong colours.
+  useEffect(() => {
+    setPaintMode(loadPaintMode(globalThis.localStorage ?? null))
+  }, [])
+
+  /**
+   * Pressing an arrow holds that way up — and re-reads whatever faces are
+   * already held from it, rather than putting them down. Pressing it again
+   * lets go, and the faces are read again unscoped.
+   */
+  const holdDirection = (index: number) => {
+    const holding = activeDirection === index ? null : index
+    setActiveDirection(holding)
+    // Narrow the arrows to the one being held. Left showing all of them,
+    // pressing an arrow changed nothing anybody could see, and a filter with no
+    // sign of itself reads as a click that missed.
+    if (holding !== null) setArrows('off')
+
+    const direction = holding === null ? null : report.candidateDirections[holding]
+    setSelection((current) =>
+      scopeToDirection(current, (tag) => {
+        if (!direction) return true
+        const feature = report.features.find((each) => each.featureTag === tag)
+        return feature ? sameDirection(feature.machiningDirection, direction) : false
+      }),
+    )
+  }
+
+  /**
+   * A zoom is a request rather than a state, so the same feature twice has to
+   * read as two requests — the viewer frames on change, and a repeated value is
+   * not one.
+   */
+  const zoomToFeature = (featureTag: string) => {
+    setFocusFeature(null)
+    requestAnimationFrame(() => setFocusFeature(featureTag))
+  }
+
+  const choosePaintMode = (mode: PaintMode) => {
+    setPaintMode(mode)
+    savePaintMode(globalThis.localStorage ?? null, mode)
+  }
   const candidateTags = selection.candidates
   const focusedTag = selection.focused
   const focused = useMemo(
@@ -46,11 +97,9 @@ export const PartInspector = ({
    * An explicit direction still wins: choosing one is a question about that
    * direction, and it stays on screen while readings are looked at within it.
    */
-  const shownDirection = useMemo(() => {
-    if (activeDirection !== null) return activeDirection
-    if (!focused) return null
-    const index = directionIndexOf(report, focused.machiningDirection)
-    return index === -1 ? null : index
+  const arrowContext = useMemo(() => {
+    const index = focused ? directionIndexOf(report, focused.machiningDirection) : -1
+    return { focusedDirection: index === -1 ? null : index, activeDirection }
   }, [activeDirection, focused, report])
   const candidates = useMemo(
     () => featureFromTags(report.features, candidateTags),
@@ -81,7 +130,7 @@ export const PartInspector = ({
    * is the end of the cycle, which is the point at which walking them again
    * would say nothing new.
    */
-  const pickFromPart = (pick: PartPick | null) => setSelection((current) => pickFace(current, pick))
+  const pickFromPart = (pick: PartPick) => setSelection((current) => pickFace(current, pick))
 
   /**
    * Arrow keys walk the readings of the face that was clicked.
@@ -217,22 +266,32 @@ export const PartInspector = ({
         <Panels.Panel minSize={400}>
           <FeatureViewer
             activeDirection={activeDirection}
-            onPickDirection={(index) =>
-              setActiveDirection((current) => (current === index ? null : index))
-            }
+            onPickDirection={(index) => holdDirection(index)}
             report={report}
             jobId={jobId}
             selectedFeatureTag={focusedTag}
             highlightedFeatureTags={hoveredTags}
             heldRegions={heldRegions(selection)}
-            shownDirection={shownDirection}
+            shownDirection={shownArrow(arrows, arrowContext)}
+            arrows={arrows}
+            onArrows={setArrows}
+            arrowsVisible={arrowsVisible(arrows, arrowContext)}
+            paintMode={paintMode}
+            onPaintMode={choosePaintMode}
+            focusFeature={focusFeature}
             onPick={pickFromPart}
+            onClearSelection={() => setSelection(NOTHING_SELECTED)}
           />
         </Panels.Panel>
         <Panels.Separator className={separatorClassName} />
         <Panels.Panel defaultSize={360} minSize={280}>
           {focused || candidates.length ? (
-            <FeatureDetail feature={focused} candidates={candidates} onChoose={focusCandidate} />
+            <FeatureDetail
+              feature={focused}
+              candidates={candidates}
+              onChoose={focusCandidate}
+              onZoom={zoomToFeature}
+            />
           ) : null}
         </Panels.Panel>
       </Panels.Group>
