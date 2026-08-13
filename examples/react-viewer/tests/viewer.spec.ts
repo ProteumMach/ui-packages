@@ -4,6 +4,28 @@ test('selects a feature and responds to CAD camera navigation', async ({ page })
   await page.goto('/')
   const canvas = page.locator('canvas')
   await expect(canvas).toBeVisible()
+  await page.waitForTimeout(700)
+
+  // The section, while the camera is still at its opening pose: the handle
+  // stands on the cap over the part's centre, which is also where an orbit
+  // starts, so it is a mode rather than something always on.
+  await page.getByRole('button', { name: 'Section' }).click()
+  await page.waitForTimeout(700)
+  const cut = page.locator('p', { hasText: 'Cut:' })
+  const beforeCut = await cut.textContent()
+  const box = await canvas.boundingBox()
+  if (!box) throw new Error('Viewer canvas has no bounding box')
+  // The arrow stands proud of the cap, so it sits a little above the part's
+  // centre on screen — and end-on it is only about a dozen pixels across, so
+  // these are exact canvas coordinates for the default 1280x720 viewport
+  // rather than an approximation of "the middle".
+  await page.mouse.move(box.x + 436, box.y + 298)
+  await page.mouse.down()
+  await page.mouse.move(box.x + 436, box.y + 378, { steps: 15 })
+  await page.mouse.up()
+  await expect.poll(async () => await cut.textContent()).not.toBe(beforeCut)
+  await page.getByRole('button', { name: 'Section' }).click()
+  await expect(cut).toContainText('off')
 
   await canvas.hover({ position: { x: 400, y: 300 } })
   await expect(page.getByText('Hovered:', { exact: false })).not.toContainText('none')
@@ -12,8 +34,6 @@ test('selects a feature and responds to CAD camera navigation', async ({ page })
   await expect(page.getByText('Selected:', { exact: false })).not.toContainText('none')
 
   const beforeOrbit = await canvas.screenshot()
-  const box = await canvas.boundingBox()
-  if (!box) throw new Error('Viewer canvas has no bounding box')
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
   await page.mouse.down()
   await page.mouse.move(box.x + box.width / 2 + 120, box.y + box.height / 2 + 60)

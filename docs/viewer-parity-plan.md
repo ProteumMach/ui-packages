@@ -196,7 +196,7 @@ should be trimmed rather than ported wholesale.
 
 **PR 11 — selection model** · multi-select with ⌘/Ctrl (intersection of owners —
 port `src/features/face-picks.ts`), a candidate list beside the part, guessed vs
-chosen focus (`interactions.md` §4: a guessed focus paints nothing), Escape and
+chosen focus (`interactions.md` §4: a guessed focus paints nothing - unless specifically inferring features (see `inference.md`)), Escape and
 empty-space clearing.
 
 **PR 12 — paint modes** · the Plain / Directions / Difficulty control at the

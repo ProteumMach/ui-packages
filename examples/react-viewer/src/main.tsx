@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import {
   Axes,
   Grid,
+  DirectionArrows,
   ViewCube,
   PartMesh,
   Viewer,
@@ -65,6 +66,8 @@ const App = () => {
   const viewerRef = useRef<ViewerHandle>(null)
   const [hovered, setHovered] = useState<string[]>([])
   const [selected, setSelected] = useState<string[]>([])
+  const [cut, setCut] = useState(0.45)
+  const [sectioning, setSectioning] = useState(false)
 
   return (
     <main>
@@ -81,6 +84,9 @@ const App = () => {
         <p>
           <strong>Selected:</strong> {selected.join(', ') || 'none'}
         </p>
+        <p>
+          <strong>Cut:</strong> {sectioning ? `${Math.round(cut * 100)}%` : 'off'}
+        </p>
       </section>
       <div className="viewer">
         <div className="viewer-toolbar" aria-label="Viewer controls">
@@ -93,15 +99,21 @@ const App = () => {
           <button type="button" onClick={() => viewerRef.current?.setView('top')}>
             Top view
           </button>
+          <button type="button" onClick={() => setSectioning((on) => !on)}>
+            Section
+          </button>
         </div>
         <Viewer ref={viewerRef}>
           <PartMesh
             model={cube}
             geometry={geometry}
             selection={selected}
+            section={{ enabled: sectioning, normal: { x: 0, y: 0, z: -1 }, offset: cut }}
+            onSectionChange={(state) => setCut(state.offset)}
             onHover={(pick: PartPick | null) => setHovered(pick ? [...pick.owners] : [])}
             onPick={(pick: PartPick | null) => setSelected(pick ? [...pick.ranked] : [])}
           />
+          <DirectionArrows model={cube} />
           <Grid />
           <Axes size={35} />
           <ViewCube />

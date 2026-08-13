@@ -1,8 +1,9 @@
-import { useThree } from '@react-three/fiber'
+import { type ThreeEvent, useThree } from '@react-three/fiber'
 import { useMemo } from 'react'
 import { type Box3, Quaternion, Vector3 } from 'three'
 import type { PartModel, Vec3 } from './model/types.js'
 import { useContentBox } from './content-box.js'
+import { EXCLUDE_FROM_FRAME } from './render/camera.js'
 import {
   CONE_AXIS,
   HEAD,
@@ -12,6 +13,8 @@ import {
   arrowPlacement,
 } from './render/directions.js'
 import { type ViewerTheme, directionColor, resolveTheme } from './render/theme.js'
+
+const FURNITURE = { [EXCLUDE_FROM_FRAME]: true }
 
 export interface NamedDirection {
   readonly direction: Vec3
@@ -76,7 +79,10 @@ export const DirectionArrows = ({
   if (!visible) return null
 
   return (
-    <group>
+    // Excluded from framing: the arrows are deliberately placed outside the
+    // part, so a Fit that measured them would frame the arrows and leave the
+    // part small in the middle of them.
+    <group userData={FURNITURE}>
       {model.candidateDirections.map((direction, index) => {
         if (shown !== null && shown !== index) return null
         return (
@@ -132,26 +138,26 @@ const Arrow = ({ direction, box, color, opacity, onPick, onTop = false }: ArrowP
   const head = length * HEAD
   const shaft = length * (1 - HEAD)
 
-  return (
-    <group
-      position={tip}
-      quaternion={quaternion}
-      renderOrder={onTop ? 10 : 3}
-      onClick={
-        onPick
-          ? (event) => {
-              event.stopPropagation()
-              onPick()
-              invalidate()
-            }
-          : undefined
+  // On each mesh rather than on the group: the ray hits both the head and the
+  // shaft, and stopping propagation at the mesh is what keeps one press on an
+  // arrow from being counted twice.
+  const press = onPick
+    ? {
+        onClick: (event: ThreeEvent<MouseEvent>) => {
+          event.stopPropagation()
+          onPick()
+          invalidate()
+        },
       }
-    >
-      <mesh position={[0, head * 0.5, 0]} rotation={[Math.PI, 0, 0]}>
+    : {}
+
+  return (
+    <group position={tip} quaternion={quaternion} renderOrder={onTop ? 10 : 3}>
+      <mesh position={[0, head * 0.5, 0]} rotation={[Math.PI, 0, 0]} {...press}>
         <coneGeometry args={[length * HEAD_RADIUS, head, 20]} />
         <meshBasicMaterial color={color} transparent opacity={opacity} depthTest={!onTop} />
       </mesh>
-      <mesh position={[0, head + shaft * 0.5, 0]}>
+      <mesh position={[0, head + shaft * 0.5, 0]} {...press}>
         <cylinderGeometry args={[length * SHAFT_RADIUS, length * SHAFT_RADIUS, shaft, 12]} />
         <meshBasicMaterial color={color} transparent opacity={opacity} depthTest={!onTop} />
       </mesh>

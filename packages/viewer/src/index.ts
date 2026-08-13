@@ -6,6 +6,23 @@ export { EnginePart, normalizePartReport, smoothRegionNormals } from './engine/i
 export { PartMesh } from './part-mesh.js'
 export { Axes, Grid, OrientationCube, ViewCube } from './primitives.js'
 export { DirectionArrows } from './direction-arrows.js'
+export { SectionView, resolveSectionPlane } from './section-view.js'
+export {
+  HANDLE_PIXELS,
+  PICKED_SURFACE_LABEL,
+  SECTION_RENDER_ORDER,
+  dragPlane,
+  pickedStartDepth,
+  screenLength,
+  sectionBounds,
+  sectionConstant,
+  sectionDepth,
+  sectionDepthConstant,
+  sectionDepthRange,
+  sectionFromPick,
+  sectionOffset,
+  sectionPlane,
+} from './render/section.js'
 export { arrowPlacement } from './render/directions.js'
 export { useContentBox } from './content-box.js'
 export {
@@ -102,6 +119,8 @@ export type { AxesProps, GridProps, OrientationCubeProps, ViewCubeProps } from '
 export type { CubeZone, ViewKind, ViewName } from './render/view-cube.js'
 export type { DirectionArrowsProps, NamedDirection } from './direction-arrows.js'
 export type { ArrowPlacement } from './render/directions.js'
+export type { SectionOptions, SectionState } from './section-view.js'
+export type { SectionAnchor, SectionBounds, SectionPlacement } from './render/section.js'
 export type { GridSpec } from './render/grid.js'
 export type { CadCameraControlsProps } from './camera.js'
 export type { Projection, SceneBounds, ViewerCamera, ViewportSize } from './render/camera.js'

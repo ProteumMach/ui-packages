@@ -5,8 +5,16 @@ import { type BufferGeometry, Vector3 } from 'three'
 import type { FeatureTag, PartModel } from './model/types.js'
 import type { FeatureHighlight, RegionHighlight } from './render/paint.js'
 import { applyHighlightLayers } from './render/paint.js'
+import { sectionBounds, sectionDepth, sectionOffset } from './render/section.js'
 import { createPart } from './render/part.js'
 import { type PartPick, buildPick, viewDirection } from './render/picking.js'
+import {
+  type SectionOptions,
+  type SectionState,
+  SectionView,
+  resolveSectionPlane,
+} from './section-view.js'
+import { useContentBox } from './content-box.js'
 import { type ViewerTheme, resolveTheme, themesEqual } from './render/theme.js'
 
 export interface PartMeshProps {
@@ -45,6 +53,20 @@ export interface PartMeshProps {
    * nothing, which is a real answer rather than a missed click.
    */
   activeDirection?: number | null
+  /**
+   * The section cut. Omit, or pass `enabled: false`, for none.
+   *
+   * Either sweep an axis — `normal` points into the half that stays and
+   * `offset` runs 0 (whole) to 1 (gone) — or key the cut off one surface with
+   * `plane`, which `depth` then moves in model units. `sectionFromPick` turns a
+   * pick into that placement with the normal the right way round.
+   */
+  section?: SectionOptions
+  /**
+   * The cut changed, including when the handle was dragged. Emitted only on a
+   * real change, so echoing it into state is safe.
+   */
+  onSectionChange?: (state: SectionState) => void
   onHover?: (pick: PartPick | null) => void
   /** A click on the part, or `null` for one on empty space. */
   onPick?: (pick: PartPick | null) => void
@@ -71,6 +93,8 @@ export const PartMesh = ({
   regionHighlights = [],
   hoveredFeatureIds = [],
   activeDirection = null,
+  section,
+  onSectionChange,
   onHover,
   onPick,
   theme,
@@ -84,6 +108,8 @@ export const PartMesh = ({
   currentTheme.current = resolved
   const part = useMemo(() => createPart(model, geometry, currentTheme.current), [geometry, model])
   const hoverRegion = useRef<number | null>(null)
+  const box = useContentBox()
+  const cut = useMemo(() => resolveSectionPlane(section, box), [box, section])
 
   // Every layer the paint reads, held so a pointer move can repaint without a
   // render. Refreshed here because a render is exactly when the props are new.
@@ -111,6 +137,22 @@ export const PartMesh = ({
     part.edges.visible = showEdges
     invalidate()
   }, [invalidate, part, showEdges])
+
+  useLayoutEffect(() => {
+    part.setClippingPlanes(cut ? [cut.plane] : null)
+    invalidate()
+  }, [cut, invalidate, part])
+
+  const reportedSection = useRef<string>('')
+  useLayoutEffect(() => {
+    const state = cut?.state ?? null
+    const key = state
+      ? `${state.constant}|${state.normal.x},${state.normal.y},${state.normal.z}`
+      : ''
+    if (key === reportedSection.current) return
+    reportedSection.current = key
+    if (state) onSectionChange?.(state)
+  }, [cut, onSectionChange])
 
   // Keyed by content: callers pass inline arrays and object literals, so
   // identity would repaint on every unrelated render.
@@ -169,19 +211,45 @@ export const PartMesh = ({
     onHover?.(next)
   }
 
+  const dragSection = useCallback(
+    (constant: number) => {
+      if (!cut) return
+      const anchor = section?.plane?.point
+      onSectionChange?.({
+        ...cut.state,
+        constant,
+        offset: sectionOffset(sectionBounds(box, cut.state.normal), constant),
+        depth: anchor ? sectionDepth(cut.state.normal, anchor, constant) : null,
+      })
+    },
+    [box, cut, onSectionChange, section],
+  )
+
   return (
-    <primitive
-      object={part.object}
-      onPointerMove={(event: ThreeEvent<PointerEvent>) => emitHover(pickFor(event))}
-      onPointerOut={() => emitHover(null)}
-      onClick={(event: ThreeEvent<MouseEvent>) => {
-        const pick = pickFor(event)
-        if (pick) onPick?.(pick)
-      }}
-      // A click that hits nothing clears the selection, the same as clicking
-      // away from a selection anywhere else.
-      onPointerMissed={() => onPick?.(null)}
-    />
+    <>
+      <primitive
+        object={part.object}
+        onPointerMove={(event: ThreeEvent<PointerEvent>) => emitHover(pickFor(event))}
+        onPointerOut={() => emitHover(null)}
+        onClick={(event: ThreeEvent<MouseEvent>) => {
+          const pick = pickFor(event)
+          if (pick) onPick?.(pick)
+        }}
+        // A click that hits nothing clears the selection, the same as clicking
+        // away from a selection anywhere else.
+        onPointerMissed={() => onPick?.(null)}
+      />
+      {cut ? (
+        <SectionView
+          geometry={geometry}
+          box={box}
+          plane={cut.plane}
+          theme={resolved}
+          showHandle={onSectionChange !== undefined}
+          onDrag={onSectionChange ? dragSection : undefined}
+        />
+      ) : null}
+    </>
   )
 }
 

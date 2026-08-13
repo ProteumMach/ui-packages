@@ -231,7 +231,11 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
           camera={{ fov: PERSPECTIVE_FOV, up: [0, 0, 1], position: [1, -1, 1] }}
           dpr={[1, 2]}
           frameloop="demand"
-          gl={{ antialias: true, alpha: true }}
+          // `stencil` is off by default in three, and the section cap is a
+          // stencil trick — without it the cut still happens and the part just
+          // looks hollow. `localClippingEnabled` is what lets a material carry
+          // its own clipping plane rather than the whole scene sharing one.
+          gl={{ antialias: true, alpha: true, stencil: true, localClippingEnabled: true }}
         >
           <ViewerScene
             setControls={setControls}
