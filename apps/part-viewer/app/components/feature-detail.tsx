@@ -11,7 +11,7 @@ export const FeatureDetail = ({
   candidates: readonly PartFeature[]
   onChoose: (featureTag: string) => void
 }) => (
-  <aside className="min-h-[18rem] bg-zinc-900/40 p-4 lg:min-h-0 lg:overflow-y-auto">
+  <aside className="h-full min-h-0 overflow-y-auto bg-zinc-900/40 p-4">
     {candidates.length > 1 ? (
       <section className="mb-6 rounded-lg border border-warning/40 bg-warning/10 p-3">
         <h2 className="text-sm font-bold text-zinc-100">Choose feature</h2>

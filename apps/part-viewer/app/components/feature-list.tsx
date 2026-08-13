@@ -8,14 +8,16 @@ export const FeatureList = ({
   candidateTags,
   onChoose,
   onHover,
+  className,
 }: {
   features: readonly PartFeature[]
   focusedTag: string | null
   candidateTags: readonly string[]
   onChoose: (featureTag: string) => void
   onHover: (featureTags: string[]) => void
+  className?: string
 }) => (
-  <div className="max-h-[36vh] overflow-y-auto lg:max-h-[calc(100vh-8rem)]">
+  <div className={classNames('overflow-y-auto', className)}>
     {features.length ? (
       features.map((feature) => {
         const summary = featureSummary(feature)

@@ -67,7 +67,7 @@ export const FeatureViewer = ({
   )
 
   return (
-    <section className="relative min-h-[32rem] border-b border-zinc-800 bg-zinc-900 lg:min-h-0 lg:border-b-0">
+    <section className="relative size-full min-h-[32rem] bg-zinc-900">
       <div className="absolute left-3 top-3 z-10 flex gap-2" aria-label="Viewer controls">
         <Button size="sm" variant="secondary" onClick={() => viewerRef.current?.fit()}>
           Fit
