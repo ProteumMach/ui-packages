@@ -4,14 +4,7 @@ import { type Box3, Quaternion, Vector3 } from 'three'
 import type { PartModel, Vec3 } from './model/types.js'
 import { useContentBox } from './content-box.js'
 import { EXCLUDE_FROM_FRAME } from './render/camera.js'
-import {
-  CONE_AXIS,
-  HEAD,
-  HEAD_RADIUS,
-  LENGTH,
-  SHAFT_RADIUS,
-  arrowPlacement,
-} from './render/directions.js'
+import { CONE_AXIS, HEAD, HEAD_RADIUS, SHAFT_RADIUS, arrowPlacement } from './render/directions.js'
 import { type ViewerTheme, directionColor, resolveTheme } from './render/theme.js'
 
 const FURNITURE = { [EXCLUDE_FROM_FRAME]: true }
@@ -164,5 +157,3 @@ const Arrow = ({ direction, box, color, opacity, onPick, onTop = false }: ArrowP
     </group>
   )
 }
-
-export { LENGTH as ARROW_LENGTH }

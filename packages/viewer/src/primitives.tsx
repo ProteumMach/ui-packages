@@ -194,7 +194,3 @@ const CubePanels = ({
     </group>
   )
 }
-
-/** @deprecated Use {@link ViewCube}, which offers all 26 standard views. */
-export const OrientationCube = ViewCube
-export type OrientationCubeProps = ViewCubeProps

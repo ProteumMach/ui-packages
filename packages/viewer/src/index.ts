@@ -4,7 +4,7 @@
 // report.
 export { EnginePart, normalizePartReport, smoothRegionNormals } from './engine/index.js'
 export { PartMesh } from './part-mesh.js'
-export { Axes, Grid, OrientationCube, ViewCube } from './primitives.js'
+export { Axes, Grid, ViewCube } from './primitives.js'
 export { DirectionArrows } from './direction-arrows.js'
 export { SectionView, resolveSectionPlane } from './section-view.js'
 export {
@@ -115,7 +115,7 @@ export type { PartObject, RegionPaint } from './render/part.js'
 export type { FeatureHighlight, HighlightLayers, RegionHighlight } from './render/paint.js'
 export type { ViewerTheme } from './render/theme.js'
 export type { PartMeshProps } from './part-mesh.js'
-export type { AxesProps, GridProps, OrientationCubeProps, ViewCubeProps } from './primitives.js'
+export type { AxesProps, GridProps, ViewCubeProps } from './primitives.js'
 export type { CubeZone, ViewKind, ViewName } from './render/view-cube.js'
 export type { DirectionArrowsProps, NamedDirection } from './direction-arrows.js'
 export type { ArrowPlacement } from './render/directions.js'
