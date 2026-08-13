@@ -3,8 +3,10 @@
 **Goal:** make the 3D viewer on `toolpath@pc-part-viewer` behave like the one on
 `tp-ui@pc-feature-picker`, **staying on React Three Fiber**.
 
-Status: **Phase A landed** (PRs 1–5, one branch each off `pc-part-viewer`).
-Phase B is next.
+Status: **Phases A and B landed.** Phase A (PRs 1–5) is merged to `main`;
+Phase B (PRs 6–10) is on `paul/viewer-camera` → `paul/viewer-chrome` →
+`paul/viewer-directions` → `paul/viewer-surface`. Only Phase C is left, and it
+is app work rather than viewer work.
 
 ---
 
@@ -222,6 +224,20 @@ feature list.
 - **The example is the end-to-end test.** Its Playwright run exercises the
   shader path against real WebGL, which is the only place the texture
   highlighting can actually be observed working.
+
+## 4c. What Phase B added beyond the plan
+
+- **Region-aware shading.** The Engine's mesh ships positions only, so normals
+  are invented. Averaging within a region and never across one gives a bore that
+  shades smoothly and an edge that stays hard — better than either app had, and
+  possible only because the report says which triangles are one surface.
+- **Overlays are excluded from framing.** The section cap is wider than the
+  part's diagonal and the direction arrows sit outside it, so a Fit that
+  measured either framed the overlay instead of the part. Found by a test, not
+  by inspection.
+- **The section is a mode, not a permanent overlay.** Its handle stands over the
+  part's centre, which is exactly where an orbit drag starts, so leaving it on
+  swallows the gesture.
 
 ## 5. Sequencing notes
 
