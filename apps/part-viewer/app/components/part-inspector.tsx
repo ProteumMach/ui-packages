@@ -3,7 +3,13 @@ import { Panels, Tabs } from '@toolpath/ui'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import type { PublicInspectionReport } from '../shared/contracts'
-import { holdFace, sharedReadings } from '../shared/picks'
+import {
+  NOTHING_SELECTED,
+  type SelectionState,
+  heldRegions,
+  pickFace,
+  stepCandidate,
+} from '../shared/selection'
 import { directionLabel, featureFromTags, filterFeatures } from '../shared/report'
 import { AppHeader } from './app-header'
 import { FeatureDetail } from './feature-detail'
@@ -24,19 +30,11 @@ export const PartInspector = ({
 }) => {
   const [tab, setTab] = useState<ViewerTab>('inspector')
   const [query, setQuery] = useState('')
-  const [focusedTag, setFocusedTag] = useState<string | null>(null)
   const [hoveredTags, setHoveredTags] = useState<string[]>([])
-  const [candidateTags, setCandidateTags] = useState<string[]>([])
-  /**
-   * The faces being held, most recent last.
-   *
-   * Held rather than reduced to one answer: the readings that own *all* of them
-   * are what a second click is asking for, and that set cannot be recovered
-   * from a single tag afterwards.
-   */
-  const [picks, setPicks] = useState<PartPick[]>([])
+  const [selection, setSelection] = useState<SelectionState>(NOTHING_SELECTED)
   const [activeDirection, setActiveDirection] = useState<number | null>(null)
-  const pickedRegion = picks.length === 1 ? (picks[0]?.region ?? null) : null
+  const candidateTags = selection.candidates
+  const focusedTag = selection.focused
   const focused = useMemo(
     () => report.features.find((feature) => feature.featureTag === focusedTag) ?? null,
     [focusedTag, report.features],
@@ -48,15 +46,7 @@ export const PartInspector = ({
   )
   /** Naming a feature in the list is a different question from the one a click asked. */
   const choose = (featureTag: string) => {
-    setFocusedTag(featureTag)
-    setCandidateTags([])
-    setPicks([])
-  }
-
-  const clearSelection = () => {
-    setFocusedTag(null)
-    setCandidateTags([])
-    setPicks([])
+    setSelection({ picks: [], candidates: [], focused: featureTag })
   }
 
   /**
@@ -65,7 +55,8 @@ export const PartInspector = ({
    * Keeps the candidate list up: it is the control being used, and clearing it
    * on the first press left nothing to switch back with.
    */
-  const focusCandidate = (featureTag: string) => setFocusedTag(featureTag)
+  const focusCandidate = (featureTag: string) =>
+    setSelection((current) => ({ ...current, focused: featureTag }))
 
   /**
    * A click on the part offers its readings rather than deciding between them.
@@ -78,32 +69,7 @@ export const PartInspector = ({
    * is the end of the cycle, which is the point at which walking them again
    * would say nothing new.
    */
-  const pickFromPart = (pick: PartPick | null) => {
-    if (!pick) return clearSelection()
-
-    const adding = pick.modifiers.meta || pick.modifiers.ctrl
-    const held = adding ? holdFace(picks, pick) : [pick]
-
-    if (held.length === 0) return clearSelection()
-    setPicks(held)
-
-    // Several faces held: the readings that own every one of them. Two walls of
-    // a pocket resolve to the pocket, which is how you name a reading without
-    // hunting for it in a list of eight.
-    if (held.length > 1) {
-      const shared = sharedReadings(held)
-      setCandidateTags(shared)
-      setFocusedTag(shared[0] ?? null)
-      return
-    }
-
-    const next = focusForPick(pick, pickedRegion, focusedTag)
-    const unselecting = next !== null && next === focusedTag
-
-    setCandidateTags(unselecting ? [] : [...pick.ranked])
-    setFocusedTag(unselecting ? null : next)
-    if (unselecting) setPicks([])
-  }
+  const pickFromPart = (pick: PartPick | null) => setSelection((current) => pickFace(current, pick))
 
   /**
    * Arrow keys walk the readings of the face that was clicked.
@@ -113,29 +79,21 @@ export const PartInspector = ({
    * before they can arrow through it defeats the point of the shortcut.
    */
   useEffect(() => {
-    if (candidateTags.length < 2) return
-
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return
 
-      if (event.key === 'Escape') {
-        clearSelection()
-        return
-      }
+      if (event.key === 'Escape') return setSelection(NOTHING_SELECTED)
 
       const step = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
       if (step === 0) return
       event.preventDefault()
-
-      const at = focusedTag === null ? -1 : candidateTags.indexOf(focusedTag)
-      const next = (at + step + candidateTags.length) % candidateTags.length
-      setFocusedTag(candidateTags[next] ?? null)
+      setSelection((current) => stepCandidate(current, step))
     }
 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  })
+  }, [])
 
   const tabPanel =
     tab === 'inspector' ? (
@@ -247,6 +205,7 @@ export const PartInspector = ({
             jobId={jobId}
             selectedFeatureTag={focusedTag}
             highlightedFeatureTags={hoveredTags}
+            heldRegions={heldRegions(selection)}
             onPick={pickFromPart}
           />
         </Panels.Panel>

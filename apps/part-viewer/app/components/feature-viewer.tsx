@@ -35,6 +35,9 @@ class MeshErrorBoundary extends Component<{ children: ReactNode }, { error: Erro
   }
 }
 
+/** The orange a held face wears, under the reading it resolved to. */
+const HELD_FACE_COLOR = 0xff8000
+
 const meshUrl = (partId: string, jobId: string, format: 'glb' | 'stl'): string =>
   `/api/parts/${encodeURIComponent(partId)}/mesh?${new URLSearchParams({ jobId, format })}`
 
@@ -54,6 +57,7 @@ export const FeatureViewer = ({
   jobId,
   selectedFeatureTag,
   highlightedFeatureTags,
+  heldRegions,
   activeDirection,
   onPickDirection,
   onPick,
@@ -63,6 +67,13 @@ export const FeatureViewer = ({
   selectedFeatureTag: string | null
   /** Features under the pointer in the feature list. */
   highlightedFeatureTags: readonly string[]
+  /**
+   * The faces being held, painted so a modifier-click has something to aim at.
+   *
+   * Without them, holding a second face narrows the candidate list and often
+   * leaves the same reading painted, so the click looks like it did nothing.
+   */
+  heldRegions: readonly number[]
   /** Scopes picking to one way up, and shows that arrow on its own. */
   activeDirection: number | null
   onPickDirection: (index: number) => void
@@ -190,6 +201,10 @@ export const FeatureViewer = ({
                 report={viewerReport}
                 selection={selectedFeatureTag ? [selectedFeatureTag] : []}
                 hoveredFeatureIds={highlightedFeatureTags}
+                regionHighlights={heldRegions.map((region) => ({
+                  region,
+                  color: HELD_FACE_COLOR,
+                }))}
                 onPick={pickInViewport}
                 activeDirection={activeDirection}
                 section={{
