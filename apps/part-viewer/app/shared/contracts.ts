@@ -1,6 +1,4 @@
-import type { components } from '@toolpath/api'
-
-type ApiPartFeature = components['schemas']['PartFeature']
+import type { PartFeature as ApiPartFeature, PartReportResponse } from '@toolpath/api'
 
 /**
  * Datasheets are returned by a separate Engine endpoint, rather than embedded
@@ -10,10 +8,10 @@ type ApiPartFeature = components['schemas']['PartFeature']
  */
 export type PartFeature = Omit<ApiPartFeature, 'featureId'> & {
   featureId?: string
-  datasheet?: components['schemas']['FeatureDatasheet'] | null
+  datasheet?: Record<string, unknown> | null
 }
 
-export type PartReport = Omit<components['schemas']['PartReportResponse'], 'features'> & {
+export type PartReport = Omit<PartReportResponse, 'features'> & {
   features: PartFeature[]
 }
 

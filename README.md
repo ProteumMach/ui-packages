@@ -7,7 +7,7 @@ Toolpath analyzes a CAD part so you can understand whether it fits your shop, ho
 machined, and what it may cost. This repository helps you call that API from TypeScript, JavaScript,
 or Python.
 
-> **Release status:** The source code, UI package, and examples are available now. The first npm and PyPI
+> **Release status:** The source code, UI package, and examples are available now. The first npm
 > releases have not been published yet, so the registry installation commands below will return
 > “not found” until that release is complete. See [Run the examples from source](#run-the-examples-from-source)
 > if you want to evaluate the project today.
@@ -20,12 +20,13 @@ or Python.
 | Build a React UI with Toolpath style | `@toolpath/ui`                  | [Tailwind UI primitives](packages/ui/README.md)       |
 | Explore a Toolpath part in 3D        | `@toolpath/viewer`              | [React Three Fiber viewer](packages/viewer/README.md) |
 | Call Toolpath from Python            | `toolpath`                      | [Python SDK](packages/sdk-python/README.md)           |
-| Run a complete analysis application  | TypeScript or Python            | [Examples](#complete-part-analysis-examples)          |
+| Create and upload a part             | TypeScript or Python            | [Examples](#part-upload-examples)                     |
 | Call the API without an SDK          | HTTP, cURL, or another language | [API documentation](https://developers.toolpath.com)  |
 | Inspect the exact public API shape   | OpenAPI 3.1                     | [OpenAPI document](openapi/openapi.json)              |
 
 The SDKs are generated from the same OpenAPI document, so their request and response types match the
-public API contract retained in this repository.
+public API contract retained in this repository. They also provide a focused helper for directly
+uploading to the presigned URL returned by the create-part operation.
 
 ## Before you begin
 
@@ -47,12 +48,14 @@ Part analysis is asynchronous and currently uses polling:
 4. Request the report periodically until it is ready.
 5. Read or print the returned report.
 
-The SDKs provide an async `analyzePart` / `analyze_part` workflow for this lifecycle, while retaining
-generated low-level API bindings for custom integrations.
+Use the generated low-level API bindings to control this lifecycle in your application.
+`uploadToPresignedUrl` / `upload_to_presigned_url` performs the direct upload after the create-part
+operation returns its presigned URL.
 
-## Complete part-analysis examples
+## Part-upload examples
 
-The runnable examples include complete analysis workflows and a local interactive viewer:
+The runnable examples create a part and upload its STEP file; your application controls analysis and
+report retrieval through the generated API bindings:
 
 - [TypeScript example](examples/typescript/README.md)
 - [React viewer example](examples/react-viewer/README.md)
@@ -62,14 +65,15 @@ The runnable examples include complete analysis workflows and a local interactiv
 
 ### 1. Install the development tools
 
-| Tool                                                          | What it does                                                   | Required for         |
-| ------------------------------------------------------------- | -------------------------------------------------------------- | -------------------- |
-| [Git](https://git-scm.com/downloads)                          | Downloads the repository and tracks source changes             | All source workflows |
-| [Node.js 24.18+](https://nodejs.org/en/download)              | Runs the JavaScript tools; its installer also provides `npm`   | All source workflows |
-| Corepack                                                      | Activates the exact `pnpm` version declared by this repository | All source workflows |
-| pnpm                                                          | Installs and runs this repository's JavaScript dependencies    | All source workflows |
-| [Python 3.11+](https://www.python.org/downloads/)             | Runs the Python SDK and example                                | Python only          |
-| [uv](https://docs.astral.sh/uv/getting-started/installation/) | Creates the Python environment and installs its dependencies   | Python only          |
+| Tool                                                          | What it does                                                   | Required for                    |
+| ------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------- |
+| [Git](https://git-scm.com/downloads)                          | Downloads the repository and tracks source changes             | All source workflows            |
+| [Node.js 24.18+](https://nodejs.org/en/download)              | Runs the JavaScript tools; its installer also provides `npm`   | All source workflows            |
+| Corepack                                                      | Activates the exact `pnpm` version declared by this repository | All source workflows            |
+| pnpm                                                          | Installs and runs this repository's JavaScript dependencies    | All source workflows            |
+| [Docker](https://www.docker.com/products/docker-desktop/)     | Runs the pinned TypeScript OpenAPI generator image             | SDK generation and `pnpm check` |
+| [Python 3.11+](https://www.python.org/downloads/)             | Runs the Python SDK and example                                | Python only                     |
+| [uv](https://docs.astral.sh/uv/getting-started/installation/) | Creates the Python environment and installs its dependencies   | Python only                     |
 
 You do not need Corepack or pnpm merely to use a package installed from npm; they are development tools for this repository.
 
@@ -93,7 +97,7 @@ corepack enable pnpm
 pnpm install --frozen-lockfile
 ```
 
-### 3. Run the TypeScript example
+### 3. Run the TypeScript part analysis example
 
 Replace the sample key and file path with your own values.
 
@@ -117,9 +121,9 @@ macOS or Linux:
 TOOLPATH_API_KEY="your-api-key" pnpm --filter @toolpath/example-typescript analyze -- "/path/to/part.step"
 ```
 
-The command displays status messages while it waits, then prints the complete analysis report.
+The command prints the complete analysis report after the report is ready.
 
-### 4. Run the Python example
+### 4. Run the Python part analysis example
 
 Install `uv` using its [platform-specific instructions](https://docs.astral.sh/uv/getting-started/installation/),
 then set `TOOLPATH_API_KEY` as shown above.

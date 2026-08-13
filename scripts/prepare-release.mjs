@@ -18,23 +18,13 @@ const registryUrls = []
 let version
 
 if (releasePackage === 'sdk') {
-  const [typescriptPackage, pythonConfig] = await Promise.all([
-    readFile(join(repositoryRoot, 'packages/sdk-typescript/package.json'), 'utf8').then(JSON.parse),
-    readFile(join(repositoryRoot, 'codegen/python.yaml'), 'utf8'),
-  ])
+  const typescriptPackage = await readFile(
+    join(repositoryRoot, 'packages/sdk-typescript/package.json'),
+    'utf8',
+  ).then(JSON.parse)
   version = typescriptPackage.version
-  const pythonVersion = pythonConfig.match(/^package_version_override:\s*(.+)$/m)?.[1]?.trim()
-  if (pythonVersion !== version) {
-    throw new Error('The TypeScript and Python SDK versions must match')
-  }
-  files.push(
-    join(artifactsRoot, `toolpath-api-${version}.tgz`),
-    join(artifactsRoot, `toolpath-${version}-py3-none-any.whl`),
-  )
-  registryUrls.push(
-    `https://registry.npmjs.org/${encodeURIComponent('@toolpath/api')}/${version}`,
-    `https://pypi.org/pypi/toolpath/${version}/json`,
-  )
+  files.push(join(artifactsRoot, `toolpath-api-${version}.tgz`))
+  registryUrls.push(`https://registry.npmjs.org/${encodeURIComponent('@toolpath/api')}/${version}`)
 }
 
 if (releasePackage === 'ui') {

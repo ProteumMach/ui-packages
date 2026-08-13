@@ -1,18 +1,30 @@
 # Toolpath TypeScript SDK
 
-Async SDK for the Toolpath Engine API.
+TypeScript bindings and a presigned-upload helper for the Toolpath Engine API.
+
+## Install
+
+```bash
+npm install @toolpath/api
+```
+
+The SDK is ESM-only and supports Node.js 20 and newer.
 
 ```typescript
-import { createToolpath } from '@toolpath/api'
+import { readFile } from 'node:fs/promises'
+import { createToolpathClient, uploadToPresignedUrl } from '@toolpath/api'
 
-const toolpath = createToolpath({
+const api = createToolpathClient({
   apiKey: process.env.TOOLPATH_API_KEY!,
   baseUrl: 'https://api.toolpath.com',
 })
+const filePath = '/path/to/part.step'
+const created = await api.parts.createPart({ filename: 'part.step' })
 
-const report = await toolpath.analyzePart('/path/to/part.step')
+await uploadToPresignedUrl(created.data.uploadUrl, await readFile(filePath))
 ```
 
-`Toolpath` is the stable, hand-written workflow façade. Its `api` property is the raw OpenAPI client;
-`createToolpathClient()` remains available for lower-level requests. The generated schema lives in
-`src/generated/schema.ts` and must not be edited by hand.
+Use `createToolpathClient()` for every Engine API operation. It returns named generated APIs such as
+`parts.createPart()` and `jobs.getJob()`. `uploadToPresignedUrl()` performs the direct PUT after the
+create-part operation returns its upload URL. Generated code lives in `src/generated` and must not be
+edited by hand.

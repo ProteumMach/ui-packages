@@ -14,12 +14,13 @@
     "openapi:verify": "node scripts/verify-openapi.mjs",
     "generate": "node scripts/generate-sdks.mjs",
     "generate:check": "pnpm generate && git diff --exit-code -- packages/sdk-typescript/src/generated packages/sdk-python/toolpath/generated packages/sdk-python/pyproject.toml",
-    "build:sdk": "node scripts/build-sdks.mjs",
+    "package:python-sdk": "node scripts/package-python-sdk.mjs",
+    "package:typescript-sdk": "node scripts/package-typescript-sdk.mjs",
     "build:ui": "node scripts/build-ui.mjs",
     "build:viewer": "node scripts/build-viewer.mjs",
     "build:part-viewer": "pnpm --filter @toolpath/part-viewer build",
     "build:examples": "pnpm --filter @toolpath/example-typescript build && pnpm --filter @toolpath/example-react-viewer build && uv run --project examples/python python -m compileall -q examples/python/src",
-    "build": "pnpm build:sdk && pnpm build:ui && pnpm build:viewer && pnpm build:part-viewer && pnpm build:examples",
+    "build": "pnpm package:typescript-sdk && pnpm build:ui && pnpm build:viewer && pnpm build:part-viewer && pnpm build:examples",
     "test:ui": "pnpm --filter @toolpath/ui check-types && pnpm --filter @toolpath/ui test && node scripts/test-ui-package.mjs",
     "test:viewer": "pnpm --filter @toolpath/viewer check-types && pnpm --filter @toolpath/viewer test",
     "test:part-viewer": "pnpm --filter @toolpath/part-viewer test",
@@ -30,13 +31,15 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "release:dry-run": "pnpm check && node scripts/prepare-release.mjs"
+    "release:dry-run": "pnpm check && node scripts/prepare-release.mjs",
+    "release:typescript-sdk:check": "pnpm openapi:verify:typescript && pnpm package:typescript-sdk && node scripts/test-typescript-sdk-package.mjs",
+    "release:typescript-sdk:dry-run": "pnpm release:typescript-sdk:check && RELEASE_PACKAGE=sdk node scripts/prepare-release.mjs",
+    "openapi:verify:typescript": "VERIFY_OPENAPI_TARGET=typescript node scripts/verify-openapi.mjs"
   },
   "devDependencies": {
     "@types/node": "24.10.1",
     "husky": "9.1.7",
     "lint-staged": "17.3.0",
-    "openapi-typescript": "7.13.0",
     "prettier": "3.6.2",
     "typescript": "5.9.3",
     "vitest": "4.1.10"
