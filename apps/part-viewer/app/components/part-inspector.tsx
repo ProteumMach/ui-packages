@@ -1,4 +1,5 @@
 import { directionIndexOf, type PartPick } from '@toolpath/viewer'
+import { type Arrows, arrowsVisible, shownArrow } from '../shared/arrows'
 import { type PaintMode, loadPaintMode, savePaintMode } from '../shared/paint'
 import { Panels, Tabs } from '@toolpath/ui'
 import { useEffect, useMemo, useState } from 'react'
@@ -36,6 +37,7 @@ export const PartInspector = ({
   const [selection, setSelection] = useState<SelectionState>(NOTHING_SELECTED)
   const [activeDirection, setActiveDirection] = useState<number | null>(null)
   const [paintMode, setPaintMode] = useState<PaintMode>('plain')
+  const [arrows, setArrows] = useState<Arrows>('off')
   const [focusFeature, setFocusFeature] = useState<string | null>(null)
 
   // Read after mount rather than during render: the server has no localStorage,
@@ -71,11 +73,9 @@ export const PartInspector = ({
    * An explicit direction still wins: choosing one is a question about that
    * direction, and it stays on screen while readings are looked at within it.
    */
-  const shownDirection = useMemo(() => {
-    if (activeDirection !== null) return activeDirection
-    if (!focused) return null
-    const index = directionIndexOf(report, focused.machiningDirection)
-    return index === -1 ? null : index
+  const arrowContext = useMemo(() => {
+    const index = focused ? directionIndexOf(report, focused.machiningDirection) : -1
+    return { focusedDirection: index === -1 ? null : index, activeDirection }
   }, [activeDirection, focused, report])
   const candidates = useMemo(
     () => featureFromTags(report.features, candidateTags),
@@ -250,7 +250,10 @@ export const PartInspector = ({
             selectedFeatureTag={focusedTag}
             highlightedFeatureTags={hoveredTags}
             heldRegions={heldRegions(selection)}
-            shownDirection={shownDirection}
+            shownDirection={shownArrow(arrows, arrowContext)}
+            arrows={arrows}
+            onArrows={setArrows}
+            arrowsVisible={arrowsVisible(arrows, arrowContext)}
             paintMode={paintMode}
             onPaintMode={choosePaintMode}
             focusFeature={focusFeature}

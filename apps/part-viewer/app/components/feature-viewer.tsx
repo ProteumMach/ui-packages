@@ -8,24 +8,11 @@ import {
   sectionFromPick,
 } from '@toolpath/viewer'
 import { EnginePart } from '@toolpath/viewer/engine'
-import {
-  ArrowCounterClockwiseIcon,
-  CornersOutIcon,
-  CrosshairSimpleIcon,
-  CubeIcon,
-  MouseIcon,
-  PerspectiveIcon,
-  SquareHalfIcon,
-} from '@phosphor-icons/react'
+import { CrosshairSimpleIcon, SquareHalfIcon } from '@phosphor-icons/react'
 import { Component, Suspense, useMemo, useRef, useState } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
-import type {
-  ControlScheme,
-  PartPick,
-  Projection,
-  SectionPlacement,
-  SectionState,
-} from '@toolpath/viewer'
+import type { PartPick, SectionPlacement, SectionState } from '@toolpath/viewer'
+import { type Arrows, nextArrows } from '../shared/arrows'
 import { PAINT_MODE_LABELS, type PaintMode, paintWash } from '../shared/paint'
 import { ToolButton } from './tool-button'
 import type { PartReport, PublicInspectionReport } from '../shared/contracts'
@@ -55,6 +42,27 @@ const meshUrl = (partId: string, jobId: string, format: 'glb' | 'stl'): string =
   `/api/parts/${encodeURIComponent(partId)}/mesh?${new URLSearchParams({ jobId, format })}`
 
 /**
+ * One arrow, pointing down at the part the way the arrows on the part do.
+ *
+ * A solid head and nothing else: at this size extra lines read as smudges, and
+ * the button's own colour already says which state it is in.
+ */
+const ArrowGlyph = () => (
+  <svg
+    aria-hidden="true"
+    className="size-3.5 shrink-0"
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeWidth={1.75}
+    viewBox="0 0 16 16"
+  >
+    <path d="M8 2v9" />
+    <path d="M8 14 4.5 9h7Z" fill="currentColor" stroke="none" />
+  </svg>
+)
+
+/**
  * The part, showing the one reading being read.
  *
  * The viewer can paint every feature a click could have meant, and this
@@ -73,6 +81,9 @@ export const FeatureViewer = ({
   heldRegions,
   activeDirection,
   shownDirection,
+  arrows,
+  onArrows,
+  arrowsVisible,
   paintMode,
   onPaintMode,
   focusFeature,
@@ -100,6 +111,11 @@ export const FeatureViewer = ({
    * one feature is being read, the other nine answer a question nobody asked.
    */
   shownDirection: number | null
+  /** Whether every arrow is drawn, or only whatever the selection implies. */
+  arrows: Arrows
+  onArrows: (arrows: Arrows) => void
+  /** Whether any arrow is drawn at all. */
+  arrowsVisible: boolean
   /** The standing wash: what the part is coloured by while nothing is selected. */
   paintMode: PaintMode
   onPaintMode: (mode: PaintMode) => void
@@ -119,8 +135,6 @@ export const FeatureViewer = ({
   const [plane, setPlane] = useState<SectionPlacement | null>(null)
   const [depth, setDepth] = useState(0)
   const [depthRange, setDepthRange] = useState<SectionState['depthRange']>(null)
-  const [projection, setProjection] = useState<Projection>('perspective')
-  const [scheme, setScheme] = useState<ControlScheme>('toolpath')
 
   const wash = useMemo(
     () => paintWash(paintMode, report.features, report.candidateDirections),
@@ -189,27 +203,27 @@ export const FeatureViewer = ({
               {label}
             </button>
           ))}
+          {/* In the same shelf as the modes: it is another thing to do to the
+              part in front of you, and it is the arrows' only home. */}
+          <button
+            type="button"
+            aria-pressed={arrows === 'all'}
+            aria-label={`Direction arrows: ${arrows === 'all' ? 'all arrows' : 'no arrows'}`}
+            title={
+              arrows === 'off'
+                ? 'No arrows — one appears on its own while a feature is selected'
+                : 'All arrows — click to turn them off'
+            }
+            onClick={() => onArrows(nextArrows(arrows))}
+            className={`grid size-6 place-items-center rounded transition ${
+              arrows === 'all'
+                ? 'bg-info/20 text-info'
+                : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
+            } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/75`}
+          >
+            <ArrowGlyph />
+          </button>
         </span>
-        <ToolButton
-          label={projection === 'perspective' ? 'Perspective view' : 'Orthographic view'}
-          onClick={() =>
-            setProjection((current) => (current === 'perspective' ? 'orthographic' : 'perspective'))
-          }
-        >
-          {projection === 'perspective' ? <PerspectiveIcon /> : <CubeIcon />}
-        </ToolButton>
-        <ToolButton
-          label={scheme === 'toolpath' ? 'Toolpath controls' : 'Fusion controls'}
-          onClick={() => setScheme((current) => (current === 'toolpath' ? 'fusion' : 'toolpath'))}
-        >
-          <MouseIcon />
-        </ToolButton>
-        <ToolButton label="Fit to part" onClick={() => viewerRef.current?.fit()}>
-          <CornersOutIcon />
-        </ToolButton>
-        <ToolButton label="Reset the view" onClick={() => viewerRef.current?.reset()}>
-          <ArrowCounterClockwiseIcon />
-        </ToolButton>
         <ToolButton
           label={sectioning ? 'Section (on)' : 'Section'}
           pressed={sectioning}
@@ -271,7 +285,7 @@ export const FeatureViewer = ({
               </div>
             }
           >
-            <Viewer ref={viewerRef} projection={projection} controls={scheme}>
+            <Viewer ref={viewerRef}>
               <EnginePart
                 report={viewerReport}
                 selection={selectedFeatureTag ? [selectedFeatureTag] : []}
@@ -300,6 +314,7 @@ export const FeatureViewer = ({
                 directions={report.candidateDirections}
                 activeDirection={activeDirection}
                 shownDirection={shownDirection}
+                visible={arrowsVisible}
                 onPickDirection={onPickDirection}
               />
               <Grid />
