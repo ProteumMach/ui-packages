@@ -113,7 +113,7 @@ const App = () => {
             onHover={(pick: PartPick | null) => setHovered(pick ? [...pick.owners] : [])}
             onPick={(pick: PartPick | null) => setSelected(pick ? [...pick.ranked] : [])}
           />
-          <DirectionArrows model={cube} />
+          <DirectionArrows directions={cube.candidateDirections} />
           <Grid />
           <Axes size={35} />
           <ViewCube />

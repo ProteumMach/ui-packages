@@ -1,7 +1,7 @@
-import { Axes, Grid, ViewCube, Viewer, type ViewerHandle } from '@toolpath/viewer'
+import { Axes, DirectionArrows, Grid, ViewCube, Viewer, type ViewerHandle } from '@toolpath/viewer'
 import { EnginePart } from '@toolpath/viewer/engine'
 import { Button } from '@toolpath/ui'
-import { Component, Suspense, useMemo, useRef } from 'react'
+import { Component, Suspense, useMemo, useRef, useState } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import type { PartPick } from '@toolpath/viewer'
 import type { PartReport, PublicInspectionReport } from '../shared/contracts'
@@ -56,6 +56,10 @@ export const FeatureViewer = ({
   onPick: (pick: PartPick | null) => void
 }) => {
   const viewerRef = useRef<ViewerHandle>(null)
+  // The cut is a mode: its handle stands over the part's centre, which is also
+  // where an orbit starts, so leaving it on would swallow the gesture.
+  const [sectioning, setSectioning] = useState(false)
+  const [cut, setCut] = useState(0.35)
   const viewerReport = useMemo<PartReport>(
     () => ({
       ...report,
@@ -75,6 +79,29 @@ export const FeatureViewer = ({
         <Button size="sm" variant="secondary" onClick={() => viewerRef.current?.reset()}>
           Reset
         </Button>
+        <Button
+          size="sm"
+          variant={sectioning ? 'info' : 'secondary'}
+          aria-pressed={sectioning}
+          onClick={() => setSectioning((on) => !on)}
+        >
+          Section
+        </Button>
+        {sectioning ? (
+          <label className="flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900/80 px-3 text-xs text-zinc-300">
+            <span className="sr-only">Cut depth</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={cut}
+              onChange={(event) => setCut(Number(event.target.value))}
+              className="w-32 accent-info"
+            />
+            <span className="w-8 text-right font-mono">{Math.round(cut * 100)}%</span>
+          </label>
+        ) : null}
       </div>
       {report.hasMeshGlb || report.hasMeshStl ? (
         <MeshErrorBoundary key={`${report.partId}:${jobId}`}>
@@ -91,7 +118,10 @@ export const FeatureViewer = ({
                 selection={selectedFeatureTag ? [selectedFeatureTag] : []}
                 hoveredFeatureIds={highlightedFeatureTags}
                 onPick={onPick}
+                section={{ enabled: sectioning, normal: { x: 0, y: 0, z: -1 }, offset: cut }}
+                onSectionChange={(state) => setCut(state.offset)}
               />
+              <DirectionArrows directions={report.candidateDirections} />
               <Grid />
               <Axes size={35} />
               <ViewCube />

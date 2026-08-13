@@ -1,7 +1,7 @@
 import { type ThreeEvent, useThree } from '@react-three/fiber'
 import { useMemo } from 'react'
 import { type Box3, Quaternion, Vector3 } from 'three'
-import type { PartModel, Vec3 } from './model/types.js'
+import type { Vec3 } from './model/types.js'
 import { useContentBox } from './content-box.js'
 import { EXCLUDE_FROM_FRAME } from './render/camera.js'
 import { CONE_AXIS, HEAD, HEAD_RADIUS, SHAFT_RADIUS, arrowPlacement } from './render/directions.js'
@@ -16,8 +16,13 @@ export interface NamedDirection {
 }
 
 export interface DirectionArrowsProps {
-  /** The report, for its `candidateDirections`. */
-  model: PartModel
+  /**
+   * The ways up the part can be held — a report's `candidateDirections`.
+   *
+   * The directions rather than the report: an arrow is drawn from a unit vector
+   * and the part's bounds, and nothing else about a part is needed to place one.
+   */
+  directions: readonly Vec3[]
   /**
    * Shows one direction on its own. Choosing a direction is a way of asking
    * about that direction, so the others leave rather than dimming: five faded
@@ -56,7 +61,7 @@ export interface DirectionArrowsProps {
  * than as a surface normal.
  */
 export const DirectionArrows = ({
-  model,
+  directions,
   activeDirection = null,
   shownDirection,
   previewDirection = null,
@@ -76,7 +81,7 @@ export const DirectionArrows = ({
     // part, so a Fit that measured them would frame the arrows and leave the
     // part small in the middle of them.
     <group userData={FURNITURE}>
-      {model.candidateDirections.map((direction, index) => {
+      {directions.map((direction, index) => {
         if (shown !== null && shown !== index) return null
         return (
           <Arrow
