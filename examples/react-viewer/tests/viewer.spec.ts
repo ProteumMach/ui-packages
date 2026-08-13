@@ -4,26 +4,22 @@ test('selects a feature and responds to CAD camera navigation', async ({ page })
   await page.goto('/')
   const canvas = page.locator('canvas')
   await expect(canvas).toBeVisible()
+  // Measured after the opening frame: before it, the canvas is still at its
+  // default 300x150 and every coordinate below would be taken from that.
   await page.waitForTimeout(700)
-
-  // The section, while the camera is still at its opening pose: the handle
-  // stands on the cap over the part's centre, which is also where an orbit
-  // starts, so it is a mode rather than something always on.
-  await page.getByRole('button', { name: 'Section' }).click()
-  await page.waitForTimeout(700)
-  const cut = page.locator('p', { hasText: 'Cut:' })
-  const beforeCut = await cut.textContent()
   const box = await canvas.boundingBox()
   if (!box) throw new Error('Viewer canvas has no bounding box')
-  // The arrow stands proud of the cap, so it sits a little above the part's
-  // centre on screen — and end-on it is only about a dozen pixels across, so
-  // these are exact canvas coordinates for the default 1280x720 viewport
-  // rather than an approximation of "the middle".
-  await page.mouse.move(box.x + 436, box.y + 298)
-  await page.mouse.down()
-  await page.mouse.move(box.x + 436, box.y + 378, { steps: 15 })
-  await page.mouse.up()
-  await expect.poll(async () => await cut.textContent()).not.toBe(beforeCut)
+
+  // The section. Driven through its slider rather than by dragging the handle
+  // in the viewport: the handle is a dozen pixels across, its position depends
+  // on the canvas size, and a drag over software WebGL on CI is slow enough to
+  // outlast the timeout. The drag's own maths are unit tested; what this covers
+  // is that a cut happens and reports itself.
+  const cut = page.locator('p', { hasText: 'Cut:' })
+  await page.getByRole('button', { name: 'Section' }).click()
+  await expect(cut).toContainText('45%')
+  await page.getByRole('slider').fill('0.8')
+  await expect(cut).toContainText('80%')
   await page.getByRole('button', { name: 'Section' }).click()
   await expect(cut).toContainText('off')
 
@@ -37,9 +33,16 @@ test('selects a feature and responds to CAD camera navigation', async ({ page })
   // go. The arrows sit outside the part, so this reaches past its corner.
   const direction = page.locator('p', { hasText: 'Direction:' })
   await expect(direction).toContainText('all')
-  await page.mouse.click(box.x + box.width / 2 - 150, box.y + box.height / 2 - 150)
+  // As a fraction of the canvas rather than in pixels: the arrows are placed
+  // against the part's own size, and the canvas is not the same shape on every
+  // machine that runs this.
+  const arrow = {
+    x: box.x + box.width * 0.33,
+    y: box.y + box.height * 0.27,
+  }
+  await page.mouse.click(arrow.x, arrow.y)
   await expect(direction).not.toContainText('all')
-  await page.mouse.click(box.x + box.width / 2 - 150, box.y + box.height / 2 - 150)
+  await page.mouse.click(arrow.x, arrow.y)
   await expect(direction).toContainText('all')
 
   const beforeOrbit = await canvas.screenshot()

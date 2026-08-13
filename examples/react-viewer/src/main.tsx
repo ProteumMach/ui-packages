@@ -106,6 +106,19 @@ const App = () => {
           <button type="button" onClick={() => setSectioning((on) => !on)}>
             Section
           </button>
+          {sectioning ? (
+            <label>
+              <span className="sr-only">Cut depth</span>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={cut}
+                onChange={(event) => setCut(Number(event.target.value))}
+              />
+            </label>
+          ) : null}
         </div>
         <Viewer ref={viewerRef} onPointerMissed={() => setSelected([])}>
           <PartMesh
