@@ -155,6 +155,27 @@ describe('applyHighlightLayers — the order is the specification', () => {
     expect(part.regionPaint(face.region)?.weight).toBe(1)
   })
 
+  it('shows a held face over the reading it resolved to', async () => {
+    const { model, part } = await loadCube()
+    const face = faceOn(model, 1)
+
+    paint(part, { selection: [face.tag], pickedRegions: [face.region] })
+
+    // The reading a click guesses is painted, so a held face under it would
+    // vanish and a modifier-click would look like it did nothing.
+    expect(part.regionPaint(face.region)?.color).toBe(quantized(part, DEFAULT_THEME.picked))
+    expect(part.regionPaint(face.region)?.weight).toBe(1)
+  })
+
+  it('still lets the pointer beat a held face', async () => {
+    const { model, part } = await loadCube()
+    const face = faceOn(model, 1)
+
+    paint(part, { pickedRegions: [face.region], hoverRegion: face.region })
+
+    expect(part.regionPaint(face.region)?.color).toBe(quantized(part, DEFAULT_THEME.hover))
+  })
+
   it('clears what the previous paint left behind', async () => {
     const { model, part } = await loadCube()
     const face = faceOn(model, 1)

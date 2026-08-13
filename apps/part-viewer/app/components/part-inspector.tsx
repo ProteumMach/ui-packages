@@ -1,4 +1,4 @@
-import { focusForPick, type PartPick } from '@toolpath/viewer'
+import { directionIndexOf, type PartPick } from '@toolpath/viewer'
 import { Panels, Tabs } from '@toolpath/ui'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
@@ -40,6 +40,17 @@ export const PartInspector = ({
     [focusedTag, report.features],
   )
   const features = useMemo(() => filterFeatures(report.features, query), [query, report.features])
+  /**
+   * Once a feature is being read, its own way up is the only one worth drawing.
+   * An explicit direction still wins: choosing one is a question about that
+   * direction, and it stays on screen while readings are looked at within it.
+   */
+  const shownDirection = useMemo(() => {
+    if (activeDirection !== null) return activeDirection
+    if (!focused) return null
+    const index = directionIndexOf(report, focused.machiningDirection)
+    return index === -1 ? null : index
+  }, [activeDirection, focused, report])
   const candidates = useMemo(
     () => featureFromTags(report.features, candidateTags),
     [candidateTags, report.features],
@@ -206,6 +217,7 @@ export const PartInspector = ({
             selectedFeatureTag={focusedTag}
             highlightedFeatureTags={hoveredTags}
             heldRegions={heldRegions(selection)}
+            shownDirection={shownDirection}
             onPick={pickFromPart}
           />
         </Panels.Panel>

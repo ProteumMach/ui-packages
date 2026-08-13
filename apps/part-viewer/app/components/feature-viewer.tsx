@@ -35,9 +35,6 @@ class MeshErrorBoundary extends Component<{ children: ReactNode }, { error: Erro
   }
 }
 
-/** The orange a held face wears, under the reading it resolved to. */
-const HELD_FACE_COLOR = 0xff8000
-
 const meshUrl = (partId: string, jobId: string, format: 'glb' | 'stl'): string =>
   `/api/parts/${encodeURIComponent(partId)}/mesh?${new URLSearchParams({ jobId, format })}`
 
@@ -59,6 +56,7 @@ export const FeatureViewer = ({
   highlightedFeatureTags,
   heldRegions,
   activeDirection,
+  shownDirection,
   onPickDirection,
   onPick,
 }: {
@@ -76,6 +74,13 @@ export const FeatureViewer = ({
   heldRegions: readonly number[]
   /** Scopes picking to one way up, and shows that arrow on its own. */
   activeDirection: number | null
+  /**
+   * The way up the feature being read is cut from, shown on its own.
+   *
+   * A part has up to ten candidate directions and the arrows are large; once
+   * one feature is being read, the other nine answer a question nobody asked.
+   */
+  shownDirection: number | null
   onPickDirection: (index: number) => void
   onPick: (pick: PartPick | null) => void
 }) => {
@@ -201,10 +206,7 @@ export const FeatureViewer = ({
                 report={viewerReport}
                 selection={selectedFeatureTag ? [selectedFeatureTag] : []}
                 hoveredFeatureIds={highlightedFeatureTags}
-                regionHighlights={heldRegions.map((region) => ({
-                  region,
-                  color: HELD_FACE_COLOR,
-                }))}
+                pickedRegions={heldRegions}
                 onPick={pickInViewport}
                 activeDirection={activeDirection}
                 section={{
@@ -225,6 +227,7 @@ export const FeatureViewer = ({
               <DirectionArrows
                 directions={report.candidateDirections}
                 activeDirection={activeDirection}
+                shownDirection={shownDirection}
                 onPickDirection={onPickDirection}
               />
               <Grid />

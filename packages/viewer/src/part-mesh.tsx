@@ -42,6 +42,12 @@ export interface PartMeshProps {
   /** Colours on named faces, over the feature highlights. */
   regionHighlights?: readonly RegionHighlight[]
   /**
+   * The faces a click just picked, painted over the reading they resolved to so
+   * that holding a second face shows what it did even when the reading is
+   * unchanged.
+   */
+  pickedRegions?: readonly number[]
+  /**
    * Features to show as hovered from outside the viewport — a list row under
    * the pointer. The face under the pointer *in* the viewport is tracked here
    * and needs no prop.
@@ -91,6 +97,7 @@ export const PartMesh = ({
   candidates = [],
   highlights = [],
   regionHighlights = [],
+  pickedRegions = [],
   hoveredFeatureIds = [],
   activeDirection = null,
   section,
@@ -113,8 +120,22 @@ export const PartMesh = ({
 
   // Every layer the paint reads, held so a pointer move can repaint without a
   // render. Refreshed here because a render is exactly when the props are new.
-  const layers = useRef({ selection, candidates, highlights, regionHighlights, hoveredFeatureIds })
-  layers.current = { selection, candidates, highlights, regionHighlights, hoveredFeatureIds }
+  const layers = useRef({
+    selection,
+    candidates,
+    highlights,
+    regionHighlights,
+    pickedRegions,
+    hoveredFeatureIds,
+  })
+  layers.current = {
+    selection,
+    candidates,
+    highlights,
+    regionHighlights,
+    pickedRegions,
+    hoveredFeatureIds,
+  }
 
   const repaint = useCallback(() => {
     const { hoveredFeatureIds: hoveredFeatures, ...rest } = layers.current
@@ -159,6 +180,7 @@ export const PartMesh = ({
   const layerKey = [
     selection.join(' '),
     candidates.join(' '),
+    pickedRegions.join(' '),
     hoveredFeatureIds.join(' '),
     highlights.map((entry) => `${entry.tag}:${entry.color}:${entry.weight ?? ''}`).join(' '),
     regionHighlights

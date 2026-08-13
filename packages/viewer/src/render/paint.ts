@@ -60,6 +60,15 @@ export interface HighlightLayers {
   readonly candidates?: readonly FeatureTag[]
   /** The features being read. */
   readonly selection?: readonly FeatureTag[]
+  /**
+   * The faces a click just picked, painted over the reading they resolved to.
+   *
+   * Above the selection rather than below it, which is where the feature picker
+   * puts them — because the picker paints nothing for a guessed reading, so its
+   * picked faces are never covered. Here the guess *is* painted, so held faces
+   * under it would vanish and a modifier-click would look like it did nothing.
+   */
+  readonly pickedRegions?: readonly number[]
   /** Features shown as hovered from outside the viewport — a list row. */
   readonly hoveredFeatures?: readonly FeatureTag[]
   /** The face under the pointer. */
@@ -119,6 +128,10 @@ export function applyHighlightLayers(
 
   for (const tag of layers.selection ?? []) {
     part.paintFeature(tag, theme.highlight, 1)
+  }
+
+  for (const region of layers.pickedRegions ?? []) {
+    part.paintRegion(region, theme.picked, 1)
   }
 
   for (const tag of layers.hoveredFeatures ?? []) {
