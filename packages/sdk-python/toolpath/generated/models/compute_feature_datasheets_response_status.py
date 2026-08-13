@@ -1,8 +1,8 @@
 from enum import Enum
 
 
-class ReportUnitsAngle(str, Enum):
-    DEG = "deg"
+class ComputeFeatureDatasheetsResponseStatus(str, Enum):
+    QUEUED = "queued"
 
     def __str__(self) -> str:
         return str(self.value)

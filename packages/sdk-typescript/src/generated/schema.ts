@@ -89,6 +89,24 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/v1/features/datasheets': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get datasheets for a list of features */
+    get: operations['getFeatureDatasheets']
+    put?: never
+    /** Queue datasheet computation for a list of features */
+    post: operations['computeFeatureDatasheets']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/v1/jobs': {
     parameters: {
       query?: never
@@ -188,6 +206,7 @@ export interface components {
       regions: components['schemas']['Region'][]
       features: components['schemas']['PartFeature'][]
       candidateDirections: components['schemas']['Vec3'][]
+      directionZBounds: components['schemas']['DirectionZBounds'][] | null
       meshPointCount: number
       meshTriangleCount: number
       /** Format: uri */
@@ -197,14 +216,15 @@ export interface components {
       /** Format: uri */
       meshGlbUrl: string | null
       downloadMs: number
-      analysisMs: number
+      recognitionMs: number
+      enrichmentMs: number
       totalMs: number
     }
     ReportUnits: {
       /** @enum {string} */
       length: 'mm'
       /** @enum {string} */
-      angle: 'rad'
+      angle: 'deg'
     }
     Region: {
       idx: number
@@ -214,19 +234,44 @@ export interface components {
       triangleEnd: number
     }
     PartFeature: {
+      featureId: string
       featureTag: string
       regionIdxs: number[]
       featureType: string
       machiningDirection: components['schemas']['Vec3']
       axis: components['schemas']['Vec3'] & (Record<string, never> | null)
-      datasheet?: components['schemas']['FeatureDatasheet']
     }
     Vec3: {
       x: number
       y: number
       z: number
     }
-    /** @description Per-feature DFM datasheet. Depths (min/max/extended and a depthVariation reach sweep), stock-to-leave, tolerance band, floor/wall flags and areas, plus a per-kind `facts` object (narrow on `facts.kind` for diameters, tool bounds, corner/fillet radius). Lengths are mm, angles radians. The object is extensible; clients should narrow `facts` using `facts.kind`. */
+    DirectionZBounds: {
+      direction: components['schemas']['Vec3']
+      zMin: number
+      zMax: number
+    }
+    ComputeFeatureDatasheetsResponse: {
+      jobId: string
+      partId: string
+      /** @enum {string} */
+      status: 'queued'
+    }
+    ComputeFeatureDatasheetsRequest: {
+      featureIds: string[]
+    }
+    FeatureDatasheetsResponse: {
+      datasheets: components['schemas']['FeatureDatasheetEntry'][]
+      notFound: string[]
+    }
+    FeatureDatasheetEntry: {
+      /** Format: uuid */
+      featureId: string
+      featureTag: string
+      featureType: string
+      datasheet?: components['schemas']['FeatureDatasheet']
+    }
+    /** @description Per-feature DFM measurement facts. Z bounds in the direction frame (zMin/zMax; local height is zMax − zMin), stock-to-leave, tolerance band, floor/wall flags and areas, plus a per-kind `facts` object (narrow on `facts.kind` for diameters, tool bounds, corner/fillet radius). Lengths are mm, angles degrees. The exact shape is the kernel’s FeatureDatasheet (@toolpath/tp-kernel). */
     FeatureDatasheet: {
       [key: string]: unknown
     }
@@ -380,7 +425,10 @@ export interface operations {
   }
   analyzePart: {
     parameters: {
-      query?: never
+      query?: {
+        /** @description When true, enrich recognized features into per-feature datasheets. Defaults to false. */
+        featureDetails?: 'true' | 'false'
+      }
       header?: {
         'Idempotency-Key'?: string
       }
@@ -507,6 +555,143 @@ export interface operations {
         }
       }
       /** @description The part report could not be retrieved. */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails']
+        }
+      }
+      /** @description Authentication is temporarily unavailable. */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails']
+        }
+      }
+    }
+  }
+  getFeatureDatasheets: {
+    parameters: {
+      query: {
+        /** @description Comma-separated feature ids (from a part report) to fetch datasheets for. */
+        ids: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Datasheets for the resolved features, plus any ids that were not found. */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['FeatureDatasheetsResponse']
+        }
+      }
+      /** @description The request is invalid. */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails']
+        }
+      }
+      /** @description The API key is missing or invalid. */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails']
+        }
+      }
+      /** @description The feature datasheets could not be retrieved. */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails']
+        }
+      }
+      /** @description Authentication is temporarily unavailable. */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails']
+        }
+      }
+    }
+  }
+  computeFeatureDatasheets: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['ComputeFeatureDatasheetsRequest']
+      }
+    }
+    responses: {
+      /** @description The enrichment job was accepted. */
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ComputeFeatureDatasheetsResponse']
+        }
+      }
+      /** @description The request is invalid, or the features span more than one part. */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails']
+        }
+      }
+      /** @description The API key is missing or invalid. */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails']
+        }
+      }
+      /** @description None of the features exist in the authorized organization. */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails']
+        }
+      }
+      /** @description The part source has not been uploaded. */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails']
+        }
+      }
+      /** @description The enrichment job could not be submitted. */
       500: {
         headers: {
           [name: string]: unknown

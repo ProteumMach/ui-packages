@@ -2,8 +2,15 @@
 
 from .analyze_job_response import AnalyzeJobResponse
 from .analyze_job_response_status import AnalyzeJobResponseStatus
+from .analyze_part_feature_details import AnalyzePartFeatureDetails
+from .compute_feature_datasheets_request import ComputeFeatureDatasheetsRequest
+from .compute_feature_datasheets_response import ComputeFeatureDatasheetsResponse
+from .compute_feature_datasheets_response_status import ComputeFeatureDatasheetsResponseStatus
 from .create_part_response import CreatePartResponse
+from .direction_z_bounds import DirectionZBounds
 from .feature_datasheet import FeatureDatasheet
+from .feature_datasheet_entry import FeatureDatasheetEntry
+from .feature_datasheets_response import FeatureDatasheetsResponse
 from .health_response import HealthResponse
 from .health_response_db import HealthResponseDb
 from .health_response_status import HealthResponseStatus
@@ -27,8 +34,15 @@ from .vec_3 import Vec3
 __all__ = (
     "AnalyzeJobResponse",
     "AnalyzeJobResponseStatus",
+    "AnalyzePartFeatureDetails",
+    "ComputeFeatureDatasheetsRequest",
+    "ComputeFeatureDatasheetsResponse",
+    "ComputeFeatureDatasheetsResponseStatus",
     "CreatePartResponse",
+    "DirectionZBounds",
     "FeatureDatasheet",
+    "FeatureDatasheetEntry",
+    "FeatureDatasheetsResponse",
     "HealthResponse",
     "HealthResponseDb",
     "HealthResponseStatus",

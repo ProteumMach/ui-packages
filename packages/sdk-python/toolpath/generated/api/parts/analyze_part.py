@@ -7,6 +7,7 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.analyze_job_response import AnalyzeJobResponse
+from ...models.analyze_part_feature_details import AnalyzePartFeatureDetails
 from ...models.problem_details import ProblemDetails
 from ...types import UNSET, Response, Unset
 
@@ -14,17 +15,29 @@ from ...types import UNSET, Response, Unset
 def _get_kwargs(
     id: str,
     *,
+    feature_details: AnalyzePartFeatureDetails | Unset = AnalyzePartFeatureDetails.FALSE,
     idempotency_key: str | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(idempotency_key, Unset):
         headers["Idempotency-Key"] = idempotency_key
 
+    params: dict[str, Any] = {}
+
+    json_feature_details: str | Unset = UNSET
+    if not isinstance(feature_details, Unset):
+        json_feature_details = feature_details.value
+
+    params["featureDetails"] = json_feature_details
+
+    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
+
     _kwargs: dict[str, Any] = {
         "method": "post",
         "url": "/v1/parts/{id}/analyze".format(
             id=quote(str(id), safe=""),
         ),
+        "params": params,
     }
 
     _kwargs["headers"] = headers
@@ -90,12 +103,16 @@ def sync_detailed(
     id: str,
     *,
     client: AuthenticatedClient | Client,
+    feature_details: AnalyzePartFeatureDetails | Unset = AnalyzePartFeatureDetails.FALSE,
     idempotency_key: str | Unset = UNSET,
 ) -> Response[AnalyzeJobResponse | ProblemDetails]:
     """Start part analysis
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
+        feature_details (AnalyzePartFeatureDetails | Unset): When true, enrich recognized features
+            into per-feature datasheets. Defaults to false. Default: AnalyzePartFeatureDetails.FALSE.
+            Example: true.
         idempotency_key (str | Unset):  Example: analysis-request-123.
 
     Raises:
@@ -108,6 +125,7 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         id=id,
+        feature_details=feature_details,
         idempotency_key=idempotency_key,
     )
 
@@ -122,12 +140,16 @@ def sync(
     id: str,
     *,
     client: AuthenticatedClient | Client,
+    feature_details: AnalyzePartFeatureDetails | Unset = AnalyzePartFeatureDetails.FALSE,
     idempotency_key: str | Unset = UNSET,
 ) -> AnalyzeJobResponse | ProblemDetails | None:
     """Start part analysis
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
+        feature_details (AnalyzePartFeatureDetails | Unset): When true, enrich recognized features
+            into per-feature datasheets. Defaults to false. Default: AnalyzePartFeatureDetails.FALSE.
+            Example: true.
         idempotency_key (str | Unset):  Example: analysis-request-123.
 
     Raises:
@@ -141,6 +163,7 @@ def sync(
     return sync_detailed(
         id=id,
         client=client,
+        feature_details=feature_details,
         idempotency_key=idempotency_key,
     ).parsed
 
@@ -149,12 +172,16 @@ async def asyncio_detailed(
     id: str,
     *,
     client: AuthenticatedClient | Client,
+    feature_details: AnalyzePartFeatureDetails | Unset = AnalyzePartFeatureDetails.FALSE,
     idempotency_key: str | Unset = UNSET,
 ) -> Response[AnalyzeJobResponse | ProblemDetails]:
     """Start part analysis
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
+        feature_details (AnalyzePartFeatureDetails | Unset): When true, enrich recognized features
+            into per-feature datasheets. Defaults to false. Default: AnalyzePartFeatureDetails.FALSE.
+            Example: true.
         idempotency_key (str | Unset):  Example: analysis-request-123.
 
     Raises:
@@ -167,6 +194,7 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         id=id,
+        feature_details=feature_details,
         idempotency_key=idempotency_key,
     )
 
@@ -179,12 +207,16 @@ async def asyncio(
     id: str,
     *,
     client: AuthenticatedClient | Client,
+    feature_details: AnalyzePartFeatureDetails | Unset = AnalyzePartFeatureDetails.FALSE,
     idempotency_key: str | Unset = UNSET,
 ) -> AnalyzeJobResponse | ProblemDetails | None:
     """Start part analysis
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
+        feature_details (AnalyzePartFeatureDetails | Unset): When true, enrich recognized features
+            into per-feature datasheets. Defaults to false. Default: AnalyzePartFeatureDetails.FALSE.
+            Example: true.
         idempotency_key (str | Unset):  Example: analysis-request-123.
 
     Raises:
@@ -199,6 +231,7 @@ async def asyncio(
         await asyncio_detailed(
             id=id,
             client=client,
+            feature_details=feature_details,
             idempotency_key=idempotency_key,
         )
     ).parsed

@@ -3,7 +3,7 @@
   "info": {
     "title": "Toolpath Engine API",
     "version": "1.0.0",
-    "description": "Public REST API for Toolpath engine operations.\n\n**Units.** All dimensional values — in reports and in feature datasheets — are in\nmillimetres; all angles are in radians. Each report also states this in its `units` field.\n\n**Browser use.** CORS is per API key: a request only receives an\n`Access-Control-Allow-Origin` header when its `Origin` is in the allowlist configured on the\nkey used (set when creating or editing the key in the portal). A key with no allowed origins\nis server-to-server only. A Bearer API key placed in client-side JavaScript is readable by\nanyone — restrict its origins, prefer a `read_only` key (read_only keys may call GET\noperations only; writes are rejected with 403), or proxy requests through your own server."
+    "description": "Public REST API for Toolpath engine operations.\n\n**Units.** All dimensional values — in reports and in feature datasheets — are in\nmillimetres; all angles are in degrees. Each report also states this in its `units` field.\n\n**Browser use.** CORS is per API key: a request only receives an\n`Access-Control-Allow-Origin` header when its `Origin` is in the allowlist configured on the\nkey used (set when creating or editing the key in the portal). A key with no allowed origins\nis server-to-server only. A Bearer API key placed in client-side JavaScript is readable by\nanyone — restrict its origins, prefer a `read_only` key (read_only keys may call GET\noperations only; writes are rejected with 403), or proxy requests through your own server."
   },
   "tags": [
     {
@@ -13,6 +13,10 @@
     {
       "name": "Parts",
       "description": "Part upload and analysis operations."
+    },
+    {
+      "name": "Features",
+      "description": "Per-feature datasheet operations."
     },
     {
       "name": "Jobs",
@@ -199,6 +203,15 @@
               "$ref": "#/components/schemas/Vec3"
             }
           },
+          "directionZBounds": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/DirectionZBounds"
+            }
+          },
           "meshPointCount": {
             "type": "integer",
             "minimum": 0
@@ -232,7 +245,11 @@
             "type": "integer",
             "minimum": 0
           },
-          "analysisMs": {
+          "recognitionMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "enrichmentMs": {
             "type": "integer",
             "minimum": 0
           },
@@ -250,13 +267,15 @@
           "regions",
           "features",
           "candidateDirections",
+          "directionZBounds",
           "meshPointCount",
           "meshTriangleCount",
           "thumbnailUrl",
           "meshStlUrl",
           "meshGlbUrl",
           "downloadMs",
-          "analysisMs",
+          "recognitionMs",
+          "enrichmentMs",
           "totalMs"
         ]
       },
@@ -272,7 +291,7 @@
           "angle": {
             "type": "string",
             "enum": [
-              "rad"
+              "deg"
             ]
           }
         },
@@ -314,6 +333,9 @@
       "PartFeature": {
         "type": "object",
         "properties": {
+          "featureId": {
+            "type": "string"
+          },
           "featureTag": {
             "type": "string"
           },
@@ -342,12 +364,10 @@
                 ]
               }
             ]
-          },
-          "datasheet": {
-            "$ref": "#/components/schemas/FeatureDatasheet"
           }
         },
         "required": [
+          "featureId",
           "featureTag",
           "regionIdxs",
           "featureType",
@@ -374,10 +394,111 @@
           "z"
         ]
       },
+      "DirectionZBounds": {
+        "type": "object",
+        "properties": {
+          "direction": {
+            "$ref": "#/components/schemas/Vec3"
+          },
+          "zMin": {
+            "type": "number"
+          },
+          "zMax": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "direction",
+          "zMin",
+          "zMax"
+        ]
+      },
+      "ComputeFeatureDatasheetsResponse": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string"
+          },
+          "partId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued"
+            ]
+          }
+        },
+        "required": [
+          "jobId",
+          "partId",
+          "status"
+        ]
+      },
+      "ComputeFeatureDatasheetsRequest": {
+        "type": "object",
+        "properties": {
+          "featureIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "featureIds"
+        ]
+      },
+      "FeatureDatasheetsResponse": {
+        "type": "object",
+        "properties": {
+          "datasheets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeatureDatasheetEntry"
+            }
+          },
+          "notFound": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "datasheets",
+          "notFound"
+        ]
+      },
+      "FeatureDatasheetEntry": {
+        "type": "object",
+        "properties": {
+          "featureId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "featureTag": {
+            "type": "string"
+          },
+          "featureType": {
+            "type": "string"
+          },
+          "datasheet": {
+            "$ref": "#/components/schemas/FeatureDatasheet"
+          }
+        },
+        "required": [
+          "featureId",
+          "featureTag",
+          "featureType"
+        ]
+      },
       "FeatureDatasheet": {
         "type": "object",
         "additionalProperties": true,
-        "description": "Per-feature DFM datasheet. Depths (min/max/extended and a depthVariation reach sweep), stock-to-leave, tolerance band, floor/wall flags and areas, plus a per-kind `facts` object (narrow on `facts.kind` for diameters, tool bounds, corner/fillet radius). Lengths are mm, angles radians. The object is extensible; clients should narrow `facts` using `facts.kind`."
+        "description": "Per-feature DFM measurement facts. Z bounds in the direction frame (zMin/zMax; local height is zMax − zMin), stock-to-leave, tolerance band, floor/wall flags and areas, plus a per-kind `facts` object (narrow on `facts.kind` for diameters, tool bounds, corner/fillet radius). Lengths are mm, angles degrees. The exact shape is the kernel’s FeatureDatasheet (@toolpath/tp-kernel)."
       },
       "ListJobsResponse": {
         "type": "object",
@@ -676,6 +797,22 @@
           {
             "schema": {
               "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "default": "false",
+              "example": "true",
+              "description": "When true, enrich recognized features into per-feature datasheets. Defaults to false."
+            },
+            "required": false,
+            "description": "When true, enrich recognized features into per-feature datasheets. Defaults to false.",
+            "name": "featureDetails",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
               "minLength": 1,
               "maxLength": 255,
               "example": "analysis-request-123"
@@ -833,6 +970,168 @@
           },
           "500": {
             "description": "The part report could not be retrieved.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Authentication is temporarily unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/features/datasheets": {
+      "post": {
+        "operationId": "computeFeatureDatasheets",
+        "tags": [
+          "Features"
+        ],
+        "summary": "Queue datasheet computation for a list of features",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComputeFeatureDatasheetsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The enrichment job was accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComputeFeatureDatasheetsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid, or the features span more than one part.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "None of the features exist in the authorized organization.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The part source has not been uploaded.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The enrichment job could not be submitted.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Authentication is temporarily unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "getFeatureDatasheets",
+        "tags": [
+          "Features"
+        ],
+        "summary": "Get datasheets for a list of features",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "0195f02c-4b4a-7b5d-9b6e-8f139d5e2820,0195f02c-4b4a-7b5d-9b6e-8f139d5e2821",
+              "description": "Comma-separated feature ids (from a part report) to fetch datasheets for."
+            },
+            "required": true,
+            "description": "Comma-separated feature ids (from a part report) to fetch datasheets for.",
+            "name": "ids",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Datasheets for the resolved features, plus any ids that were not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureDatasheetsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The feature datasheets could not be retrieved.",
             "content": {
               "application/problem+json": {
                 "schema": {
