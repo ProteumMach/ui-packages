@@ -5,16 +5,25 @@
 export { EnginePart, normalizePartReport } from './engine/index.js'
 export { PartMesh } from './part-mesh.js'
 export { Axes, Grid, OrientationCube } from './primitives.js'
+export { CadCameraControls } from './camera.js'
 export {
   CAD_CAMERA_UP,
-  CadOrbitControls,
+  DEFAULT_FIT_MARGIN,
+  EXCLUDE_FROM_FRAME,
+  PERSPECTIVE_FOV,
+  applyProjection,
+  aspectRatio,
+  boundsFromBox,
   cadViewDirections,
-  cameraDistanceLimits,
-  clampCameraTarget,
-  configureCadCamera,
-  currentCadViewDirection,
-  frameCadCamera,
-} from './camera.js'
+  contentBounds,
+  currentViewDirection,
+  defaultBounds,
+  fitDistance,
+  orthographicHalfHeight,
+  perspectiveFitDistance,
+  startPosition,
+} from './render/camera.js'
+export { ExtendedCameraControls } from './render/controls.js'
 export { useViewerControls, Viewer } from './viewer.js'
 export { PartReportFormatError, UnsupportedKernelVersionError } from './model/errors.js'
 export { buildRegionIndex } from './model/region-index.js'
@@ -73,5 +82,7 @@ export type { FeatureHighlight, HighlightLayers, RegionHighlight } from './rende
 export type { ViewerTheme } from './render/theme.js'
 export type { PartMeshProps } from './part-mesh.js'
 export type { AxesProps, GridProps, OrientationCubeProps } from './primitives.js'
-export type { CameraDistanceLimits, CameraPanBounds } from './camera.js'
+export type { CadCameraControlsProps } from './camera.js'
+export type { Projection, SceneBounds, ViewerCamera, ViewportSize } from './render/camera.js'
+export type { ControlScheme, ExtendedCameraControlsOptions } from './render/controls.js'
 export type { ViewerProps } from './viewer.js'

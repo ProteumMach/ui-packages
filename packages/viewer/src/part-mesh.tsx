@@ -136,7 +136,7 @@ export const PartMesh = ({
 
     // The owner whose machining direction most nearly faces the viewer wins a
     // tie, so which reading a click means depends on where it was made from.
-    const target = (controls as { target?: Vector3 } | null)?.target ?? ORIGIN
+    const target = readTarget(controls)
     const normal = event.face?.normal ?? UP
     const source = event.nativeEvent
 
@@ -187,6 +187,21 @@ export const PartMesh = ({
 
 const ORIGIN = new Vector3()
 const UP = new Vector3(0, 0, 1)
+const TARGET = new Vector3()
+
+/**
+ * The orbit target, whatever the controls are.
+ *
+ * `camera-controls` reads its target out into a vector rather than exposing one,
+ * and R3F's `controls` slot is typed loosely enough to hold either shape.
+ */
+function readTarget(controls: unknown): Vector3 {
+  if (controls && typeof (controls as { getTarget?: unknown }).getTarget === 'function') {
+    return (controls as { getTarget: (into: Vector3) => Vector3 }).getTarget(TARGET)
+  }
+  const target = (controls as { target?: Vector3 } | null)?.target
+  return target ?? ORIGIN
+}
 
 /**
  * The resolved theme, with an identity that changes only when a colour does.

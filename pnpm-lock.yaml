@@ -233,7 +233,7 @@ importers:
     devDependencies:
       '@testing-library/jest-dom':
         specifier: ^7.0.1
-        version: 7.0.1(@testing-library/dom@10.4.1)(vitest@4.1.10(@types/node@24.10.1)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.10.1)(esbuild@0.27.7)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0)))
+        version: 7.0.1(@testing-library/dom@10.4.1)(vitest@4.1.10(@types/node@24.10.1)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.10.1)(esbuild@0.28.2)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0)))
       '@testing-library/react':
         specifier: ^16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -263,9 +263,13 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^4.1.10
-        version: 4.1.10(@types/node@24.10.1)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.10.1)(esbuild@0.27.7)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0))
+        version: 4.1.10(@types/node@24.10.1)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.10.1)(esbuild@0.28.2)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0))
 
   packages/viewer:
+    dependencies:
+      camera-controls:
+        specifier: 3.1.0
+        version: 3.1.0(three@0.185.1)
     devDependencies:
       '@react-three/drei':
         specifier: 10.7.8
@@ -305,7 +309,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 4.1.10
-        version: 4.1.10(@types/node@24.10.1)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.10.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0))
+        version: 4.1.10(@types/node@24.10.1)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.10.1)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0))
 
 packages:
   '@adobe/css-tools@4.5.0':
@@ -2474,12 +2478,12 @@ packages:
       }
     engines: { node: '>= 6' }
 
-  camera-controls@3.1.2:
+  camera-controls@3.1.0:
     resolution:
       {
-        integrity: sha512-xkxfpG2ECZ6Ww5/9+kf4mfg1VEYAoe9aDSY+IwF0UEs7qEzwy0aVRfs2grImIECs/PoBtWFrh7RXsQkwG922JA==,
+        integrity: sha512-w5oULNpijgTRH0ARFJJ0R5ct1nUM3R3WP7/b8A6j9uTGpRfnsypc/RBMPQV8JQDPayUe37p/TZZY1PcUr4czOQ==,
       }
-    engines: { node: '>=22.0.0', npm: '>=10.5.1' }
+    engines: { node: '>=20.11.0', npm: '>=10.8.2' }
     peerDependencies:
       three: '>=0.126.1'
 
@@ -5951,7 +5955,7 @@ snapshots:
       '@monogrid/gainmap-js': 3.4.0(three@0.185.1)
       '@react-three/fiber': 9.7.0(@types/react@19.2.18)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(three@0.185.1)
       '@use-gesture/react': 10.3.1(react@19.2.0)
-      camera-controls: 3.1.2(three@0.185.1)
+      camera-controls: 3.1.0(three@0.185.1)
       cross-env: 7.0.3
       detect-gpu: 5.0.70
       glsl-noise: 0.0.0
@@ -6245,7 +6249,7 @@ snapshots:
     optionalDependencies:
       vitest: 4.1.10(@types/node@24.10.1)(jsdom@30.0.1)(vite@7.3.6(@types/node@24.10.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.5)(yaml@2.9.0))
 
-  '@testing-library/jest-dom@7.0.1(@testing-library/dom@10.4.1)(vitest@4.1.10(@types/node@24.10.1)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.10.1)(esbuild@0.27.7)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0)))':
+  '@testing-library/jest-dom@7.0.1(@testing-library/dom@10.4.1)(vitest@4.1.10(@types/node@24.10.1)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.10.1)(esbuild@0.28.2)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0)))':
     dependencies:
       '@adobe/css-tools': 4.5.0
       '@testing-library/dom': 10.4.1
@@ -6255,7 +6259,7 @@ snapshots:
       picocolors: 1.1.1
       redent: 3.0.0
     optionalDependencies:
-      vitest: 4.1.10(@types/node@24.10.1)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.10.1)(esbuild@0.27.7)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0))
+      vitest: 4.1.10(@types/node@24.10.1)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.10.1)(esbuild@0.28.2)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0))
 
   '@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
@@ -6382,13 +6386,21 @@ snapshots:
     optionalDependencies:
       vite: 7.3.6(@types/node@24.10.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.5)(yaml@2.9.0)
 
-  '@vitest/mocker@4.1.10(vite@8.2.1(@types/node@24.10.1)(esbuild@0.27.7)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0))':
+  '@vitest/mocker@4.1.10(vite@8.2.1(@types/node@24.10.1)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0))':
     dependencies:
       '@vitest/spy': 4.1.10
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.2.1(@types/node@24.10.1)(esbuild@0.27.7)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0)
+      vite: 8.2.1(@types/node@24.10.1)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0)
+
+  '@vitest/mocker@4.1.10(vite@8.2.1(@types/node@24.10.1)(esbuild@0.28.2)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0))':
+    dependencies:
+      '@vitest/spy': 4.1.10
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      vite: 8.2.1(@types/node@24.10.1)(esbuild@0.28.2)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0)
 
   '@vitest/mocker@4.1.10(vite@8.2.1(@types/node@24.10.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0))':
     dependencies:
@@ -6560,7 +6572,7 @@ snapshots:
 
   camelcase-css@2.0.1: {}
 
-  camera-controls@3.1.2(three@0.185.1):
+  camera-controls@3.1.0(three@0.185.1):
     dependencies:
       three: 0.185.1
 
@@ -8118,7 +8130,7 @@ snapshots:
       tsx: 4.23.5
       yaml: 2.9.0
 
-  vite@8.2.1(@types/node@24.10.1)(esbuild@0.27.7)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0):
+  vite@8.2.1(@types/node@24.10.1)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.5
@@ -8128,6 +8140,21 @@ snapshots:
     optionalDependencies:
       '@types/node': 24.10.1
       esbuild: 0.27.7
+      fsevents: 2.3.3
+      jiti: 2.7.0
+      tsx: 4.23.5
+      yaml: 2.9.0
+
+  vite@8.2.1(@types/node@24.10.1)(esbuild@0.28.2)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0):
+    dependencies:
+      lightningcss: 1.33.0
+      picomatch: 4.0.5
+      postcss: 8.5.26
+      rolldown: 1.2.3
+      tinyglobby: 0.2.17
+    optionalDependencies:
+      '@types/node': 24.10.1
+      esbuild: 0.28.2
       fsevents: 2.3.3
       jiti: 1.21.7
       tsx: 4.23.5
@@ -8176,10 +8203,10 @@ snapshots:
     transitivePeerDependencies:
       - msw
 
-  vitest@4.1.10(@types/node@24.10.1)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.10.1)(esbuild@0.27.7)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0)):
+  vitest@4.1.10(@types/node@24.10.1)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.10.1)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0)):
     dependencies:
       '@vitest/expect': 4.1.10
-      '@vitest/mocker': 4.1.10(vite@8.2.1(@types/node@24.10.1)(esbuild@0.27.7)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0))
+      '@vitest/mocker': 4.1.10(vite@8.2.1(@types/node@24.10.1)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0))
       '@vitest/pretty-format': 4.1.10
       '@vitest/runner': 4.1.10
       '@vitest/snapshot': 4.1.10
@@ -8196,7 +8223,35 @@ snapshots:
       tinyexec: 1.3.0
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.1
-      vite: 8.2.1(@types/node@24.10.1)(esbuild@0.27.7)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0)
+      vite: 8.2.1(@types/node@24.10.1)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@types/node': 24.10.1
+      jsdom: 30.0.1
+    transitivePeerDependencies:
+      - msw
+
+  vitest@4.1.10(@types/node@24.10.1)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.10.1)(esbuild@0.28.2)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0)):
+    dependencies:
+      '@vitest/expect': 4.1.10
+      '@vitest/mocker': 4.1.10(vite@8.2.1(@types/node@24.10.1)(esbuild@0.28.2)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0))
+      '@vitest/pretty-format': 4.1.10
+      '@vitest/runner': 4.1.10
+      '@vitest/snapshot': 4.1.10
+      '@vitest/spy': 4.1.10
+      '@vitest/utils': 4.1.10
+      es-module-lexer: 2.3.1
+      expect-type: 1.4.0
+      magic-string: 0.30.21
+      obug: 2.1.4
+      pathe: 2.0.3
+      picomatch: 4.0.5
+      std-env: 4.2.0
+      tinybench: 2.9.0
+      tinyexec: 1.3.0
+      tinyglobby: 0.2.17
+      tinyrainbow: 3.1.1
+      vite: 8.2.1(@types/node@24.10.1)(esbuild@0.28.2)(jiti@1.21.7)(tsx@4.23.5)(yaml@2.9.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 24.10.1

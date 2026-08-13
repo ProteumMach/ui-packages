@@ -1,170 +1,84 @@
-import { OrbitControls } from '@react-three/drei'
-import { useCallback } from 'react'
-import type { MutableRefObject, RefObject } from 'react'
-import * as THREE from 'three'
-import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
-import type { ViewerView } from './types.js'
+import { type RootState, useFrame, useThree } from '@react-three/fiber'
+import { useEffect, useMemo } from 'react'
+import type { RefObject } from 'react'
+import type { ViewerCamera } from './render/camera.js'
+import { type ControlScheme, ExtendedCameraControls } from './render/controls.js'
 
-/** Shared world-up convention for the grid, axes, camera, and standard views. */
-export const CAD_CAMERA_UP = new THREE.Vector3(0, 0, 1)
-
-const POLE_GUARD_ANGLE = THREE.MathUtils.degToRad(3)
-
-export const cadViewDirections: Record<ViewerView, THREE.Vector3> = {
-  front: new THREE.Vector3(0, -1, 0),
-  back: new THREE.Vector3(0, 1, 0),
-  left: new THREE.Vector3(-1, 0, 0),
-  right: new THREE.Vector3(1, 0, 0),
-  top: new THREE.Vector3(0, 0, 1),
-  bottom: new THREE.Vector3(0, 0, -1),
-  isometric: new THREE.Vector3(1, -1, 1).normalize(),
+export interface CadCameraControlsProps {
+  /** Filled with the controls once they exist, for imperative framing. */
+  controlsRef: RefObject<ExtendedCameraControls | null>
+  scheme?: ControlScheme
+  /**
+   * Orbit past the poles instead of stopping there. On by default: a CAD view
+   * that sticks when it reaches straight-down is the single most-reported thing
+   * about an orbit control.
+   */
+  freeOrbit?: boolean
 }
 
-/** Returns the current orbit direction so Fit can retain the user's chosen view. */
-export const currentCadViewDirection = (
-  camera: THREE.PerspectiveCamera,
-  target: THREE.Vector3,
-): THREE.Vector3 => {
-  const direction = new THREE.Vector3().subVectors(camera.position, target)
-  return direction.lengthSq() > Number.EPSILON
-    ? direction.normalize()
-    : cadViewDirections.isometric.clone()
-}
+/**
+ * Mounts `camera-controls` against the R3F camera and canvas.
+ *
+ * `frameloop="demand"` means no frame runs unless something asks for one, so
+ * the controls' own `control` and `update` events drive `invalidate` — without
+ * that the view would move only when React happened to render. The controls are
+ * also registered as R3F's default `controls`, which is how anything else in
+ * the scene reaches the orbit target.
+ */
+export const CadCameraControls = ({
+  controlsRef,
+  scheme = 'toolpath',
+  freeOrbit = true,
+}: CadCameraControlsProps) => {
+  const camera = useThree((state) => state.camera)
+  const domElement = useThree((state) => state.gl.domElement)
+  const invalidate = useThree((state) => state.invalidate)
+  const set = useThree((state) => state.set)
 
-export interface CameraDistanceLimits {
-  minDistance: number
-  maxDistance: number
-}
+  const controls = useMemo(
+    () => new ExtendedCameraControls(camera as ViewerCamera, domElement, { freeOrbit }),
+    // `freeOrbit` is the constructor's initial value only; the effect below
+    // owns it from then on, and rebuilding the controls would drop the pose.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [camera, domElement],
+  )
 
-export interface CameraPanBounds {
-  center: THREE.Vector3
-  maxDistance: number
-}
+  useEffect(() => {
+    controlsRef.current = controls
+    controls.attach()
+    const request = () => invalidate()
+    controls.addEventListener('control', request)
+    controls.addEventListener('update', request)
+    invalidate()
 
-/** Keeps the camera outside the part while allowing a useful amount of context around it. */
-export const cameraDistanceLimits = (
-  boundingRadius: number,
-  framedDistance: number,
-): CameraDistanceLimits => ({
-  // Keep the camera beyond the enclosing sphere. This prevents wheel zoom from placing it
-  // inside a mesh even when the mesh has a long diagonal or irregular shape.
-  minDistance: Math.max(boundingRadius * 1.1, 0.001),
-  maxDistance: Math.max(framedDistance * 5, boundingRadius * 2),
-})
+    return () => {
+      controls.removeEventListener('control', request)
+      controls.removeEventListener('update', request)
+      controls.dispose()
+      if (controlsRef.current === controls) controlsRef.current = null
+    }
+  }, [controls, controlsRef, invalidate])
 
-/** Restricts panning to useful context around the fitted part, rather than empty space. */
-export const clampCameraTarget = (
-  target: THREE.Vector3,
-  center: THREE.Vector3,
-  maxDistance: number,
-): void => {
-  // Never mutate the controls target merely to measure it. `target.sub(center)` made every
-  // OrbitControls change move the target again, which caused a runaway camera shake.
-  const offset = target.clone().sub(center)
-  if (offset.lengthSq() > maxDistance * maxDistance)
-    target.copy(offset.setLength(maxDistance).add(center))
-}
+  useEffect(() => {
+    // R3F types this slot as three's own EventDispatcher; `camera-controls`
+    // implements the same interface with its own event map, which does not
+    // structurally match. Anything reading the slot goes through a capability
+    // check, so the cast costs nothing at runtime.
+    set({ controls: controls as unknown as NonNullable<RootState['controls']> })
+    return () => set({ controls: null })
+  }, [controls, set])
 
-/** Finds the content bounds while deliberately excluding visual helpers such as grids and axes. */
-export const viewerContentBounds = (content: THREE.Object3D): THREE.Box3 => {
-  const bounds = new THREE.Box3()
-  let hasMesh = false
-  content.traverseVisible((object) => {
-    if (object.userData.viewerExcludeFromFrame || !(object instanceof THREE.Mesh)) return
-    bounds.expandByObject(object)
-    hasMesh = true
+  useEffect(() => {
+    controls.applyScheme(scheme)
+  }, [controls, scheme])
+
+  useEffect(() => {
+    controls.setFreeOrbit(freeOrbit)
+  }, [controls, freeOrbit])
+
+  useFrame((_, delta) => {
+    controls.update(delta)
   })
 
-  // A consumer can use an arbitrary renderable object rather than PartMesh. Fall back to the
-  // complete scene subtree when there is no mesh to establish the initial camera framing.
-  return hasMesh ? bounds : bounds.setFromObject(content)
-}
-
-export interface FrameCadCameraOptions {
-  camera: THREE.PerspectiveCamera
-  content: THREE.Object3D
-  controls: OrbitControlsImpl | null
-  direction?: THREE.Vector3
-  panBoundsRef: MutableRefObject<CameraPanBounds | null>
-}
-
-/** Frames a content subtree and synchronizes the orbit target and its distance limits. */
-export const frameCadCamera = ({
-  camera,
-  content,
-  controls,
-  direction = cadViewDirections.isometric,
-  panBoundsRef,
-}: FrameCadCameraOptions): boolean => {
-  const bounds = viewerContentBounds(content)
-  if (bounds.isEmpty()) return false
-
-  const center = bounds.getCenter(new THREE.Vector3())
-  const sphere = bounds.getBoundingSphere(new THREE.Sphere())
-  const distance = Math.max(
-    (sphere.radius * 1.35) / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)),
-    0.1,
-  )
-  const limits = cameraDistanceLimits(sphere.radius, distance)
-  panBoundsRef.current = {
-    center: center.clone(),
-    maxDistance: Math.max(sphere.radius * 2, 0.1),
-  }
-
-  camera.position.copy(center).addScaledVector(direction, distance)
-  camera.near = Math.max(distance / 1000, 0.001)
-  camera.far = Math.max(distance * 1000, 1000)
-  camera.updateProjectionMatrix()
-
-  controls?.target.copy(center)
-  if (controls) {
-    controls.minDistance = limits.minDistance
-    controls.maxDistance = limits.maxDistance
-  }
-  controls?.update()
-  return controls !== null
-}
-
-/** Applies the viewer's fixed Z-up convention when R3F creates the perspective camera. */
-export const configureCadCamera = (camera: THREE.PerspectiveCamera): void => {
-  camera.up.copy(CAD_CAMERA_UP)
-  camera.updateProjectionMatrix()
-}
-
-interface CadOrbitControlsProps {
-  controlsRef: RefObject<OrbitControlsImpl | null>
-  panBoundsRef: MutableRefObject<CameraPanBounds | null>
-}
-
-/** The viewer's deliberately explicit CAD orbit/pan/zoom interaction profile. */
-export const CadOrbitControls = ({ controlsRef, panBoundsRef }: CadOrbitControlsProps) => {
-  const constrainPan = useCallback(() => {
-    const controls = controlsRef.current
-    const panBounds = panBoundsRef.current
-    if (controls && panBounds)
-      clampCameraTarget(controls.target, panBounds.center, panBounds.maxDistance)
-  }, [controlsRef, panBoundsRef])
-
-  return (
-    <OrbitControls
-      ref={controlsRef}
-      makeDefault
-      // A CAD viewer has an intentional, fixed-up interaction model. The scene itself is Z-up,
-      // so the camera must use that same convention or vertical drag becomes unintuitive.
-      enableDamping={false}
-      zoomToCursor={false}
-      screenSpacePanning
-      minPolarAngle={POLE_GUARD_ANGLE}
-      maxPolarAngle={Math.PI - POLE_GUARD_ANGLE}
-      rotateSpeed={0.8}
-      zoomSpeed={0.9}
-      panSpeed={0.9}
-      mouseButtons={{
-        LEFT: THREE.MOUSE.ROTATE,
-        MIDDLE: THREE.MOUSE.PAN,
-        RIGHT: THREE.MOUSE.PAN,
-      }}
-      onChange={constrainPan}
-    />
-  )
+  return null
 }
