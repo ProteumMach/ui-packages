@@ -5,6 +5,9 @@
 export { EnginePart, normalizePartReport, smoothRegionNormals } from './engine/index.js'
 export { PartMesh } from './part-mesh.js'
 export { Axes, Grid, OrientationCube, ViewCube } from './primitives.js'
+export { DirectionArrows } from './direction-arrows.js'
+export { arrowPlacement } from './render/directions.js'
+export { useContentBox } from './content-box.js'
 export {
   CHAMFER,
   VIEW_NAMES,
@@ -97,6 +100,8 @@ export type { ViewerTheme } from './render/theme.js'
 export type { PartMeshProps } from './part-mesh.js'
 export type { AxesProps, GridProps, OrientationCubeProps, ViewCubeProps } from './primitives.js'
 export type { CubeZone, ViewKind, ViewName } from './render/view-cube.js'
+export type { DirectionArrowsProps, NamedDirection } from './direction-arrows.js'
+export type { ArrowPlacement } from './render/directions.js'
 export type { GridSpec } from './render/grid.js'
 export type { CadCameraControlsProps } from './camera.js'
 export type { Projection, SceneBounds, ViewerCamera, ViewportSize } from './render/camera.js'

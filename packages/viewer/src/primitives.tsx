@@ -1,8 +1,9 @@
 import { GizmoHelper } from '@react-three/drei'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Box3, type Group } from 'three'
-import { EXCLUDE_FROM_FRAME, contentBounds } from './render/camera.js'
+import type { Group } from 'three'
+import { useContentBox } from './content-box.js'
+import { EXCLUDE_FROM_FRAME } from './render/camera.js'
 import { gridGeometry, gridSpec } from './render/grid.js'
 import { type ViewerTheme, resolveTheme } from './render/theme.js'
 import {
@@ -36,22 +37,8 @@ export interface GridProps {
  * 12 mm insert.
  */
 export const Grid = ({ step, extent, color, opacity = 0.35 }: GridProps) => {
-  const scene = useThree((state) => state.scene)
   const theme = resolveTheme()
-  const [box, setBox] = useState(() => new Box3())
-  const measured = useRef(false)
-
-  // A Suspense-loaded part does not exist during the first effect, so the
-  // measurement waits for something to actually be in the scene — the same
-  // reason the viewer's opening frame does.
-  useFrame(() => {
-    if (measured.current) return
-    const next = new Box3()
-    contentBounds(scene, next)
-    if (next.isEmpty()) return
-    measured.current = true
-    setBox(next)
-  })
+  const box = useContentBox()
 
   const geometry = useMemo(() => {
     const spec = gridSpec(box)
