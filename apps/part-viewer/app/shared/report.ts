@@ -1,6 +1,7 @@
 import type { components } from '@toolpath/api'
+import type { PartFeature } from './contracts'
 
-export type PartFeature = components['schemas']['PartFeature']
+export type { PartFeature } from './contracts'
 
 export interface FeatureSummary {
   tag: string

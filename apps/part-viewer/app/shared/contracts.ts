@@ -1,6 +1,21 @@
 import type { components } from '@toolpath/api'
 
-export type PartReport = components['schemas']['PartReportResponse']
+type ApiPartFeature = components['schemas']['PartFeature']
+
+/**
+ * Datasheets are returned by a separate Engine endpoint, rather than embedded
+ * in the part report. Keep the stitched result explicit at the application
+ * boundary so both the server and inspector can rely on it being present (or
+ * explicitly unavailable).
+ */
+export type PartFeature = Omit<ApiPartFeature, 'featureId'> & {
+  featureId?: string
+  datasheet?: components['schemas']['FeatureDatasheet'] | null
+}
+
+export type PartReport = Omit<components['schemas']['PartReportResponse'], 'features'> & {
+  features: PartFeature[]
+}
 
 /** Report data which is safe to serialize into an API response or Server-Sent Event. */
 export type PublicInspectionReport = Omit<

@@ -1,5 +1,7 @@
 import { createToolpath } from '@toolpath/api'
-import type { PartReport } from '../app/shared/contracts'
+import type { PartFeature, PartReport } from '../app/shared/contracts'
+
+const DATASHEET_BATCH_SIZE = 50
 
 const apiBaseUrl = (): string => {
   const baseUrl = process.env.TOOLPATH_API_BASE_URL
@@ -63,4 +65,45 @@ export const getPartReport = async (
   if (result.data) return result.data as unknown as PartReport
   if (result.response.status === 404) return null
   throw new EngineError(result.response.status, 'engine_request_failed', 'get report')
+}
+
+/**
+ * Engine omits datasheets from reports so large reports stay reasonably sized.
+ * Fetch those measurements in URL-safe batches and put them back on their
+ * report feature before sending the report to the browser.
+ */
+export const getWholePartReport = async (
+  apiKey: string,
+  partId: string,
+  jobId: string | null,
+): Promise<PartReport | null> => {
+  const report = await getPartReport(apiKey, partId, jobId)
+  if (!report) return null
+
+  const missingIds = report.features.flatMap((feature) =>
+    feature.datasheet || typeof feature.featureId !== 'string' ? [] : [feature.featureId],
+  )
+  if (missingIds.length === 0) return report
+
+  const datasheetsByTag = new Map<string, NonNullable<PartFeature['datasheet']>>()
+  const engine = createEngineClient(apiKey)
+  for (let index = 0; index < missingIds.length; index += DATASHEET_BATCH_SIZE) {
+    const ids = missingIds.slice(index, index + DATASHEET_BATCH_SIZE)
+    const datasheets = requireData(
+      await engine.GET('/v1/features/datasheets', { params: { query: { ids: ids.join(',') } } }),
+      'get feature datasheets',
+    )
+    for (const entry of datasheets.datasheets) {
+      if (entry.datasheet) datasheetsByTag.set(entry.featureTag, entry.datasheet)
+    }
+  }
+
+  return {
+    ...report,
+    features: report.features.map((feature) =>
+      feature.datasheet
+        ? feature
+        : { ...feature, datasheet: datasheetsByTag.get(feature.featureTag) ?? null },
+    ),
+  }
 }

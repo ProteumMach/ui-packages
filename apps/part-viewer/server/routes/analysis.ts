@@ -6,7 +6,7 @@ import { toPublicInspectionReport, type AnalysisEvent } from '../../app/shared/c
 import {
   EngineError,
   createEngineClient,
-  getPartReport,
+  getWholePartReport,
   publicEngineErrorMessage,
   requireData,
 } from '../engine'
@@ -39,7 +39,7 @@ const readAnalysis = async (
       message: job.status === 'running' ? 'Analyzing geometry…' : 'Analysis is queued…',
     }
   }
-  const report = await getPartReport(apiKey, partId, jobId)
+  const report = await getWholePartReport(apiKey, partId, jobId)
   if (!report) return { status: 'pending', progress: job.progress, message: 'Finalizing report…' }
   return { status: 'ready', report: toPublicInspectionReport(report) }
 }

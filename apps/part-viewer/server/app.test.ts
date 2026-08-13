@@ -108,6 +108,7 @@ describe('Part Viewer Hono API', () => {
       }
       if (request.method === 'POST' && url.pathname === '/v1/parts/part-1/analyze') {
         expect(request.headers.get('Idempotency-Key')).toMatch(/.+/)
+        expect(url.searchParams.get('featureDetails')).toBe('true')
         return Response.json(
           { partId: 'part-1', jobId: 'job-1', status: 'queued' },
           { status: 202 },
@@ -219,6 +220,56 @@ describe('Part Viewer Hono API', () => {
     expect(body).toContain('"status":"ready"')
     expect(body).not.toContain('mesh.test')
     expect(body).not.toContain('signature=secret')
+  })
+
+  test('stitches separately returned datasheets onto the ready report', async () => {
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = new Request(input, init)
+      const url = new URL(request.url)
+      if (url.pathname === '/v1/jobs/job-1')
+        return Response.json({ jobId: 'job-1', partId: 'part-1', status: 'succeeded', progress: 1 })
+      if (url.pathname === '/v1/parts/part-1/report')
+        return Response.json({
+          ...report(),
+          features: [
+            {
+              featureId: 'feature-1',
+              featureTag: 'hole-1',
+              featureType: 'blind_hole',
+              regionIdxs: [0],
+              machiningDirection: { x: 0, y: 0, z: 1 },
+              axis: { x: 0, y: 0, z: 1 },
+            },
+          ],
+        })
+      if (url.pathname === '/v1/features/datasheets') {
+        expect(url.searchParams.get('ids')).toBe('feature-1')
+        return Response.json({
+          datasheets: [
+            {
+              featureId: 'feature-1',
+              featureTag: 'hole-1',
+              featureType: 'blind_hole',
+              datasheet: { facts: { kind: 'Hole', diameter: 6.35 }, zMin: 2, zMax: 12 },
+            },
+          ],
+          notFound: [],
+        })
+      }
+      throw new Error(`Unexpected request ${request.method} ${request.url}`)
+    })
+
+    await expect(readAnalysis('tp_secret_key', 'part-1', 'job-1')).resolves.toMatchObject({
+      status: 'ready',
+      report: {
+        features: [
+          {
+            featureTag: 'hole-1',
+            datasheet: { facts: { kind: 'Hole', diameter: 6.35 }, zMin: 2, zMax: 12 },
+          },
+        ],
+      },
+    })
   })
 
   test('maps queued and failed Engine jobs without requesting a report', async () => {
