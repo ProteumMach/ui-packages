@@ -2,7 +2,7 @@
 // the generic scene API and the Engine adapter boundary explicit. The root
 // re-exports the adapter's entry points for callers that only ever render a
 // report.
-export { EnginePart, normalizePartReport } from './engine/index.js'
+export { EnginePart, normalizePartReport, smoothRegionNormals } from './engine/index.js'
 export { PartMesh } from './part-mesh.js'
 export { Axes, Grid, OrientationCube, ViewCube } from './primitives.js'
 export {

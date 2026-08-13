@@ -2,26 +2,29 @@ import { describe, expect, it, vi } from 'vitest'
 import * as THREE from 'three'
 import { createEngineGeometryCache } from '../src/engine/geometry-cache.js'
 
-const mesh = (id: string, query = '') => ({
-  pointCount: 8,
-  triangleCount: 12,
-  glbUrl: `https://example.test/${id}.glb${query}`,
-  stlUrl: null,
-  thumbnailUrl: null,
+const part = (id: string, query = '') => ({
+  mesh: {
+    pointCount: 8,
+    triangleCount: 12,
+    glbUrl: `https://example.test/${id}.glb${query}`,
+    stlUrl: null,
+    thumbnailUrl: null,
+  },
+  regions: [],
 })
 
 describe('Engine geometry cache', () => {
   it('retains rendered geometry and disposes the least-recent released entry at capacity', async () => {
     const loader = vi.fn(async () => new THREE.BufferGeometry())
     const cache = createEngineGeometryCache(loader, 1)
-    const first = cache.get(mesh('first'))
+    const first = cache.get(part('first'))
     await first.promise
     const dispose = vi.fn()
     first.geometry!.addEventListener('dispose', dispose)
     cache.retain(first)
     cache.release(first)
 
-    const second = cache.get(mesh('second'))
+    const second = cache.get(part('second'))
     await second.promise
     cache.retain(second)
     cache.release(second)
@@ -34,9 +37,9 @@ describe('Engine geometry cache', () => {
     const cache = createEngineGeometryCache(loader)
 
     // The same mesh, presigned twice: different signature, same artifact.
-    const first = cache.get(mesh('part', '?X-Amz-Signature=aaa'))
+    const first = cache.get(part('part', '?X-Amz-Signature=aaa'))
     await first.promise
-    const second = cache.get(mesh('part', '?X-Amz-Signature=bbb'))
+    const second = cache.get(part('part', '?X-Amz-Signature=bbb'))
     await second.promise
 
     expect(second).toBe(first)
@@ -49,10 +52,10 @@ describe('Engine geometry cache', () => {
       .mockRejectedValueOnce(new Error('expired URL'))
       .mockResolvedValueOnce(new THREE.BufferGeometry())
     const cache = createEngineGeometryCache(loader)
-    const failed = cache.get(mesh('retry'))
+    const failed = cache.get(part('retry'))
     await failed.promise
 
-    const retried = cache.get(mesh('retry'))
+    const retried = cache.get(part('retry'))
     await retried.promise
     expect(retried.status).toBe('fulfilled')
     expect(loader).toHaveBeenCalledTimes(2)
