@@ -1,8 +1,6 @@
 import type { BufferGeometry } from 'three'
-import { loadEngineGeometry } from './mesh-loader.js'
-import type { EnginePartReport } from './types.js'
-
-type EngineMeshUrls = Pick<EnginePartReport, 'meshGlbUrl' | 'meshStlUrl'>
+import type { PartMeshRefs } from '../model/types.js'
+import { loadPartMesh } from './geometry.js'
 
 export interface EngineGeometryResource {
   status: 'pending' | 'fulfilled' | 'rejected'
@@ -14,23 +12,32 @@ export interface EngineGeometryResource {
 }
 
 export interface EngineGeometryCache {
-  get(report: EngineMeshUrls): EngineGeometryResource
+  get(mesh: PartMeshRefs): EngineGeometryResource
   retain(resource: EngineGeometryResource): void
   release(resource: EngineGeometryResource): void
   clear(): void
 }
 
-export const engineGeometryResourceKey = (report: EngineMeshUrls): string =>
-  `${report.meshGlbUrl ?? ''}|${report.meshStlUrl ?? ''}`
+/**
+ * The cache key.
+ *
+ * Deliberately not the presigned URL: those carry a signature and an expiry, so
+ * two reports of the same part fetched a minute apart would miss every time.
+ * The path is the artifact's identity and the query string is not.
+ */
+export function engineGeometryResourceKey(mesh: PartMeshRefs): string {
+  return [mesh.glbUrl, mesh.stlUrl].map((url) => url?.split('?')[0] ?? '').join('|')
+}
 
 /**
- * A small reference-aware LRU cache for Engine artifacts. Rendered parts retain their source
- * geometry; released entries are evicted and disposed once the cache exceeds its capacity.
+ * A small reference-aware LRU cache for Engine mesh artifacts. Rendered parts
+ * retain their source geometry; released entries are evicted and disposed once
+ * the cache exceeds its capacity.
  */
-export const createEngineGeometryCache = (
-  loadGeometry: (report: EngineMeshUrls) => Promise<BufferGeometry> = loadEngineGeometry,
+export function createEngineGeometryCache(
+  loadGeometry: (mesh: PartMeshRefs) => Promise<BufferGeometry> = (mesh) => loadPartMesh(mesh),
   maximumEntries = 8,
-): EngineGeometryCache => {
+): EngineGeometryCache {
   const resources = new Map<string, EngineGeometryResource>()
   let accessSequence = 0
   const touch = (resource: EngineGeometryResource) => {
@@ -58,8 +65,8 @@ export const createEngineGeometryCache = (
   }
 
   return {
-    get: (report) => {
-      const key = engineGeometryResourceKey(report)
+    get(mesh) {
+      const key = engineGeometryResourceKey(mesh)
       const existing = resources.get(key)
       if (existing) {
         touch(existing)
@@ -72,7 +79,7 @@ export const createEngineGeometryCache = (
         references: 0,
         lastAccess: ++accessSequence,
       } as EngineGeometryResource
-      resource.promise = loadGeometry(report).then(
+      resource.promise = loadGeometry(mesh).then(
         (geometry) => {
           resource.status = 'fulfilled'
           resource.geometry = geometry
@@ -86,16 +93,16 @@ export const createEngineGeometryCache = (
       resources.set(key, resource)
       return resource
     },
-    retain: (resource) => {
+    retain(resource) {
       resource.references += 1
       touch(resource)
     },
-    release: (resource) => {
+    release(resource) {
       resource.references = Math.max(0, resource.references - 1)
       touch(resource)
       evictReleasedResources()
     },
-    clear: () => {
+    clear() {
       for (const resource of resources.values()) resource.geometry?.dispose()
       resources.clear()
     },

@@ -1,30 +1,18 @@
 import type { Vector3 } from 'three'
+import type { FeatureTag } from './model/types.js'
 
-export type FeatureId = string | number
-
-export interface FeatureRegion<TFeatureId extends FeatureId = FeatureId> {
-  /** The caller's stable region identifier. */
-  regionIndex: number
-  /** Inclusive triangle index in the mesh's original triangle order. */
-  triangleStart: number
-  /** Exclusive triangle index in the mesh's original triangle order. */
-  triangleEnd: number
-  /** Every feature that owns this region. */
-  featureIds: readonly TFeatureId[]
-}
-
-export interface FeaturePointerEvent<TFeatureId extends FeatureId = FeatureId> {
-  featureIds: readonly TFeatureId[]
+/**
+ * A pointer event on the part, resolved to the region it landed on.
+ *
+ * `featureIds` is every feature owning that region — five to eight of them on
+ * real parts — and is deliberately not narrowed to one here. Ranking a click is
+ * a separate decision that depends on the active direction and the camera.
+ */
+export interface FeaturePointerEvent {
+  featureIds: readonly FeatureTag[]
   regionIndex: number
   triangleIndex: number
   point: readonly [number, number, number]
-}
-
-export interface PartColors {
-  default?: string
-  hovered?: string
-  selected?: string
-  edge?: string
 }
 
 export interface ViewerControls {
