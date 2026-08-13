@@ -8,7 +8,16 @@ import {
   sectionFromPick,
 } from '@toolpath/viewer'
 import { EnginePart } from '@toolpath/viewer/engine'
-import { Button } from '@toolpath/ui'
+import {
+  ArrowCounterClockwiseIcon,
+  ArrowsOutCardinalIcon,
+  CornersOutIcon,
+  CrosshairSimpleIcon,
+  CubeIcon,
+  MouseIcon,
+  PerspectiveIcon,
+  SquareHalfIcon,
+} from '@phosphor-icons/react'
 import { Component, Suspense, useMemo, useRef, useState } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import type {
@@ -19,6 +28,7 @@ import type {
   SectionState,
 } from '@toolpath/viewer'
 import { type PaintMode, paintWash } from '../shared/paint'
+import { ToolButton } from './tool-button'
 import type { PartReport, PublicInspectionReport } from '../shared/contracts'
 
 class MeshErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -153,61 +163,57 @@ export const FeatureViewer = ({
 
   return (
     <section className="relative size-full min-h-[32rem] bg-zinc-900">
-      <div className="absolute left-3 top-3 z-10 flex gap-2" aria-label="Viewer controls">
-        <Button
-          size="sm"
-          variant={paintMode === 'directions' ? 'info' : 'secondary'}
-          aria-pressed={paintMode === 'directions'}
+      <div
+        className="absolute left-3 top-3 z-10 flex items-center gap-1.5"
+        aria-label="Viewer controls"
+      >
+        <ToolButton
+          label={paintMode === 'directions' ? 'Colour by direction (on)' : 'Colour by direction'}
+          pressed={paintMode === 'directions'}
           onClick={() => onPaintMode(paintMode === 'directions' ? 'plain' : 'directions')}
         >
-          Directions
-        </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          aria-label="Projection"
+          <ArrowsOutCardinalIcon />
+        </ToolButton>
+        <ToolButton
+          label={projection === 'perspective' ? 'Perspective view' : 'Orthographic view'}
           onClick={() =>
             setProjection((current) => (current === 'perspective' ? 'orthographic' : 'perspective'))
           }
         >
-          {projection === 'perspective' ? 'Persp' : 'Ortho'}
-        </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          aria-label="Control scheme"
+          {projection === 'perspective' ? <PerspectiveIcon /> : <CubeIcon />}
+        </ToolButton>
+        <ToolButton
+          label={scheme === 'toolpath' ? 'Toolpath controls' : 'Fusion controls'}
           onClick={() => setScheme((current) => (current === 'toolpath' ? 'fusion' : 'toolpath'))}
         >
-          {scheme === 'toolpath' ? 'Toolpath' : 'Fusion'}
-        </Button>
-        <Button size="sm" variant="secondary" onClick={() => viewerRef.current?.fit()}>
-          Fit
-        </Button>
-        <Button size="sm" variant="secondary" onClick={() => viewerRef.current?.reset()}>
-          Reset
-        </Button>
-        <Button
-          size="sm"
-          variant={sectioning ? 'info' : 'secondary'}
-          aria-pressed={sectioning}
+          <MouseIcon />
+        </ToolButton>
+        <ToolButton label="Fit to part" onClick={() => viewerRef.current?.fit()}>
+          <CornersOutIcon />
+        </ToolButton>
+        <ToolButton label="Reset the view" onClick={() => viewerRef.current?.reset()}>
+          <ArrowCounterClockwiseIcon />
+        </ToolButton>
+        <ToolButton
+          label={sectioning ? 'Section (on)' : 'Section'}
+          pressed={sectioning}
           onClick={() => (sectioning ? stopSectioning() : setSectioning(true))}
         >
-          Section
-        </Button>
+          <SquareHalfIcon />
+        </ToolButton>
         {sectioning ? (
           <>
-            <Button
-              size="sm"
-              variant={armed ? 'info' : 'secondary'}
-              aria-pressed={armed}
+            <ToolButton
+              label={armed ? 'Now click a face' : 'Cut from a face'}
+              pressed={armed}
               onClick={() => {
                 setArmed((on) => !on)
                 setPlane(null)
               }}
             >
-              {armed ? 'Click a face…' : 'From face'}
-            </Button>
-            <label className="flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900/80 px-3 text-xs text-zinc-300">
+              <CrosshairSimpleIcon />
+            </ToolButton>
+            <label className="flex h-8 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900/80 px-3 text-xs text-zinc-300">
               <span className="sr-only">Cut depth</span>
               {plane && depthRange ? (
                 <>
