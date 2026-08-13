@@ -1351,6 +1351,92 @@
           }
         }
       }
+    },
+    "/v1/jobs/{id}/events": {
+      "get": {
+        "operationId": "streamJobEvents",
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Stream job updates",
+        "description": "Sends the current job immediately, then sends every subsequent persisted status, progress, or error change as a `job` server-sent event while the connection remains open. If the connection closes, reconnect to receive the latest job snapshot before continuing with future updates.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "0195f02c-4b4a-7b5d-9b6e-8f139d5e2820"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A stream of job snapshots.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "Each `job` event has a JSON `data` field matching JobDetail.",
+                  "example": "event: job\ndata: {\"partUuid\":\"0195f02c-4b4a-7b5d-9b6e-8f139d5e2820\",\"jobUuid\":\"0195f02c-4b4a-7b5d-9b6e-8f139d5e2821\",\"productType\":\"analyze-part\",\"status\":\"running\",\"progress\":null,\"error\":null,\"reportId\":null,\"createdAt\":\"2026-08-05T12:00:00.000Z\"}\n\n"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The job was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The job event stream could not be opened.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Authentication is temporarily unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "webhooks": {}
