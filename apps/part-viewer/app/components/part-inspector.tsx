@@ -1,4 +1,5 @@
 import { directionIndexOf, type PartPick } from '@toolpath/viewer'
+import { type PaintMode, loadPaintMode, savePaintMode } from '../shared/paint'
 import { Panels, Tabs } from '@toolpath/ui'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
@@ -34,6 +35,30 @@ export const PartInspector = ({
   const [hoveredTags, setHoveredTags] = useState<string[]>([])
   const [selection, setSelection] = useState<SelectionState>(NOTHING_SELECTED)
   const [activeDirection, setActiveDirection] = useState<number | null>(null)
+  const [paintMode, setPaintMode] = useState<PaintMode>('plain')
+  const [focusFeature, setFocusFeature] = useState<string | null>(null)
+
+  // Read after mount rather than during render: the server has no localStorage,
+  // and a mode that differed between the two would hydrate as a flash of the
+  // wrong colours.
+  useEffect(() => {
+    setPaintMode(loadPaintMode(globalThis.localStorage ?? null))
+  }, [])
+
+  /**
+   * A zoom is a request rather than a state, so the same feature twice has to
+   * read as two requests — the viewer frames on change, and a repeated value is
+   * not one.
+   */
+  const zoomToFeature = (featureTag: string) => {
+    setFocusFeature(null)
+    requestAnimationFrame(() => setFocusFeature(featureTag))
+  }
+
+  const choosePaintMode = (mode: PaintMode) => {
+    setPaintMode(mode)
+    savePaintMode(globalThis.localStorage ?? null, mode)
+  }
   const candidateTags = selection.candidates
   const focusedTag = selection.focused
   const focused = useMemo(
@@ -226,13 +251,21 @@ export const PartInspector = ({
             highlightedFeatureTags={hoveredTags}
             heldRegions={heldRegions(selection)}
             shownDirection={shownDirection}
+            paintMode={paintMode}
+            onPaintMode={choosePaintMode}
+            focusFeature={focusFeature}
             onPick={pickFromPart}
           />
         </Panels.Panel>
         <Panels.Separator className={separatorClassName} />
         <Panels.Panel defaultSize={360} minSize={280}>
           {focused || candidates.length ? (
-            <FeatureDetail feature={focused} candidates={candidates} onChoose={focusCandidate} />
+            <FeatureDetail
+              feature={focused}
+              candidates={candidates}
+              onChoose={focusCandidate}
+              onZoom={zoomToFeature}
+            />
           ) : null}
         </Panels.Panel>
       </Panels.Group>

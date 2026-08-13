@@ -8,6 +8,7 @@ import { applyHighlightLayers } from './render/paint.js'
 import { sectionBounds, sectionDepth, sectionOffset } from './render/section.js'
 import { createPart } from './render/part.js'
 import { type PartPick, buildPick, viewDirection } from './render/picking.js'
+import { useViewerControls } from './viewer.js'
 import {
   type SectionOptions,
   type SectionState,
@@ -73,6 +74,11 @@ export interface PartMeshProps {
    * real change, so echoing it into state is safe.
    */
   onSectionChange?: (state: SectionState) => void
+  /**
+   * A feature to frame. Framed when it changes, so setting it to the feature
+   * already framed does nothing — a zoom is a request, not a state to hold.
+   */
+  focusFeature?: FeatureTag | null
   onHover?: (pick: PartPick | null) => void
   /** A click on the part, or `null` for one on empty space. */
   onPick?: (pick: PartPick | null) => void
@@ -102,12 +108,14 @@ export const PartMesh = ({
   activeDirection = null,
   section,
   onSectionChange,
+  focusFeature = null,
   onHover,
   onPick,
   theme,
   showEdges = true,
 }: PartMeshProps) => {
   const { camera, controls, invalidate } = useThree()
+  const viewerControls = useViewerControls()
   const resolved = useStableTheme(theme)
   // The part is built once per mesh and re-themed in place: a colour change is
   // two material writes, not a rebuilt region attribute and state texture.
@@ -148,6 +156,14 @@ export const PartMesh = ({
   }, [invalidate, part])
 
   useEffect(() => () => part.dispose(), [part])
+
+  const framed = useRef<FeatureTag | null>(null)
+  useEffect(() => {
+    if (focusFeature === null || focusFeature === framed.current) return
+    framed.current = focusFeature
+    const box = part.boxForFeature(focusFeature)
+    if (box) viewerControls.frameBox(box)
+  }, [focusFeature, part, viewerControls])
 
   useLayoutEffect(() => {
     part.setTheme(resolved)

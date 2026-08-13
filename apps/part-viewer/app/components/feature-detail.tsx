@@ -6,10 +6,13 @@ export const FeatureDetail = ({
   feature,
   candidates,
   onChoose,
+  onZoom,
 }: {
   feature: PartFeature | null
   candidates: readonly PartFeature[]
   onChoose: (featureTag: string) => void
+  /** Frames the feature in the viewport, without changing what is selected. */
+  onZoom: (featureTag: string) => void
 }) => (
   <aside className="h-full min-h-0 overflow-y-auto bg-zinc-900/40 p-4">
     {candidates.length > 1 ? (
@@ -39,7 +42,12 @@ export const FeatureDetail = ({
             <p className="text-xs font-bold uppercase tracking-wide text-info">Focused feature</p>
             <h2 className="mt-1 font-display text-2xl font-bold">{featureSummary(feature).type}</h2>
           </div>
-          <Badge variant="secondary">{featureSummary(feature).direction}</Badge>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="secondary" onClick={() => onZoom(feature.featureTag)}>
+              Zoom
+            </Button>
+            <Badge variant="secondary">{featureSummary(feature).direction}</Badge>
+          </div>
         </div>
         <dl className="mt-6 space-y-3 text-sm">
           {featureDetailRows(feature).map((row) => (

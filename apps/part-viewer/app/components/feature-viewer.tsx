@@ -11,7 +11,14 @@ import { EnginePart } from '@toolpath/viewer/engine'
 import { Button } from '@toolpath/ui'
 import { Component, Suspense, useMemo, useRef, useState } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
-import type { PartPick, SectionPlacement, SectionState } from '@toolpath/viewer'
+import type {
+  ControlScheme,
+  PartPick,
+  Projection,
+  SectionPlacement,
+  SectionState,
+} from '@toolpath/viewer'
+import { type PaintMode, paintWash } from '../shared/paint'
 import type { PartReport, PublicInspectionReport } from '../shared/contracts'
 
 class MeshErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -57,6 +64,9 @@ export const FeatureViewer = ({
   heldRegions,
   activeDirection,
   shownDirection,
+  paintMode,
+  onPaintMode,
+  focusFeature,
   onPickDirection,
   onPick,
 }: {
@@ -81,6 +91,11 @@ export const FeatureViewer = ({
    * one feature is being read, the other nine answer a question nobody asked.
    */
   shownDirection: number | null
+  /** The standing wash: what the part is coloured by while nothing is selected. */
+  paintMode: PaintMode
+  onPaintMode: (mode: PaintMode) => void
+  /** A feature to zoom to. Framed when it changes. */
+  focusFeature: string | null
   onPickDirection: (index: number) => void
   onPick: (pick: PartPick | null) => void
 }) => {
@@ -95,6 +110,13 @@ export const FeatureViewer = ({
   const [plane, setPlane] = useState<SectionPlacement | null>(null)
   const [depth, setDepth] = useState(0)
   const [depthRange, setDepthRange] = useState<SectionState['depthRange']>(null)
+  const [projection, setProjection] = useState<Projection>('perspective')
+  const [scheme, setScheme] = useState<ControlScheme>('toolpath')
+
+  const wash = useMemo(
+    () => paintWash(paintMode, report.features, report.candidateDirections),
+    [paintMode, report.candidateDirections, report.features],
+  )
 
   const pickInViewport = (pick: PartPick | null) => {
     if (armed && pick) {
@@ -132,6 +154,32 @@ export const FeatureViewer = ({
   return (
     <section className="relative size-full min-h-[32rem] bg-zinc-900">
       <div className="absolute left-3 top-3 z-10 flex gap-2" aria-label="Viewer controls">
+        <Button
+          size="sm"
+          variant={paintMode === 'directions' ? 'info' : 'secondary'}
+          aria-pressed={paintMode === 'directions'}
+          onClick={() => onPaintMode(paintMode === 'directions' ? 'plain' : 'directions')}
+        >
+          Directions
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          aria-label="Projection"
+          onClick={() =>
+            setProjection((current) => (current === 'perspective' ? 'orthographic' : 'perspective'))
+          }
+        >
+          {projection === 'perspective' ? 'Persp' : 'Ortho'}
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          aria-label="Control scheme"
+          onClick={() => setScheme((current) => (current === 'toolpath' ? 'fusion' : 'toolpath'))}
+        >
+          {scheme === 'toolpath' ? 'Toolpath' : 'Fusion'}
+        </Button>
         <Button size="sm" variant="secondary" onClick={() => viewerRef.current?.fit()}>
           Fit
         </Button>
@@ -201,12 +249,14 @@ export const FeatureViewer = ({
               </div>
             }
           >
-            <Viewer ref={viewerRef}>
+            <Viewer ref={viewerRef} projection={projection} controls={scheme}>
               <EnginePart
                 report={viewerReport}
                 selection={selectedFeatureTag ? [selectedFeatureTag] : []}
                 hoveredFeatureIds={highlightedFeatureTags}
                 pickedRegions={heldRegions}
+                highlights={wash}
+                focusFeature={focusFeature}
                 onPick={pickInViewport}
                 activeDirection={activeDirection}
                 section={{
