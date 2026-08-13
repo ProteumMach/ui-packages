@@ -3,6 +3,7 @@ import { EnginePart } from '@toolpath/viewer/engine'
 import { Button } from '@toolpath/ui'
 import { Component, Suspense, useMemo, useRef } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
+import type { PartPick } from '@toolpath/viewer'
 import type { PartReport, PublicInspectionReport } from '../shared/contracts'
 
 class MeshErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -29,18 +30,30 @@ class MeshErrorBoundary extends Component<{ children: ReactNode }, { error: Erro
 const meshUrl = (partId: string, jobId: string, format: 'glb' | 'stl'): string =>
   `/api/parts/${encodeURIComponent(partId)}/mesh?${new URLSearchParams({ jobId, format })}`
 
+/**
+ * The part, showing the one reading being read.
+ *
+ * The viewer can paint every feature a click could have meant, and this
+ * deliberately passes none. A click resolves to five to eight readings, and
+ * among them are the direction's `profile` features — a profile traces the
+ * whole boundary contour of its direction, so painting the owners of one face
+ * washed most of the part and read as though clicking had chained things
+ * together. The alternatives are offered in words instead, in the panel beside
+ * it, and only the focused reading is coloured.
+ */
 export const FeatureViewer = ({
   report,
   jobId,
   selectedFeatureTag,
   highlightedFeatureTags,
-  onFeatureClick,
+  onPick,
 }: {
   report: PublicInspectionReport
   jobId: string
   selectedFeatureTag: string | null
+  /** Features under the pointer in the feature list. */
   highlightedFeatureTags: readonly string[]
-  onFeatureClick: (featureTags: string[]) => void
+  onPick: (pick: PartPick | null) => void
 }) => {
   const viewerRef = useRef<ViewerHandle>(null)
   const viewerReport = useMemo<PartReport>(
@@ -75,9 +88,9 @@ export const FeatureViewer = ({
             <Viewer ref={viewerRef}>
               <EnginePart
                 report={viewerReport}
-                selectedFeatureIds={selectedFeatureTag ? [selectedFeatureTag] : []}
-                hoveredFeatureIds={[...highlightedFeatureTags]}
-                onFeatureClick={(event) => onFeatureClick([...event.featureIds])}
+                selection={selectedFeatureTag ? [selectedFeatureTag] : []}
+                hoveredFeatureIds={highlightedFeatureTags}
+                onPick={onPick}
                 showEdges={false}
               />
               <Grid size={100} divisions={20} />

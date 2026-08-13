@@ -1,0 +1,1362 @@
+{
+  "partId": "afe3b4ec-855d-4900-97ba-6ad269ea97d4",
+  "kernelVersion": "0.2.0",
+  "features": [
+    {
+      "featureIndex": 8,
+      "featureType": "wall",
+      "machiningDirection": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Wall",
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 50.79999999999999
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 0,
+        "minDepth": -50.8,
+        "featureType": "Wall",
+        "wallishArea": 2580.6399999999994,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 101.6],
+          "deltaY": [50.8, 50.8]
+        },
+        "extendedMaxDepth": 0,
+        "extendedMinDepth": -50.8,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 0,
+      "featureType": "face",
+      "machiningDirection": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": null
+          },
+          "kind": "Face",
+          "isFacing": true,
+          "isTopFace": true,
+          "needsSidemill": true,
+          "maxBottomDiameter": null
+        },
+        "hasWall": false,
+        "hasFloor": true,
+        "maxDepth": 50.8,
+        "minDepth": 50.79999999999999,
+        "featureType": "Face",
+        "wallishArea": 3.6095570976613087e-13,
+        "floorishArea": 2580.6399999999994,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.12827, 3.048, 17.272, 101.6],
+          "deltaY": [
+            7.105427357601002e-15, 7.105427357601002e-15,
+            1.4210854715202004e-14, 2.1316282072803006e-14
+          ]
+        },
+        "extendedMaxDepth": 50.8,
+        "extendedMinDepth": 50.79999999999999,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 1,
+      "featureType": "profile",
+      "machiningDirection": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Profile",
+          "lengthMm": 203.2,
+          "isModified": false,
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 203.2
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 50.8,
+        "minDepth": 0,
+        "featureType": "Profile",
+        "wallishArea": 10322.56,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 101.6],
+          "deltaY": [50.800000000000004, 50.80000000000001]
+        },
+        "extendedMaxDepth": 50.8,
+        "extendedMinDepth": 0,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 2,
+      "featureType": "wall",
+      "machiningDirection": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Wall",
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 50.79999999999999
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 50.8,
+        "minDepth": 0,
+        "featureType": "Wall",
+        "wallishArea": 2580.6399999999994,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 1.016, 3.048, 101.6],
+          "deltaY": [50.8, 50.8, 50.800000000000004, 50.80000000000001]
+        },
+        "extendedMaxDepth": 50.8,
+        "extendedMinDepth": 0,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 3,
+      "featureType": "wall",
+      "machiningDirection": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Wall",
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 50.79999999999999
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 50.79999999999999,
+        "minDepth": 0,
+        "featureType": "Wall",
+        "wallishArea": 2580.639999999999,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 4.8260000000000005, 17.272, 101.6],
+          "deltaY": [50.8, 50.8, 50.800000000000004, 50.80000000000001]
+        },
+        "extendedMaxDepth": 50.79999999999999,
+        "extendedMinDepth": 0,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 4,
+      "featureType": "wall",
+      "machiningDirection": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Wall",
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 50.79999999999999
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 50.8,
+        "minDepth": 0,
+        "featureType": "Wall",
+        "wallishArea": 2580.6399999999994,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 1.016, 3.048, 101.6],
+          "deltaY": [50.8, 50.8, 50.800000000000004, 50.80000000000001]
+        },
+        "extendedMaxDepth": 50.8,
+        "extendedMinDepth": 0,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 5,
+      "featureType": "wall",
+      "machiningDirection": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Wall",
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 50.8
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 50.8,
+        "minDepth": 0,
+        "featureType": "Wall",
+        "wallishArea": 2580.64,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 1.016, 3.048, 101.6],
+          "deltaY": [50.8, 50.8, 50.800000000000004, 50.80000000000001]
+        },
+        "extendedMaxDepth": 50.8,
+        "extendedMinDepth": 0,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 6,
+      "featureType": "face",
+      "machiningDirection": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": null
+          },
+          "kind": "Face",
+          "isFacing": true,
+          "isTopFace": true,
+          "needsSidemill": false,
+          "maxBottomDiameter": null
+        },
+        "hasWall": false,
+        "hasFloor": true,
+        "maxDepth": 0,
+        "minDepth": 0,
+        "featureType": "Face",
+        "wallishArea": 0,
+        "floorishArea": 2580.6399999999994,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.12827, 101.6],
+          "deltaY": [0, 0]
+        },
+        "extendedMaxDepth": 0,
+        "extendedMinDepth": 0,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 7,
+      "featureType": "profile",
+      "machiningDirection": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Profile",
+          "lengthMm": 203.2,
+          "isModified": false,
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 203.2
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 0,
+        "minDepth": -50.8,
+        "featureType": "Profile",
+        "wallishArea": 10322.56,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 101.6],
+          "deltaY": [50.8, 50.8]
+        },
+        "extendedMaxDepth": 0,
+        "extendedMinDepth": -50.8,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 9,
+      "featureType": "wall",
+      "machiningDirection": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Wall",
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 50.79999999999999
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 0,
+        "minDepth": -50.79999999999999,
+        "featureType": "Wall",
+        "wallishArea": 2580.639999999999,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 101.6],
+          "deltaY": [50.79999999999999, 50.79999999999999]
+        },
+        "extendedMaxDepth": 0,
+        "extendedMinDepth": -50.79999999999999,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 10,
+      "featureType": "wall",
+      "machiningDirection": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Wall",
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 50.79999999999999
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 0,
+        "minDepth": -50.8,
+        "featureType": "Wall",
+        "wallishArea": 2580.6399999999994,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 101.6],
+          "deltaY": [50.8, 50.8]
+        },
+        "extendedMaxDepth": 0,
+        "extendedMinDepth": -50.8,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 11,
+      "featureType": "wall",
+      "machiningDirection": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Wall",
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 50.8
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 0,
+        "minDepth": -50.8,
+        "featureType": "Wall",
+        "wallishArea": 2580.64,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 101.6],
+          "deltaY": [50.8, 50.8]
+        },
+        "extendedMaxDepth": 0,
+        "extendedMinDepth": -50.8,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 12,
+      "featureType": "face",
+      "machiningDirection": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": null
+          },
+          "kind": "Face",
+          "isFacing": true,
+          "isTopFace": true,
+          "needsSidemill": false,
+          "maxBottomDiameter": null
+        },
+        "hasWall": false,
+        "hasFloor": true,
+        "maxDepth": 0,
+        "minDepth": 0,
+        "featureType": "Face",
+        "wallishArea": 0,
+        "floorishArea": 2580.6399999999994,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.12827, 101.6],
+          "deltaY": [0, 0]
+        },
+        "extendedMaxDepth": 0,
+        "extendedMinDepth": 0,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 13,
+      "featureType": "profile",
+      "machiningDirection": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Profile",
+          "lengthMm": 203.2,
+          "isModified": false,
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 203.2
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 0,
+        "minDepth": -50.8,
+        "featureType": "Profile",
+        "wallishArea": 10322.56,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 101.6],
+          "deltaY": [50.8, 50.8]
+        },
+        "extendedMaxDepth": 0,
+        "extendedMinDepth": -50.8,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 14,
+      "featureType": "wall",
+      "machiningDirection": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Wall",
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 50.79999999999999
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 0,
+        "minDepth": -50.8,
+        "featureType": "Wall",
+        "wallishArea": 2580.6399999999994,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 101.6],
+          "deltaY": [50.8, 50.8]
+        },
+        "extendedMaxDepth": 0,
+        "extendedMinDepth": -50.8,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 15,
+      "featureType": "wall",
+      "machiningDirection": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Wall",
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 50.79999999999999
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 0,
+        "minDepth": -50.8,
+        "featureType": "Wall",
+        "wallishArea": 2580.6399999999994,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 101.6],
+          "deltaY": [50.8, 50.8]
+        },
+        "extendedMaxDepth": 0,
+        "extendedMinDepth": -50.8,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 16,
+      "featureType": "wall",
+      "machiningDirection": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Wall",
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 50.79999999999999
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 0,
+        "minDepth": -50.79999999999999,
+        "featureType": "Wall",
+        "wallishArea": 2580.639999999999,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 101.6],
+          "deltaY": [50.79999999999999, 50.79999999999999]
+        },
+        "extendedMaxDepth": 0,
+        "extendedMinDepth": -50.79999999999999,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 17,
+      "featureType": "wall",
+      "machiningDirection": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Wall",
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 50.8
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 0,
+        "minDepth": -50.8,
+        "featureType": "Wall",
+        "wallishArea": 2580.64,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 101.6],
+          "deltaY": [50.8, 50.8]
+        },
+        "extendedMaxDepth": 0,
+        "extendedMinDepth": -50.8,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 18,
+      "featureType": "face",
+      "machiningDirection": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": null
+          },
+          "kind": "Face",
+          "isFacing": true,
+          "isTopFace": true,
+          "needsSidemill": true,
+          "maxBottomDiameter": null
+        },
+        "hasWall": false,
+        "hasFloor": true,
+        "maxDepth": 50.8,
+        "minDepth": 50.79999999999999,
+        "featureType": "Face",
+        "wallishArea": 3.6095570976613087e-13,
+        "floorishArea": 2580.6399999999994,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.12827, 3.048, 41.148, 101.6],
+          "deltaY": [
+            7.105427357601002e-15, 7.105427357601002e-15,
+            1.4210854715202004e-14, 2.1316282072803006e-14
+          ]
+        },
+        "extendedMaxDepth": 50.8,
+        "extendedMinDepth": 50.79999999999999,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 19,
+      "featureType": "profile",
+      "machiningDirection": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Profile",
+          "lengthMm": 203.2,
+          "isModified": false,
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 203.2
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 50.8,
+        "minDepth": 0,
+        "featureType": "Profile",
+        "wallishArea": 10322.56,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 101.6],
+          "deltaY": [50.80000000000001, 50.80000000000001]
+        },
+        "extendedMaxDepth": 50.8,
+        "extendedMinDepth": 0,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 20,
+      "featureType": "wall",
+      "machiningDirection": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Wall",
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 50.79999999999999
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 50.8,
+        "minDepth": 0,
+        "featureType": "Wall",
+        "wallishArea": 2580.6399999999994,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 1.016, 3.048, 101.6],
+          "deltaY": [50.8, 50.8, 50.800000000000004, 50.80000000000001]
+        },
+        "extendedMaxDepth": 50.8,
+        "extendedMinDepth": 0,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 21,
+      "featureType": "wall",
+      "machiningDirection": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Wall",
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 50.79999999999999
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 50.8,
+        "minDepth": 0,
+        "featureType": "Wall",
+        "wallishArea": 2580.6399999999994,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 1.016, 3.048, 101.6],
+          "deltaY": [50.8, 50.8, 50.800000000000004, 50.80000000000001]
+        },
+        "extendedMaxDepth": 50.8,
+        "extendedMinDepth": 0,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 22,
+      "featureType": "wall",
+      "machiningDirection": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Wall",
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 50.79999999999999
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 50.79999999999999,
+        "minDepth": 0,
+        "featureType": "Wall",
+        "wallishArea": 2580.639999999999,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 23.368000000000002, 41.148, 101.6],
+          "deltaY": [50.8, 50.8, 50.800000000000004, 50.80000000000001]
+        },
+        "extendedMaxDepth": 50.79999999999999,
+        "extendedMinDepth": 0,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    },
+    {
+      "featureIndex": 23,
+      "featureType": "wall",
+      "machiningDirection": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "datasheet": {
+        "facts": {
+          "cd": {
+            "ignore": {
+              "max": null,
+              "min": null
+            },
+            "deviate": {
+              "max": null,
+              "min": null
+            },
+            "effectiveAdaptive": {
+              "max": null,
+              "min": null
+            },
+            "terminalCornerRadius": 0
+          },
+          "kind": "Wall",
+          "cdquantiles": {
+            "dim": 1,
+            "diameters": [null, null],
+            "clearanceRatios": [1, 0],
+            "featureHypervol": 50.8
+          }
+        },
+        "hasWall": true,
+        "hasFloor": false,
+        "maxDepth": 50.8,
+        "minDepth": 0,
+        "featureType": "Wall",
+        "wallishArea": 2580.64,
+        "floorishArea": 0,
+        "toleranceBand": {
+          "atolMax": 0.127,
+          "atolIgnore": 0.00254,
+          "atolDeviate": 0.0254
+        },
+        "depthVariation": {
+          "deltaX": [0.508, 1.016, 3.048, 101.6],
+          "deltaY": [50.8, 50.8, 50.800000000000004, 50.80000000000001]
+        },
+        "extendedMaxDepth": 50.8,
+        "extendedMinDepth": 0,
+        "axialStockToLeave": 0,
+        "radialStockToLeave": 0
+      }
+    }
+  ],
+  "candidateDirections": [
+    {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "z": -1
+    },
+    {
+      "x": 0,
+      "y": -1,
+      "z": 0
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    }
+  ],
+  "meshPointCount": 8,
+  "meshTriangleCount": 12,
+  "thumbnailUrl": "https://s3.us-east-1.amazonaws.com/toolpath-engine-staging/parts/afe3b4ec-855d-4900-97ba-6ad269ea97d4/thumbnail.png?<presigned-redacted>",
+  "meshStlUrl": "https://s3.us-east-1.amazonaws.com/toolpath-engine-staging/parts/afe3b4ec-855d-4900-97ba-6ad269ea97d4/reports/b0dd4e48-72c3-43f6-95a2-9cb1100a87c7/mesh.stl?<presigned-redacted>",
+  "meshGlbUrl": "https://s3.us-east-1.amazonaws.com/toolpath-engine-staging/parts/afe3b4ec-855d-4900-97ba-6ad269ea97d4/reports/b0dd4e48-72c3-43f6-95a2-9cb1100a87c7/mesh.glb?<presigned-redacted>",
+  "downloadMs": 76,
+  "analysisMs": 240,
+  "totalMs": 590
+}

@@ -4,9 +4,24 @@ export {
   engineGeometryCache,
   engineGeometryResourceKey,
 } from './geometry-cache.js'
-export { engineMeshAssets, loadEngineGeometry } from './mesh-loader.js'
-export { engineFeatureRegions } from './region-mapping.js'
-export type { MeshAsset, MeshFormat } from './mesh-loader.js'
-export type { EngineGeometryCache, EngineGeometryResource } from './geometry-cache.js'
+export {
+  PartMeshError,
+  loadPartGeometry,
+  loadPartMesh,
+  parsePartGeometry,
+  partMeshAssets,
+} from './geometry.js'
+export {
+  MIN_KERNEL_VERSION,
+  assertSupportedKernelVersion,
+  normalizePartReport,
+} from './normalize.js'
 export type { EnginePartProps } from './engine-part.js'
-export type { EngineFeature, EnginePartReport, EngineRegion } from './types.js'
+export type { EngineGeometryCache, EngineGeometryResource } from './geometry-cache.js'
+export type {
+  FetchLike,
+  LoadPartGeometryOptions,
+  MeshAsset,
+  MeshFormat,
+  PartMeshExpectation,
+} from './geometry.js'

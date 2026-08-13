@@ -1,3 +1,4 @@
+import { focusForPick, type PartPick } from '@toolpath/viewer'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import type { PublicInspectionReport } from '../shared/contracts'
@@ -20,6 +21,7 @@ export const PartInspector = ({
   )
   const [hoveredTags, setHoveredTags] = useState<string[]>([])
   const [candidateTags, setCandidateTags] = useState<string[]>([])
+  const [pickedRegion, setPickedRegion] = useState<number | null>(null)
   const features = useMemo(() => filterFeatures(report.features, query), [query, report.features])
   const focused = useMemo(
     () => report.features.find((feature) => feature.featureTag === focusedTag) ?? null,
@@ -29,16 +31,36 @@ export const PartInspector = ({
     () => featureFromTags(report.features, candidateTags),
     [candidateTags, report.features],
   )
-  const highlightedTags = candidateTags.length ? candidateTags : hoveredTags
-
+  /** Naming a feature in the list is a different question from the one a click asked. */
   const choose = (featureTag: string) => {
     setFocusedTag(featureTag)
     setCandidateTags([])
+    setPickedRegion(null)
   }
 
-  const selectMeshFeatures = (featureTags: string[]) => {
-    setCandidateTags(featureTags)
-    if (featureTags.length === 1) choose(featureTags[0])
+  /**
+   * Switching between the readings of the face already clicked.
+   *
+   * Keeps the candidate list up: it is the control being used, and clearing it
+   * on the first press left nothing to switch back with.
+   */
+  const focusCandidate = (featureTag: string) => setFocusedTag(featureTag)
+
+  /**
+   * A click on the part offers its readings rather than deciding between them.
+   * The best one is focused so there is something to read, and clicking the
+   * same face again walks the rest — the list beside it is how you pick another
+   * outright.
+   */
+  const pickFromPart = (pick: PartPick | null) => {
+    if (!pick) {
+      setCandidateTags([])
+      setPickedRegion(null)
+      return
+    }
+    setCandidateTags([...pick.ranked])
+    setFocusedTag(focusForPick(pick, pickedRegion, focusedTag))
+    setPickedRegion(pick.region)
   }
 
   return (
@@ -92,11 +114,11 @@ export const PartInspector = ({
           report={report}
           jobId={jobId}
           selectedFeatureTag={focusedTag}
-          highlightedFeatureTags={highlightedTags}
-          onFeatureClick={selectMeshFeatures}
+          highlightedFeatureTags={hoveredTags}
+          onPick={pickFromPart}
         />
 
-        <FeatureDetail feature={focused} candidates={candidates} onChoose={choose} />
+        <FeatureDetail feature={focused} candidates={candidates} onChoose={focusCandidate} />
       </div>
     </main>
   )

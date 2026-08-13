@@ -6,29 +6,65 @@ import {
   Grid,
   OrientationCube,
   PartMesh,
-  type FeaturePointerEvent,
-  type FeatureRegion,
-  type ViewerHandle,
   Viewer,
+  buildRegionIndex,
+  type PartModel,
+  type PartPick,
+  type ViewerHandle,
 } from '@toolpath/viewer'
 import './style.css'
 
-const cubeRegions: FeatureRegion<string>[] = [
-  { regionIndex: 0, triangleStart: 0, triangleEnd: 2, featureIds: ['right-face'] },
-  { regionIndex: 1, triangleStart: 2, triangleEnd: 4, featureIds: ['left-face'] },
-  { regionIndex: 2, triangleStart: 4, triangleEnd: 6, featureIds: ['top-face'] },
-  { regionIndex: 3, triangleStart: 6, triangleEnd: 8, featureIds: ['bottom-face'] },
-  { regionIndex: 4, triangleStart: 8, triangleEnd: 10, featureIds: ['front-face'] },
-  { regionIndex: 5, triangleStart: 10, triangleEnd: 12, featureIds: ['back-face'] },
+/**
+ * A part the viewer can render, built by hand rather than fetched.
+ *
+ * A real one comes from `normalizePartReport(report)`. This is the same shape:
+ * regions are half-open triangle ranges that tile the mesh completely, and
+ * features name the regions they own. `buildRegionIndex` inverts that mapping
+ * and rejects a table with a gap or an overlap.
+ */
+const cubeFaces = [
+  { tag: 'right-face', direction: { x: 1, y: 0, z: 0 } },
+  { tag: 'left-face', direction: { x: -1, y: 0, z: 0 } },
+  { tag: 'top-face', direction: { x: 0, y: 1, z: 0 } },
+  { tag: 'bottom-face', direction: { x: 0, y: -1, z: 0 } },
+  { tag: 'front-face', direction: { x: 0, y: 0, z: 1 } },
+  { tag: 'back-face', direction: { x: 0, y: 0, z: -1 } },
 ]
 
+const regions = cubeFaces.map((_face, idx) => ({
+  idx,
+  shapeKind: 'Plane',
+  area: 25.4 * 25.4,
+  triangles: { start: idx * 2, end: idx * 2 + 2 },
+}))
+
+const features = cubeFaces.map((face, idx) => ({
+  tag: face.tag,
+  featureType: 'face',
+  machiningDirection: face.direction,
+  axis: face.direction,
+  regionIdxs: [idx],
+}))
+
+const cube: PartModel = {
+  partId: 'one-inch-cube',
+  kernelVersion: '0.3.0',
+  features,
+  regions,
+  candidateDirections: cubeFaces.map((face) => face.direction),
+  mesh: { pointCount: 36, triangleCount: 12, glbUrl: null, stlUrl: null, thumbnailUrl: null },
+  regionIndex: buildRegionIndex({ regions, features, triangleCount: 12 }),
+  warnings: [],
+}
+
 const App = () => {
-  const geometry = useMemo(() => new THREE.BoxGeometry(25.4, 25.4, 25.4), [])
+  // Non-indexed on purpose. Highlighting is a per-vertex region attribute, and
+  // a vertex shared between two regions has no single value to carry — which is
+  // why the Engine mesh loader de-indexes too.
+  const geometry = useMemo(() => new THREE.BoxGeometry(25.4, 25.4, 25.4).toNonIndexed(), [])
   const viewerRef = useRef<ViewerHandle>(null)
   const [hovered, setHovered] = useState<string[]>([])
   const [selected, setSelected] = useState<string[]>([])
-  const onHover = (event: FeaturePointerEvent<string> | null) =>
-    setHovered(event ? [...event.featureIds] : [])
 
   return (
     <main>
@@ -60,12 +96,11 @@ const App = () => {
         </div>
         <Viewer ref={viewerRef}>
           <PartMesh
+            model={cube}
             geometry={geometry}
-            regions={cubeRegions}
-            hoveredFeatureIds={hovered}
-            selectedFeatureIds={selected}
-            onFeatureHover={onHover}
-            onFeatureClick={(event) => setSelected([...event.featureIds])}
+            selection={selected}
+            onHover={(pick: PartPick | null) => setHovered(pick ? [...pick.owners] : [])}
+            onPick={(pick: PartPick | null) => setSelected(pick ? [...pick.ranked] : [])}
           />
           <Grid size={100} divisions={20} />
           <Axes size={35} />

@@ -1,3 +1,5 @@
 openapi/openapi.json
+# Captured Engine responses. Kept byte-identical to what the API returned.
+packages/viewer/fixtures/reports/
 packages/sdk-python/
 packages/sdk-typescript/src/schema.ts
