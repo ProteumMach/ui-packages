@@ -30,19 +30,27 @@ class MeshErrorBoundary extends Component<{ children: ReactNode }, { error: Erro
 const meshUrl = (partId: string, jobId: string, format: 'glb' | 'stl'): string =>
   `/api/parts/${encodeURIComponent(partId)}/mesh?${new URLSearchParams({ jobId, format })}`
 
+/**
+ * The part, showing the one reading being read.
+ *
+ * The viewer can paint every feature a click could have meant, and this
+ * deliberately passes none. A click resolves to five to eight readings, and
+ * among them are the direction's `profile` features — a profile traces the
+ * whole boundary contour of its direction, so painting the owners of one face
+ * washed most of the part and read as though clicking had chained things
+ * together. The alternatives are offered in words instead, in the panel beside
+ * it, and only the focused reading is coloured.
+ */
 export const FeatureViewer = ({
   report,
   jobId,
   selectedFeatureTag,
-  candidateFeatureTags,
   highlightedFeatureTags,
   onPick,
 }: {
   report: PublicInspectionReport
   jobId: string
   selectedFeatureTag: string | null
-  /** Every feature the last click on the part could have meant. */
-  candidateFeatureTags: readonly string[]
   /** Features under the pointer in the feature list. */
   highlightedFeatureTags: readonly string[]
   onPick: (pick: PartPick | null) => void
@@ -81,7 +89,6 @@ export const FeatureViewer = ({
               <EnginePart
                 report={viewerReport}
                 selection={selectedFeatureTag ? [selectedFeatureTag] : []}
-                candidates={candidateFeatureTags}
                 hoveredFeatureIds={highlightedFeatureTags}
                 onPick={onPick}
                 showEdges={false}

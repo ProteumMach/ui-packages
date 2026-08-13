@@ -31,11 +31,20 @@ export const PartInspector = ({
     () => featureFromTags(report.features, candidateTags),
     [candidateTags, report.features],
   )
+  /** Naming a feature in the list is a different question from the one a click asked. */
   const choose = (featureTag: string) => {
     setFocusedTag(featureTag)
     setCandidateTags([])
     setPickedRegion(null)
   }
+
+  /**
+   * Switching between the readings of the face already clicked.
+   *
+   * Keeps the candidate list up: it is the control being used, and clearing it
+   * on the first press left nothing to switch back with.
+   */
+  const focusCandidate = (featureTag: string) => setFocusedTag(featureTag)
 
   /**
    * A click on the part offers its readings rather than deciding between them.
@@ -105,12 +114,11 @@ export const PartInspector = ({
           report={report}
           jobId={jobId}
           selectedFeatureTag={focusedTag}
-          candidateFeatureTags={candidateTags}
           highlightedFeatureTags={hoveredTags}
           onPick={pickFromPart}
         />
 
-        <FeatureDetail feature={focused} candidates={candidates} onChoose={choose} />
+        <FeatureDetail feature={focused} candidates={candidates} onChoose={focusCandidate} />
       </div>
     </main>
   )
