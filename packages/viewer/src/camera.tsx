@@ -58,7 +58,9 @@ export const clampCameraTarget = (
   center: THREE.Vector3,
   maxDistance: number,
 ): void => {
-  const offset = target.sub(center)
+  // Never mutate the controls target merely to measure it. `target.sub(center)` made every
+  // OrbitControls change move the target again, which caused a runaway camera shake.
+  const offset = target.clone().sub(center)
   if (offset.lengthSq() > maxDistance * maxDistance)
     target.copy(offset.setLength(maxDistance).add(center))
 }

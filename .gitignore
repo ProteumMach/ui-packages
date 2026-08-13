@@ -19,3 +19,10 @@ examples/react-viewer/dist/
 examples/react-viewer/test-results/
 examples/react-viewer/playwright-report/
 examples/**/.env
+apps/part-viewer/.env
+apps/part-viewer/build/
+apps/part-viewer/.react-router/
+apps/part-viewer/test-results/
+apps/part-viewer/playwright-report/
+apps/part-viewer-old/build/
+apps/part-viewer-old/.react-router/

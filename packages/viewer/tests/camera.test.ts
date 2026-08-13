@@ -28,4 +28,11 @@ describe('camera pan bounds', () => {
     clampCameraTarget(target, new THREE.Vector3(), 4)
     expect(target.toArray()).toEqual([2, 0, 0])
   })
+
+  it('does not shift a valid target when the framed part is away from the origin', () => {
+    const center = new THREE.Vector3(50, -20, 8)
+    const target = center.clone().add(new THREE.Vector3(2, 0, 0))
+    clampCameraTarget(target, center, 4)
+    expect(target.toArray()).toEqual([52, -20, 8])
+  })
 })
