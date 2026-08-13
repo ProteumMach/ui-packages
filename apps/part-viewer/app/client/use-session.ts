@@ -5,7 +5,7 @@ import { errorMessage } from './error-message'
 export type SessionStatus = 'checking' | 'disconnected' | 'connected'
 export type SessionAction = 'idle' | 'connecting' | 'disconnecting'
 
-/** Owns the browser's connection state; the API key itself remains HttpOnly and server-only. */
+/** Owns the browser-visible session state; the API key itself always remains server-only. */
 export const useSession = () => {
   const [status, setStatus] = useState<SessionStatus>('checking')
   const [action, setAction] = useState<SessionAction>('idle')
@@ -14,10 +14,7 @@ export const useSession = () => {
   useEffect(() => {
     void getSession()
       .then(({ connected }) => setStatus(connected ? 'connected' : 'disconnected'))
-      .catch((reason: unknown) => {
-        setStatus('disconnected')
-        setError(errorMessage(reason))
-      })
+      .catch(() => setStatus('disconnected'))
   }, [])
 
   const connectWithKey = useCallback(async (apiKey: string) => {

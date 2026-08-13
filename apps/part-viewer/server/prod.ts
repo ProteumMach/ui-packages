@@ -1,14 +1,16 @@
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
-import handle from 'hono-react-router-adapter/node'
-import type { ServerBuild } from 'react-router'
 import app from './index'
 
-app.use('*', serveStatic({ root: './build/client' }))
+const clientRoot = './build/client'
+app.use('*', serveStatic({ root: clientRoot }))
+app.get('*', (c, next) =>
+  c.req.path === '/api' || c.req.path.startsWith('/api/')
+    ? next()
+    : serveStatic({ root: clientRoot, path: 'index.html' })(c, next),
+)
+app.notFound((c) => c.json({ error: 'not_found', message: 'API route not found.' }, 404))
 
-const buildPath = '../build/server/index.js'
-const build = (await import(buildPath)) as unknown as ServerBuild
-const handler = handle(build, app)
 const port = Number(process.env.PORT ?? 3000)
 
-serve({ fetch: handler.fetch, port })
+serve({ fetch: app.fetch, port })

@@ -4,7 +4,7 @@ import { getSession, uploadPart } from './api'
 afterEach(() => vi.unstubAllGlobals())
 
 describe('direct CAD upload', () => {
-  test('bounds the initial session check', async () => {
+  test('reads the browser session with a bounded request', async () => {
     vi.stubGlobal('fetch', async (_input: RequestInfo | URL, init?: RequestInit) => {
       expect(init?.signal).toBeInstanceOf(AbortSignal)
       return Response.json({ connected: false })
