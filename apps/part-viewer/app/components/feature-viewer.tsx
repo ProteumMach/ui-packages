@@ -3,6 +3,7 @@ import { EnginePart } from '@toolpath/viewer/engine'
 import { Button } from '@toolpath/ui'
 import { Component, Suspense, useMemo, useRef } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
+import type { PartPick } from '@toolpath/viewer'
 import type { PartReport, PublicInspectionReport } from '../shared/contracts'
 
 class MeshErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -35,7 +36,7 @@ export const FeatureViewer = ({
   selectedFeatureTag,
   candidateFeatureTags,
   highlightedFeatureTags,
-  onFeatureClick,
+  onPick,
 }: {
   report: PublicInspectionReport
   jobId: string
@@ -44,7 +45,7 @@ export const FeatureViewer = ({
   candidateFeatureTags: readonly string[]
   /** Features under the pointer in the feature list. */
   highlightedFeatureTags: readonly string[]
-  onFeatureClick: (featureTags: string[]) => void
+  onPick: (pick: PartPick | null) => void
 }) => {
   const viewerRef = useRef<ViewerHandle>(null)
   const viewerReport = useMemo<PartReport>(
@@ -82,7 +83,7 @@ export const FeatureViewer = ({
                 selection={selectedFeatureTag ? [selectedFeatureTag] : []}
                 candidates={candidateFeatureTags}
                 hoveredFeatureIds={highlightedFeatureTags}
-                onFeatureClick={(event) => onFeatureClick([...event.featureIds])}
+                onPick={onPick}
                 showEdges={false}
               />
               <Grid size={100} divisions={20} />

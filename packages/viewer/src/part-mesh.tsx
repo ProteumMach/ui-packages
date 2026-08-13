@@ -1,13 +1,13 @@
 import type { ThreeEvent } from '@react-three/fiber'
 import { useThree } from '@react-three/fiber'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import type { BufferGeometry } from 'three'
+import { type BufferGeometry, Vector3 } from 'three'
 import type { FeatureTag, PartModel } from './model/types.js'
 import type { FeatureHighlight, RegionHighlight } from './render/paint.js'
 import { applyHighlightLayers } from './render/paint.js'
 import { createPart } from './render/part.js'
+import { type PartPick, buildPick, viewDirection } from './render/picking.js'
 import { type ViewerTheme, resolveTheme, themesEqual } from './render/theme.js'
-import type { FeaturePointerEvent } from './types.js'
 
 export interface PartMeshProps {
   /** The normalized report. `engine/normalize.ts` produces it. */
@@ -39,8 +39,15 @@ export interface PartMeshProps {
    * and needs no prop.
    */
   hoveredFeatureIds?: readonly FeatureTag[]
-  onFeatureHover?: (event: FeaturePointerEvent | null) => void
-  onFeatureClick?: (event: FeaturePointerEvent) => void
+  /**
+   * Scopes a pick to one machining direction, as an index into the model's
+   * `candidateDirections`. A face that direction cannot reach then picks to
+   * nothing, which is a real answer rather than a missed click.
+   */
+  activeDirection?: number | null
+  onHover?: (pick: PartPick | null) => void
+  /** A click on the part, or `null` for one on empty space. */
+  onPick?: (pick: PartPick | null) => void
   theme?: Partial<ViewerTheme>
   showEdges?: boolean
 }
@@ -63,12 +70,13 @@ export const PartMesh = ({
   highlights = [],
   regionHighlights = [],
   hoveredFeatureIds = [],
-  onFeatureHover,
-  onFeatureClick,
+  activeDirection = null,
+  onHover,
+  onPick,
   theme,
   showEdges = true,
 }: PartMeshProps) => {
-  const { invalidate } = useThree()
+  const { camera, controls, invalidate } = useThree()
   const resolved = useStableTheme(theme)
   // The part is built once per mesh and re-themed in place: a colour change is
   // two material writes, not a rebuilt region attribute and state texture.
@@ -120,42 +128,65 @@ export const PartMesh = ({
     repaint()
   }, [layerKey, repaint])
 
-  const eventFor = (event: ThreeEvent<PointerEvent | MouseEvent>): FeaturePointerEvent | null => {
+  const pickFor = (event: ThreeEvent<PointerEvent | MouseEvent>): PartPick | null => {
     const triangleIndex = event.faceIndex
     if (triangleIndex == null) return null
-    const regionIndex = model.regionIndex.regionForTriangle(triangleIndex)
-    if (regionIndex === null) return null
-    return {
-      featureIds: model.regionIndex.featuresForRegion(regionIndex),
-      regionIndex,
+    const region = model.regionIndex.regionForTriangle(triangleIndex)
+    if (region === null) return null
+
+    // The owner whose machining direction most nearly faces the viewer wins a
+    // tie, so which reading a click means depends on where it was made from.
+    const target = (controls as { target?: Vector3 } | null)?.target ?? ORIGIN
+    const normal = event.face?.normal ?? UP
+    const source = event.nativeEvent
+
+    return buildPick({
+      model,
+      region,
       triangleIndex,
       point: [event.point.x, event.point.y, event.point.z],
-    }
+      normal: [normal.x, normal.y, normal.z],
+      activeDirection,
+      viewDirection: viewDirection(camera, target),
+      modifiers: {
+        alt: source.altKey,
+        ctrl: source.ctrlKey,
+        meta: source.metaKey,
+        shift: source.shiftKey,
+        secondary: 'button' in source && source.button === 2,
+      },
+    })
   }
 
   // Hover is region-level, so moving between triangles of one face is not a new
   // hover — and repainting is a texel write, so it happens here rather than
   // through a state update the consumer would have to round-trip.
-  const emitHover = (next: FeaturePointerEvent | null) => {
-    const region = next?.regionIndex ?? null
+  const emitHover = (next: PartPick | null) => {
+    const region = next?.region ?? null
     if (hoverRegion.current === region) return
     hoverRegion.current = region
     repaint()
-    onFeatureHover?.(next)
+    onHover?.(next)
   }
 
   return (
     <primitive
       object={part.object}
-      onPointerMove={(event: ThreeEvent<PointerEvent>) => emitHover(eventFor(event))}
+      onPointerMove={(event: ThreeEvent<PointerEvent>) => emitHover(pickFor(event))}
       onPointerOut={() => emitHover(null)}
       onClick={(event: ThreeEvent<MouseEvent>) => {
-        const featureEvent = eventFor(event)
-        if (featureEvent) onFeatureClick?.(featureEvent)
+        const pick = pickFor(event)
+        if (pick) onPick?.(pick)
       }}
+      // A click that hits nothing clears the selection, the same as clicking
+      // away from a selection anywhere else.
+      onPointerMissed={() => onPick?.(null)}
     />
   )
 }
+
+const ORIGIN = new Vector3()
+const UP = new Vector3(0, 0, 1)
 
 /**
  * The resolved theme, with an identity that changes only when a colour does.

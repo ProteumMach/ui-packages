@@ -8,8 +8,8 @@ import {
   PartMesh,
   Viewer,
   buildRegionIndex,
-  type FeaturePointerEvent,
   type PartModel,
+  type PartPick,
   type ViewerHandle,
 } from '@toolpath/viewer'
 import './style.css'
@@ -65,8 +65,6 @@ const App = () => {
   const viewerRef = useRef<ViewerHandle>(null)
   const [hovered, setHovered] = useState<string[]>([])
   const [selected, setSelected] = useState<string[]>([])
-  const onHover = (event: FeaturePointerEvent | null) =>
-    setHovered(event ? [...event.featureIds] : [])
 
   return (
     <main>
@@ -101,8 +99,8 @@ const App = () => {
             model={cube}
             geometry={geometry}
             selection={selected}
-            onFeatureHover={onHover}
-            onFeatureClick={(event) => setSelected([...event.featureIds])}
+            onHover={(pick: PartPick | null) => setHovered(pick ? [...pick.owners] : [])}
+            onPick={(pick: PartPick | null) => setSelected(pick ? [...pick.ranked] : [])}
           />
           <Grid size={100} divisions={20} />
           <Axes size={35} />

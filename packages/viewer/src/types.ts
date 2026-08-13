@@ -1,19 +1,4 @@
 import type { Vector3 } from 'three'
-import type { FeatureTag } from './model/types.js'
-
-/**
- * A pointer event on the part, resolved to the region it landed on.
- *
- * `featureIds` is every feature owning that region — five to eight of them on
- * real parts — and is deliberately not narrowed to one here. Ranking a click is
- * a separate decision that depends on the active direction and the camera.
- */
-export interface FeaturePointerEvent {
-  featureIds: readonly FeatureTag[]
-  regionIndex: number
-  triangleIndex: number
-  point: readonly [number, number, number]
-}
 
 export interface ViewerControls {
   /** Frames the part without changing the current viewing direction. */

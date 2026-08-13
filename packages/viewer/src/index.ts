@@ -46,7 +46,15 @@ export {
   buildRegionTexels,
   createPart,
 } from './render/part.js'
-export type { FeaturePointerEvent, ViewerControls, ViewerHandle, ViewerView } from './types.js'
+export {
+  CANDIDATE_WEIGHT,
+  HIGHLIGHT_WEIGHT,
+  HOVER_WEIGHT,
+  applyHighlightLayers,
+} from './render/paint.js'
+export { NO_MODIFIERS, buildPick, focusForPick, viewDirection } from './render/picking.js'
+export type { BuildPickInput, PartPick, PickModifiers } from './render/picking.js'
+export type { ViewerControls, ViewerHandle, ViewerView } from './types.js'
 export type {
   FeatureTag,
   FeatureType,
