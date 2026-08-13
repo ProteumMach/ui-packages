@@ -1,7 +1,7 @@
 {
   "apiVersion": "1.0.0",
   "openApiVersion": "3.1.0",
-  "sha256": "ddb883006dd0fb25587eb91fe98e4bf0693e7664e12ae8319fb36b240dde7949",
+  "sha256": "67f2d1ad50755886dbbea9c506edcaf58710b14af69d5c5e863498bbf596d512",
   "generators": {
     "python": "openapi-python-client@0.29.0",
     "typescript": "openapi-typescript@7.13.0"
@@ -15,6 +15,7 @@
     "getJob",
     "getOpenApiDocument",
     "getPartReport",
-    "listJobs"
+    "listJobs",
+    "streamJobEvents"
   ]
 }
