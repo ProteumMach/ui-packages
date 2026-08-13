@@ -10,7 +10,6 @@ import {
 import { EnginePart } from '@toolpath/viewer/engine'
 import {
   ArrowCounterClockwiseIcon,
-  ArrowsOutCardinalIcon,
   CornersOutIcon,
   CrosshairSimpleIcon,
   CubeIcon,
@@ -27,7 +26,7 @@ import type {
   SectionPlacement,
   SectionState,
 } from '@toolpath/viewer'
-import { type PaintMode, paintWash } from '../shared/paint'
+import { PAINT_MODE_LABELS, type PaintMode, paintWash } from '../shared/paint'
 import { ToolButton } from './tool-button'
 import type { PartReport, PublicInspectionReport } from '../shared/contracts'
 
@@ -167,13 +166,30 @@ export const FeatureViewer = ({
         className="absolute left-3 top-3 z-10 flex items-center gap-1.5"
         aria-label="Viewer controls"
       >
-        <ToolButton
-          label={paintMode === 'directions' ? 'Colour by direction (on)' : 'Colour by direction'}
-          pressed={paintMode === 'directions'}
-          onClick={() => onPaintMode(paintMode === 'directions' ? 'plain' : 'directions')}
+        {/* A shelf rather than a toggle: what the part is coloured by is the
+            first thing anybody changes, and a switch that hides the other mode
+            makes you press it to find out what it was. */}
+        <span
+          className="flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-900/80 p-1"
+          role="group"
+          aria-label="Colour the part by"
         >
-          <ArrowsOutCardinalIcon />
-        </ToolButton>
+          {PAINT_MODE_LABELS.map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              aria-pressed={paintMode === mode}
+              onClick={() => onPaintMode(mode)}
+              className={`rounded px-2 py-0.5 text-xs font-semibold transition ${
+                paintMode === mode
+                  ? 'bg-info/20 text-info'
+                  : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
+              } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/75`}
+            >
+              {label}
+            </button>
+          ))}
+        </span>
         <ToolButton
           label={projection === 'perspective' ? 'Perspective view' : 'Orthographic view'}
           onClick={() =>

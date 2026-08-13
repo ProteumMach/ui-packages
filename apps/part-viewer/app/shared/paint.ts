@@ -13,6 +13,19 @@ export type PaintMode = 'plain' | 'directions'
 
 export const PAINT_MODES: readonly PaintMode[] = ['plain', 'directions']
 
+/**
+ * The modes, in the order they are offered.
+ *
+ * Words rather than icons, unlike the rest of the toolbar: these are the
+ * question the part is answering, and "no standing opinion" has no picture.
+ * The feature picker offers a third, Difficulty, which needs rules this app
+ * does not have.
+ */
+export const PAINT_MODE_LABELS: readonly (readonly [PaintMode, string])[] = [
+  ['plain', 'Plain'],
+  ['directions', 'Directions'],
+]
+
 /** How strongly the standing wash covers the part, under everything else. */
 export const PAINT_WEIGHT = 0.7
 
