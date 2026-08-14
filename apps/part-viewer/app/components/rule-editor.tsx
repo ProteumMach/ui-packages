@@ -49,43 +49,48 @@ const NumberBox = ({
   width?: string
   onChange: (value: number | undefined) => void
 }) => (
-  <Input
-    aria-label={label}
-    className={`${width} tabular-nums`}
-    id={id}
-    inputMode="decimal"
-    name={id}
-    size="md"
-    suffix={raw ? undefined : unitSuffix(metric, unit)}
-    type="number"
-    // Trailing zeros stripped, which is not cosmetic: rendered as `3.00`, a box
-    // rewrites itself between keystrokes — type `1` and it becomes `1.00` with
-    // the caret after the zeros, so `12` arrives as `1.002`.
-    value={
-      value === undefined
-        ? ''
-        : String(
-            Number(
-              toDisplay(value, raw ? undefined : metric, unit).toFixed(
-                raw ? 0 : displayDecimals(metric, unit),
+  <div className="flex min-w-0 flex-col gap-0.5">
+    {/* A div rather than a label: the caption names a control that labels
+        itself, and two labels on one box is one too many for a screen reader. */}
+    <span className="truncate text-2xs text-zinc-400">{label}</span>
+    <Input
+      aria-label={label}
+      className={`${width} tabular-nums`}
+      id={id}
+      inputMode="decimal"
+      name={id}
+      size="md"
+      suffix={raw ? undefined : unitSuffix(metric, unit)}
+      type="number"
+      // Trailing zeros stripped, which is not cosmetic: rendered as `3.00`, a box
+      // rewrites itself between keystrokes — type `1` and it becomes `1.00` with
+      // the caret after the zeros, so `12` arrives as `1.002`.
+      value={
+        value === undefined
+          ? ''
+          : String(
+              Number(
+                toDisplay(value, raw ? undefined : metric, unit).toFixed(
+                  raw ? 0 : displayDecimals(metric, unit),
+                ),
               ),
-            ),
-          )
-    }
-    onChange={(event) => {
-      const typed = event.target.value.trim()
-
-      // An emptied box is "not set", not zero — which would refuse everything
-      // the moment somebody cleared the field to retype it.
-      if (typed === '') {
-        onChange(undefined)
-        return
+            )
       }
+      onChange={(event) => {
+        const typed = event.target.value.trim()
 
-      const next = Number(typed)
-      if (Number.isFinite(next)) onChange(fromDisplay(next, raw ? undefined : metric, unit))
-    }}
-  />
+        // An emptied box is "not set", not zero — which would refuse everything
+        // the moment somebody cleared the field to retype it.
+        if (typed === '') {
+          onChange(undefined)
+          return
+        }
+
+        const next = Number(typed)
+        if (Number.isFinite(next)) onChange(fromDisplay(next, raw ? undefined : metric, unit))
+      }}
+    />
+  </div>
 )
 
 /** The five bands as dots, named on hover — one line, whatever the width. */
@@ -95,11 +100,11 @@ const BandDots = ({ rule, unit }: { rule: Rule; unit: Unit }) => {
   if (limits.length === 0) return null
 
   return (
-    <ul className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+    <ul className="flex flex-wrap items-center gap-1">
       {limits.map((limit) => (
         <li
           key={limit.band}
-          className="flex shrink-0 items-center gap-1 text-3xs tabular-nums text-zinc-500"
+          className="flex shrink-0 items-center gap-1 rounded bg-zinc-800/70 px-1.5 py-0.5 text-3xs tabular-nums text-zinc-300"
           title={`${limit.name} ${limit.range}`}
         >
           <span
@@ -451,6 +456,7 @@ export const RuleCard = ({
           aria-expanded={open}
           aria-label={`What ${rule.name} reads and judges`}
           className="shrink-0 text-zinc-500 hover:text-zinc-200"
+          data-row={rule.id}
           onClick={onOpen}
           type="button"
         >
@@ -458,43 +464,44 @@ export const RuleCard = ({
         </button>
 
         <span
-          className={`min-w-0 flex-1 truncate text-xs ${rule.enabled ? 'text-zinc-200' : 'text-zinc-500'}`}
+          className={`min-w-0 flex-1 truncate text-xs ${
+            rule.enabled ? 'text-zinc-200' : 'text-zinc-500'
+          }`}
         >
           {rule.name}
         </span>
 
         {hits.length > 0 ? (
-          <span className="shrink-0 text-3xs tabular-nums text-zinc-500">{hits.length}</span>
+          <span className="shrink-0 text-3xs tabular-nums text-zinc-500" title="Readings it caught">
+            {hits.length}
+          </span>
         ) : null}
-
-        <NumberBox
-          id={`${rule.id}-weight`}
-          label={`${rule.name} weight`}
-          metric={undefined}
-          onChange={(value) => onChange({ ...rule, weight: value ?? 0 })}
-          raw
-          unit={unit}
-          value={rule.weight}
-          width="w-10"
-        />
-
-        <button
-          aria-label={`${rule.name}: ${rule.enabled ? 'on' : 'off'}`}
-          aria-pressed={rule.enabled}
-          className={`shrink-0 rounded px-1.5 py-0.5 text-3xs ${
-            rule.enabled ? 'bg-info/20 text-info' : 'bg-zinc-800 text-zinc-500'
-          }`}
-          onClick={() => onChange({ ...rule, enabled: !rule.enabled })}
-          title="Stop this rule judging anything, without deleting it"
-          type="button"
-        >
-          {rule.enabled ? 'on' : 'off'}
-        </button>
       </div>
 
-      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 pl-4">
+      <div className="ml-4 mt-1 flex flex-col gap-2 rounded border border-zinc-800 bg-zinc-900/50 p-2">
         <Limits onChange={onChange} rule={rule} unit={unit} />
         <BandDots rule={rule} unit={unit} />
+
+        <div className="flex items-end gap-2">
+          <NumberBox
+            id={`${rule.id}-weight`}
+            label="weight"
+            metric={undefined}
+            onChange={(value) => onChange({ ...rule, weight: value ?? 0 })}
+            raw
+            unit={unit}
+            value={rule.weight}
+            width="w-16"
+          />
+          <Button
+            onClick={() => onChange({ ...rule, enabled: !rule.enabled })}
+            size="sm"
+            title="Stop this rule judging anything, without deleting it"
+            variant={rule.enabled ? 'secondary' : 'info'}
+          >
+            {rule.enabled ? 'switch off' : 'switched off'}
+          </Button>
+        </div>
       </div>
 
       {/* What the limit actually cost, which is what somebody looks at before

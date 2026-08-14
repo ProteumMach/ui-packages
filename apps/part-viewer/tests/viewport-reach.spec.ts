@@ -159,7 +159,7 @@ test('shows the limits it judges by, and what they made of a feature', async ({ 
   await expect(page.getByLabel('Rule set')).toHaveValue('default')
   await expect(page.getByText('Drilling L/D ratio')).toBeVisible()
   // The bands a measurement is judged against, in the same words the part uses.
-  await expect(page.getByText('0.0 – 3.0').first()).toBeVisible()
+  await expect(page.getByText('∞ – 3.0').first()).toBeVisible()
 
   await page.getByRole('tab', { name: 'Inspector' }).click()
   await page.getByRole('button', { name: /Blind hole/ }).click()
@@ -180,7 +180,7 @@ test('shows the limits it judges by, and what they made of a feature', async ({ 
   // Engine never reported.
   await expect(page.getByText('partZMax − zMin ÷ facts.diameter')).toBeVisible()
   await expect(page.getByText('6.35 mm', { exact: true }).last()).toBeVisible()
-  await expect(page.getByText('8.0 – ∞')).toBeVisible()
+  await expect(page.getByText('8.0 – ∞').first()).toBeVisible()
   // A rule that agreed and a rule that never ran read identically on a feature
   // that scored well, so the silent ones are counted rather than dropped.
   await expect(page.getByText(/rules? said nothing/)).toBeVisible()
@@ -221,7 +221,7 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
 
   // Typed a digit at a time rather than filled, because that is where a box
   // that reformats itself mid-edit goes wrong, and `fill` would never show it.
-  const weight = drilling.getByLabel('Drilling L/D ratio weight')
+  const weight = drilling.getByLabel('weight')
   await weight.fill('')
   await weight.pressSequentially('12')
   await expect(weight).toHaveValue('12')
@@ -237,8 +237,8 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
 
   // A rule switched off stops judging without being deleted.
   await page.getByRole('tab', { name: 'Rules' }).click()
-  await drilling.getByRole('button', { name: 'Drilling L/D ratio: on' }).click()
-  await expect(drilling.getByRole('button', { name: 'Drilling L/D ratio: off' })).toBeVisible()
+  await drilling.getByRole('button', { name: 'switch off' }).click()
+  await expect(drilling.getByRole('button', { name: 'switched off' })).toBeVisible()
 
   // And putting it back is one press: a shipped set is never written over.
   await page.getByRole('button', { name: 'Put back' }).click()
@@ -263,4 +263,26 @@ test('lists the features each rule bit on, and opens one', async ({ page }) => {
   await hit.click()
   await page.getByRole('tab', { name: 'Inspector' }).click()
   await expect(page.getByRole('heading', { name: 'Blind Hole' })).toBeVisible()
+})
+
+/** The arrows walk a rule into the features under it, and on into the next. */
+test('walks the rules and their features with the keyboard', async ({ page }) => {
+  await openInspector(page)
+  await page.getByRole('tab', { name: 'Rules' }).click()
+
+  await page
+    .getByRole('button', { name: /What .* reads and judges/ })
+    .first()
+    .focus()
+  await page.keyboard.press('ArrowDown')
+
+  // Whatever is on screen in document order is what the keyboard walks, so the
+  // row after a rule is the first feature it bit on rather than the next rule.
+  // Whatever is on screen in document order is what the keyboard walks, so the
+  // row after a rule is the first feature it bit on rather than the next rule.
+  await expect(page.locator(':focus')).toHaveAttribute('data-row', /.+/)
+  const first = await page.locator(':focus').getAttribute('data-row')
+
+  await page.keyboard.press('ArrowDown')
+  await expect(page.locator(':focus')).not.toHaveAttribute('data-row', first ?? '')
 })

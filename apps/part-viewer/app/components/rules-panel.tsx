@@ -5,6 +5,7 @@ import type { RulesState } from '../shared/use-rules'
 import type { Unit } from '../shared/units'
 import type { PartFeature } from '../shared/contracts'
 import { ruleHits } from '../shared/rule-text'
+import { moveThroughList } from '../shared/list-keys'
 
 /**
  * The limits the part is being judged against, and every one of them editable.
@@ -83,7 +84,19 @@ export const RulesPanel = ({
         </div>
       ) : null}
 
-      <ul className="mt-2">
+      {/* One list for the whole panel, so the arrows walk from a rule into the
+          features under it and on into the next rule — which is the order it
+          reads in, and the order somebody expects to travel. */}
+      <ul
+        className="mt-2"
+        data-keynav="rules"
+        onKeyDown={(event) =>
+          moveThroughList(event, {
+            onOpen: (value) => setOpenRule(value),
+            onClose: () => setOpenRule(null),
+          })
+        }
+      >
         {set.rules.map((rule) => (
           <RuleCard
             key={rule.id}

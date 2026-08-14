@@ -53,10 +53,11 @@ export interface RuleLimit {
  * Where each band of a rule begins and ends, for showing what a measurement was
  * judged against.
  *
- * An open bottom is zero and an open top is infinity, whichever way the rule
- * runs: every measurement a rule reads — a length, a ratio, a count — bottoms
- * out at zero, and "∞ – 3:1" for the easy band reads as a limit nobody wrote.
- * The same reasoning the scoring already uses for the open end of a scale.
+ * Both open ends read as infinity, as the feature picker's do. The bottom of a
+ * scale is arguably zero — no measurement a rule reads goes below it — but the
+ * two apps are read side by side by the same people, and a band that says
+ * something different in each is worse than a band that says ∞ at a floor
+ * nothing reaches.
  */
 export function ruleLimits(
   rule: Rule,
@@ -65,18 +66,15 @@ export function ruleLimits(
 ): RuleLimit[] {
   if (rule.type !== 'threshold' && rule.type !== 'range') return []
 
-  const edge = (value: number | null, end: 'from' | 'to') => {
-    if (value !== null) return formatMetric(value, rule.metric, unit)
-
-    return end === 'from' ? formatMetric(0, rule.metric, unit) : '∞'
-  }
+  const edge = (value: number | null) =>
+    value === null ? '∞' : formatMetric(value, rule.metric, unit)
 
   return (rule.type === 'threshold' ? bandRanges(rule) : rangeSpectrum(rule))
     .filter((span) => span.reachable)
     .map((span) => ({
       band: span.band,
       name: bandName(span.band, names, rule.bandNames),
-      range: `${edge(span.from, 'from')} – ${edge(span.to, 'to')}`,
+      range: `${edge(span.from)} – ${edge(span.to)}`,
     }))
 }
 

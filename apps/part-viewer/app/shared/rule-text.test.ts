@@ -54,7 +54,7 @@ describe('ruleLimits', () => {
     const limits = ruleLimits(drilling, 'mm')
 
     expect(limits.map((limit) => `${limit.name} ${limit.range}`)).toEqual([
-      'easy 0.0 – 3.0',
+      'easy ∞ – 3.0',
       'alright 3.0 – 5.0',
       'meh 5.0 – 8.0',
       'rats 8.0 – ∞',
@@ -64,14 +64,12 @@ describe('ruleLimits', () => {
     expect(limits.map((limit) => limit.band)).toEqual(['easy', 'alright', 'meh', 'rats'])
   })
 
-  test('opens at zero and closes at infinity, whichever way the rule runs', () => {
-    // Every measurement a rule reads bottoms out at zero, so "∞ – 3:1" for the
-    // easy band would read as a limit nobody wrote. A rule where lower is
-    // harder simply has its easy band at the top.
+  test('shows an open end as infinity at either end of the scale', () => {
+    // Matching the picker, which the same people read alongside this.
     const falling = ruleLimits({ ...drilling, direction: 'lower is harder' as const }, 'mm')
 
     expect(falling[0]?.range).toBe('3.0 – ∞')
-    expect(falling.at(-1)?.range).toContain('0.0')
+    expect(falling.at(-1)?.range).toContain('∞')
   })
 
   test('shows the refusal as its own step once there is one', () => {
