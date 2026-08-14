@@ -16,12 +16,12 @@ export interface DetailRow {
   value: string
 }
 
-const asRecord = (value: unknown): Record<string, unknown> | null =>
+export const asRecord = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null
 
-const asNumber = (value: unknown): number | null =>
+export const asNumber = (value: unknown): number | null =>
   typeof value === 'number' && Number.isFinite(value) ? value : null
 
 const labelForType = (value: string): string =>
@@ -46,7 +46,7 @@ export const directionLabel = ({ x, y, z }: components['schemas']['Vec3']): stri
 
 const millimeters = (value: number): string => `${value.toFixed(value < 10 ? 2 : 1)} mm`
 
-const facts = (feature: PartFeature): Record<string, unknown> => {
+export const facts = (feature: PartFeature): Record<string, unknown> => {
   const sheet = asRecord(feature.datasheet)
   return asRecord(sheet?.facts) ?? {}
 }

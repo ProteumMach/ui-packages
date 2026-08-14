@@ -200,10 +200,10 @@ export const FeatureViewer = ({
                 type="button"
                 aria-pressed={paintMode === mode}
                 onClick={() => onPaintMode(mode)}
-                className={`rounded px-2 py-0.5 text-xs font-semibold transition ${
+                className={`rounded px-2 py-1 text-xs font-medium transition ${
                   paintMode === mode
                     ? 'bg-info/20 text-info'
-                    : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
+                    : 'text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100'
                 } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/75`}
               >
                 {label}
@@ -221,10 +221,10 @@ export const FeatureViewer = ({
                   : 'All arrows — click to turn them off'
               }
               onClick={() => onArrows(nextArrows(arrows))}
-              className={`grid size-6 place-items-center rounded transition ${
+              className={`ml-0.5 grid size-6 place-items-center rounded border-l border-zinc-800 pl-1 transition ${
                 arrows === 'all'
                   ? 'bg-info/20 text-info'
-                  : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
+                  : 'text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100'
               } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/75`}
             >
               <ArrowGlyph />

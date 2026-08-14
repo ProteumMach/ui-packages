@@ -17,6 +17,7 @@ import {
 import { directionLabel, featureFromTags, filterFeatures } from '../shared/report'
 import { AppHeader } from './app-header'
 import { FeatureDetail } from './feature-detail'
+import { PartSummary } from './part-summary'
 import { FeatureList } from './feature-list'
 import { FeatureViewer } from './feature-viewer'
 
@@ -91,7 +92,13 @@ export const PartInspector = ({
     () => report.features.find((feature) => feature.featureTag === focusedTag) ?? null,
     [focusedTag, report.features],
   )
-  const features = useMemo(() => filterFeatures(report.features, query), [query, report.features])
+  const [typeFilter, setTypeFilter] = useState<string | null>(null)
+  const features = useMemo(() => {
+    const matching = filterFeatures(report.features, query)
+    return typeFilter === null
+      ? matching
+      : matching.filter((feature) => feature.featureType === typeFilter)
+  }, [query, report.features, typeFilter])
   /**
    * Once a feature is being read, its own way up is the only one worth drawing.
    * An explicit direction still wins: choosing one is a question about that
@@ -165,8 +172,15 @@ export const PartInspector = ({
 
   const tabPanel =
     tab === 'inspector' ? (
-      <aside className="flex size-full min-h-0 flex-col bg-zinc-900/40">
-        <div className="border-b border-zinc-800 p-3">
+      <aside className="flex size-full min-h-0 flex-col overflow-y-auto bg-zinc-900/40">
+        <PartSummary
+          report={report}
+          activeDirection={activeDirection}
+          onPickDirection={holdDirection}
+          typeFilter={typeFilter}
+          onTypeFilter={setTypeFilter}
+        />
+        <div className="border-y border-zinc-800 p-3">
           <label className="sr-only" htmlFor="feature-search">
             Search features
           </label>
@@ -285,14 +299,14 @@ export const PartInspector = ({
         </Panels.Panel>
         <Panels.Separator className={separatorClassName} />
         <Panels.Panel defaultSize={360} minSize={280}>
-          {focused || candidates.length ? (
-            <FeatureDetail
-              feature={focused}
-              candidates={candidates}
-              onChoose={focusCandidate}
-              onZoom={zoomToFeature}
-            />
-          ) : null}
+          <FeatureDetail
+            feature={focused}
+            report={report}
+            candidates={candidates}
+            onChoose={focusCandidate}
+            onZoom={zoomToFeature}
+            onClose={() => setSelection(NOTHING_SELECTED)}
+          />
         </Panels.Panel>
       </Panels.Group>
     </main>
