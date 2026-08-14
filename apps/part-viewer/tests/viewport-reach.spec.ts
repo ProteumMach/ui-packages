@@ -157,7 +157,7 @@ test('shows the limits it judges by, and what they made of a feature', async ({ 
 
   await page.getByRole('tab', { name: 'Rules' }).click()
   await expect(page.getByLabel('Rule set')).toHaveValue('default')
-  await expect(page.getByText('Drilling L/D ratio')).toBeVisible()
+  await expect(page.locator('input[value="Drilling L/D ratio"]')).toHaveCount(1)
   // The bands a measurement is judged against, in the same words the part uses.
   await expect(page.getByText('0.0 – 3.0').first()).toBeVisible()
 
@@ -197,33 +197,37 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
   await openInspector(page)
   await page.getByRole('tab', { name: 'Rules' }).click()
 
-  // The hole is 4:1, which the shipped set calls `alright`.
-  const drillingRule = page.getByRole('button', { name: 'Drilling L/D ratio', exact: true })
-  await drillingRule.click()
-  // Trailing zeros stripped, so a box does not rewrite itself between
-  // keystrokes: rendered as `3.00`, typing `1` gives `1.00` with the caret at
-  // the end and the next digit lands after the zeros.
-  await expect(page.getByLabel('easy to')).toHaveValue('3')
+  // Scoped to one rule's row: every rule has an `easy to`, and reaching for the
+  // first one on the page edits whichever rule happens to be at the top.
+  const drilling = page
+    .getByRole('listitem')
+    .filter({ has: page.locator('input[value="Drilling L/D ratio"]') })
 
-  // Tighten the whole scale under it. Tightened rather than loosened
-  // deliberately: a feature's band is the *worst* rule's, so widening one limit
-  // proves nothing while another rule still speaks.
+  // The limits are on the row, not behind a press: moving one is what somebody
+  // opened this tab to do. Trailing zeros are stripped so a box does not
+  // rewrite itself between keystrokes.
+  await expect(drilling.getByLabel('easy to')).toHaveValue('3')
+
+  // The hole is 4:1, which the shipped set calls `alright`. Tighten the scale
+  // under it — tightened rather than loosened deliberately, since a feature's
+  // band is the *worst* rule's and widening one limit proves nothing while
+  // another rule still speaks.
   for (const [band, limit] of [
     ['easy', '0.5'],
     ['alright', '1'],
     ['meh', '1.5'],
     ['rats', '2'],
   ] as const) {
-    await page.getByLabel(`${band} to`).fill(limit)
+    await drilling.getByLabel(`${band} to`).fill(limit)
   }
 
   // Typed a digit at a time rather than filled, because that is where a box
   // that reformats itself mid-edit goes wrong, and `fill` would never show it.
-  const weight = page.getByLabel('weight')
+  const weight = drilling.getByLabel('Drilling L/D ratio weight')
   await weight.fill('')
   await weight.pressSequentially('12')
   await expect(weight).toHaveValue('12')
-  await expect(page.getByText('Changed, and not saved to a set.')).toBeVisible()
+  await expect(page.getByText('Changed, not saved')).toBeVisible()
 
   await page.getByRole('tab', { name: 'Inspector' }).click()
   await page.getByRole('button', { name: /Blind hole/ }).click()
@@ -233,18 +237,13 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
     .click()
   await expect(page.getByText('rats', { exact: true }).first()).toBeVisible()
 
-  // And a refusal past 3:1 takes the same hole out of the shop's work
-  // altogether. It sits above the rats limit rather than replacing it, which is
-  // why the scale had to move first.
+  // A rule switched off stops judging without being deleted.
   await page.getByRole('tab', { name: 'Rules' }).click()
-  await drillingRule.click()
-  await page.getByLabel('no go past').fill('3')
-  await page.getByRole('tab', { name: 'Inspector' }).click()
-  await expect(page.getByText('no go', { exact: true }).first()).toBeVisible()
+  await drilling.getByRole('button', { name: 'on' }).click()
+  await expect(drilling.getByRole('button', { name: 'off' })).toBeVisible()
 
-  // Putting it back is one press, and a shipped set is never written over:
-  // published guidelines stay as published.
-  await page.getByRole('tab', { name: 'Rules' }).click()
+  // And putting it back is one press: a shipped set is never written over.
   await page.getByRole('button', { name: 'Put back' }).click()
-  await expect(page.getByText('Changed, and not saved to a set.')).toBeHidden()
+  await expect(page.getByText('Changed, not saved')).toBeHidden()
+  await expect(drilling.getByLabel('easy to')).toHaveValue('3')
 })

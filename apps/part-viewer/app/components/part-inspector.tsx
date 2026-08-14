@@ -126,6 +126,11 @@ export const PartInspector = ({
    * somebody looks at it.
    */
   const rulesContext = useMemo(() => partContext(report.features), [report.features])
+  /** The types this part actually has, so a rule is aimed at what is in front of somebody. */
+  const featureTypes = useMemo(
+    () => [...new Set(report.features.map((feature) => feature.featureType))].sort(),
+    [report.features],
+  )
   /**
    * The set in force, and what it makes of every feature.
    *
@@ -284,7 +289,7 @@ export const PartInspector = ({
         />
       </aside>
     ) : tab === 'rules' ? (
-      <RulesPanel rules={rules} unit={unit} />
+      <RulesPanel rules={rules} types={featureTypes} unit={unit} />
     ) : (
       <aside className="size-full overflow-y-auto bg-zinc-900/40 p-4">
         <p className="text-xs font-bold uppercase tracking-wide text-info">Directions</p>
