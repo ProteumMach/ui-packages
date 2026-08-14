@@ -156,3 +156,40 @@ test('finishing a drag over a face is not a request to select it', async ({ page
   await canvas.click({ position: other })
   await expect(selected).toContainText('back-face')
 })
+
+/**
+ * Panning is not a request to put the selection down.
+ *
+ * R3F counts `contextmenu` as a click, and the browser sends that the instant
+ * the right button goes down — before any movement — so the selection went the
+ * moment a pan began, whatever the pan did next.
+ */
+test('panning over empty space keeps the selection', async ({ page }) => {
+  await page.goto('/')
+  const canvas = page.locator('canvas')
+  await page.waitForTimeout(700)
+  const box = await canvas.boundingBox()
+  if (!box) throw new Error('Viewer canvas has no bounding box')
+
+  const selected = page.locator('p', { hasText: 'Selected:' })
+  await canvas.click({ position: { x: box.width / 2, y: box.height * 0.32 } })
+  await expect(selected).not.toContainText('none')
+  const chosen = await selected.textContent()
+
+  // Right-drag well away from the part, where nothing is hit.
+  const from = { x: box.x + 40, y: box.y + box.height - 40 }
+  await page.mouse.move(from.x, from.y)
+  await page.mouse.down({ button: 'right' })
+  for (let step = 1; step <= 8; step += 1) {
+    await page.mouse.move(from.x + step * 20, from.y - step * 5)
+  }
+  await page.mouse.up({ button: 'right' })
+  await page.waitForTimeout(250)
+
+  await expect(selected).toHaveText(chosen ?? '')
+
+  // Even a right-click that does not move: the button says what it means, and
+  // it never means "deselect".
+  await page.mouse.click(box.x + 60, box.y + 60, { button: 'right' })
+  await expect(selected).toHaveText(chosen ?? '')
+})
