@@ -15,7 +15,7 @@ import {
   scopeToDirection,
   stepCandidate,
 } from '../shared/selection'
-import { directionLabel, featureFromTags, filterFeatures } from '../shared/report'
+import { directionLabel, featureFromTags, filterFeatures, tagsOfType } from '../shared/report'
 import { AppHeader } from './app-header'
 import { FeatureDetail } from './feature-detail'
 import { PartSummary } from './part-summary'
@@ -93,6 +93,21 @@ export const PartInspector = ({
     [focusedTag, report.features],
   )
   const [expandedType, setExpandedType] = useState<string | null>(null)
+
+  /**
+   * The open type, lit on the part. Held under the pointer's own highlight:
+   * hovering one feature is a narrower question than the type it belongs to,
+   * and the narrower question is the one being asked.
+   */
+  const typeTags = useMemo(
+    () =>
+      tagsOfType(
+        report.features,
+        expandedType,
+        activeDirection === null ? null : (report.candidateDirections[activeDirection] ?? null),
+      ),
+    [activeDirection, expandedType, report.candidateDirections, report.features],
+  )
   const [unit, setUnit] = useState<Unit>('mm')
   const features = useMemo(() => filterFeatures(report.features, query), [query, report.features])
 
@@ -283,7 +298,7 @@ export const PartInspector = ({
             report={report}
             jobId={jobId}
             selectedFeatureTag={focusedTag}
-            highlightedFeatureTags={hoveredTags}
+            highlightedFeatureTags={hoveredTags.length > 0 ? hoveredTags : typeTags}
             heldRegions={heldRegions(selection)}
             shownDirection={shownArrow(arrows, arrowContext)}
             arrows={arrows}

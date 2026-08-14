@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactElement, ReactNode } from 'react'
 
 /**
  * A drawing of each feature, instead of a coloured dot.
@@ -275,4 +275,139 @@ export const KindIcon = ({
   const Drawn = (featureType ? BY_TYPE[featureType] : undefined) ?? BY_KIND[kind] ?? Other
 
   return <Drawn />
+}
+
+/**
+ * Small drawings of the measurements somebody reaches for a tool with.
+ *
+ * Line art rather than glyphs from a set, because these are not concepts with
+ * icons — "how far down before it cuts", "the tightest inside corner", "the
+ * widest thing that gets in" are shapes, and a shape is what a machinist
+ * already has in their head for each of them. Drawn on one 16×16 grid at one
+ * weight so a row of them reads as a row.
+ */
+const MeasurementFrame = ({ children }: { children: ReactNode }) => (
+  <svg
+    aria-hidden="true"
+    className="size-4 shrink-0"
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth={1.3}
+    viewBox="0 0 16 16"
+  >
+    {children}
+  </svg>
+)
+
+/** Reach: the top of the part, and how far under it the cutting starts. */
+const ReachIcon = () => (
+  <MeasurementFrame>
+    <path d="M2 3h12" />
+    <path d="M8 4v7" />
+    <path d="M5.5 8.5 8 11l2.5-2.5" />
+  </MeasurementFrame>
+)
+
+/** Depth: the extent of the thing itself, top and bottom. */
+const DepthIcon = () => (
+  <MeasurementFrame>
+    <path d="M4 3h8" />
+    <path d="M4 13h8" />
+    <path d="M8 4.5v7" />
+    <path d="M6.5 6 8 4.5 9.5 6" />
+    <path d="M6.5 10 8 11.5 9.5 10" />
+  </MeasurementFrame>
+)
+
+/** Radius: an inside corner, and the arc the cutter leaves in it. */
+const RadiusIcon = () => (
+  <MeasurementFrame>
+    <path d="M3 3v10h10" />
+    <path d="M13 6A7 7 0 0 0 6 13" />
+  </MeasurementFrame>
+)
+
+/** Diameter: a bore, measured across. */
+const DiameterIcon = () => (
+  <MeasurementFrame>
+    <circle cx="8" cy="8" r="5.5" />
+    <path d="M3.5 8h9" />
+  </MeasurementFrame>
+)
+
+/** Reach over width: a long tool, and how much of it is hanging out. */
+const RatioIcon = () => (
+  <MeasurementFrame>
+    <path d="M6 2h4v4H6z" />
+    <path d="M7 6v8" />
+    <path d="M9 6v8" />
+  </MeasurementFrame>
+)
+
+/** An angle, of a drill point or a bevel. */
+const AngleIcon = () => (
+  <MeasurementFrame>
+    <path d="M3 12h10" />
+    <path d="M3 12 11 4" />
+    <path d="M7 12a5 5 0 0 0 1.5-3.5" />
+  </MeasurementFrame>
+)
+
+/** A ball nose, for the shapes that are surfaced rather than milled. */
+const BallIcon = () => (
+  <MeasurementFrame>
+    <path d="M5 2v7" />
+    <path d="M11 2v7" />
+    <path d="M5 9a3 3 0 0 0 6 0" />
+  </MeasurementFrame>
+)
+
+/** Area: how much surface there is to cover. */
+const AreaIcon = () => (
+  <MeasurementFrame>
+    <path d="M2.5 5.5h11v8h-11z" />
+    <path d="M2.5 5.5 5.5 2.5h11l-3 3" />
+    <path d="M13.5 5.5v8" />
+  </MeasurementFrame>
+)
+
+/** A face count is a tally rather than a dimension, so it gets a tally. */
+const FacesIcon = () => (
+  <MeasurementFrame>
+    <path d="M2.5 3.5h5v5h-5z" />
+    <path d="M8.5 3.5h5v5h-5z" />
+    <path d="M2.5 9.5h5v3h-5z" />
+    <path d="M8.5 9.5h5v3h-5z" />
+  </MeasurementFrame>
+)
+
+export const MEASUREMENT_ICONS: Record<string, () => ReactElement> = {
+  depthBelowTop: ReachIcon,
+  featureDepth: DepthIcon,
+  minRadius: RadiusIcon,
+  ld: RatioIcon,
+  diameter: DiameterIcon,
+  bevelAngle: AngleIcon,
+  floorFillet: BallIcon,
+  area: AreaIcon,
+  // The two halves of the surface area wear its icon: they are the same
+  // measurement split, and drawing them differently would say they were not.
+  walls: AreaIcon,
+  floors: AreaIcon,
+  faces: FacesIcon,
+}
+
+/**
+ * The drawing for a measurement, or a gap the width of one.
+ *
+ * A row without an icon still has to line up with the rows that have one — an
+ * unindented row in a column of indented ones reads as a different kind of row
+ * rather than as one whose picture is missing.
+ */
+export const MeasurementIcon = ({ measurement }: { measurement: string }) => {
+  const Icon = MEASUREMENT_ICONS[measurement]
+  if (!Icon) return <span aria-hidden="true" className="size-4 shrink-0" />
+  return <Icon />
 }

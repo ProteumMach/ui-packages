@@ -39,7 +39,8 @@ CameraControls.install({
 /**
  * Mouse and trackpad presets.
  *
- * - `toolpath` — left-drag orbits, right-drag pans. The product default.
+ * - `toolpath` — left-drag orbits, right- and middle-drag pan. The product
+ *   default.
  * - `fusion` — middle-drag and two-finger scroll pan, shift makes them orbit,
  *   pinch zooms. Matches Fusion 360, which is what most of our users have open
  *   in the other window.
@@ -213,6 +214,10 @@ export class ExtendedCameraControls extends CameraControls {
 
     this.mouseButtons.left = CameraControls.ACTION.ROTATE
     this.mouseButtons.right = CameraControls.ACTION.TRUCK
+    // Middle-drag pans too. It is the pan gesture in SolidWorks, Fusion and
+    // Onshape, so somebody arriving from any of them reaches for it first —
+    // and a gesture that does nothing reads as a viewport that has hung.
+    this.mouseButtons.middle = CameraControls.ACTION.TRUCK
     // Dollying an orthographic camera moves it without changing what the
     // frustum covers, so the wheel has to scale the frustum instead.
     this.mouseButtons.wheel =

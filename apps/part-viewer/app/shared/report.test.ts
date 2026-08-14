@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'vitest'
 import type { PartFeature } from './report'
-import { featureDetailRows, featureFromTags, featureSummary, filterFeatures } from './report'
+import {
+  featureDetailRows,
+  featureFromTags,
+  featureSummary,
+  filterFeatures,
+  tagsOfType,
+} from './report'
 
 const hole: PartFeature = {
   featureTag: 'hole-123',
@@ -55,5 +61,25 @@ describe('featureFromTags', () => {
     expect(featureFromTags(features, ['nope', 'wall-456']).map((f) => f.featureTag)).toEqual([
       'wall-456',
     ])
+  })
+})
+
+describe('tagsOfType', () => {
+  const features = [hole, wall, { ...hole, featureTag: 'hole-789' }]
+
+  test('names every feature of the kind that was opened', () => {
+    expect(tagsOfType(features, 'blind_hole', null)).toEqual(['hole-123', 'hole-789'])
+  })
+
+  test('narrows to the direction being held, like the count beside it does', () => {
+    expect(tagsOfType(features, 'blind_hole', { x: 0, y: 0, z: 1 })).toEqual([
+      'hole-123',
+      'hole-789',
+    ])
+    expect(tagsOfType(features, 'blind_hole', { x: -1, y: 0, z: 0 })).toEqual([])
+  })
+
+  test('lights nothing when no type is open', () => {
+    expect(tagsOfType(features, null, null)).toEqual([])
   })
 })

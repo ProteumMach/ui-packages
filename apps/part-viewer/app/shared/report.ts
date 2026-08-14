@@ -1,4 +1,5 @@
 import type { components } from '@toolpath/api'
+import { sameDirection } from '@toolpath/viewer'
 import type { PartFeature } from './contracts'
 
 export type { PartFeature } from './contracts'
@@ -117,6 +118,27 @@ export const rawDatasheet = (feature: PartFeature): string =>
  * shown in one order while the keyboard walks another sends the highlight
  * jumping around it.
  */
+/**
+ * Every feature of one kind, as tags — narrowed to one way up when a direction
+ * is being held.
+ *
+ * Opening a type is a question about that type, and the part is where the
+ * answer is legible: sixty-one walls is a number, and sixty-one walls lit up is
+ * a shape. Holding a direction narrows the question the same way the counts
+ * beside the type already narrow, so the two agree.
+ */
+export function tagsOfType(
+  features: readonly PartFeature[],
+  featureType: string | null,
+  direction: components['schemas']['Vec3'] | null,
+): string[] {
+  if (featureType === null) return []
+  return features
+    .filter((feature) => feature.featureType === featureType)
+    .filter((feature) => !direction || sameDirection(feature.machiningDirection, direction))
+    .map((feature) => feature.featureTag)
+}
+
 export const featureFromTags = (
   features: readonly PartFeature[],
   tags: readonly string[],

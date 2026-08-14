@@ -5,7 +5,7 @@ import { moveThroughList } from '../shared/list-keys'
 import { measurements, stripMeasurements, STRIP_LABELS } from '../shared/measurements'
 import { asRecord, directionLabel, facts, featureSummary, rawDatasheet } from '../shared/report'
 import type { Unit } from '../shared/units'
-import { KindIcon } from './feature-icons'
+import { KindIcon, MeasurementIcon } from './feature-icons'
 
 /** The Engine's own family for a feature, for the drawing that stands for it. */
 const kindOf = (feature: PartFeature): string => {
@@ -156,9 +156,16 @@ export const FeatureDetail = ({
             {stripMeasurements(
               measurements({ feature, features: report.features, regions: report.regions, unit }),
             ).map((row) => (
-              <span key={row.key} className="flex flex-col">
-                <span className="font-semibold tabular-nums text-zinc-100">{row.value}</span>
-                <span className="text-2xs text-zinc-500">{STRIP_LABELS[row.key] ?? row.label}</span>
+              <span key={row.key} className="flex items-center gap-1.5">
+                <span className="text-zinc-500">
+                  <MeasurementIcon measurement={row.key} />
+                </span>
+                <span className="flex flex-col">
+                  <span className="font-semibold tabular-nums text-zinc-100">{row.value}</span>
+                  <span className="text-2xs text-zinc-500">
+                    {STRIP_LABELS[row.key] ?? row.label}
+                  </span>
+                </span>
               </span>
             ))}
           </div>
@@ -174,12 +181,17 @@ export const FeatureDetail = ({
             }).map((row) => (
               <div key={row.key} className="flex items-baseline justify-between gap-4 py-1">
                 <dt
-                  className="whitespace-pre text-zinc-400"
+                  className="flex items-center gap-2 whitespace-pre text-zinc-400"
                   // Every row says where it came from: a number a shop cannot
                   // trace is one they have to take on faith.
                   title={row.note ? `${row.from} — ${row.note}` : row.from}
                 >
-                  {row.label} <span className="text-zinc-600">ⓘ</span>
+                  <span className="text-zinc-500">
+                    <MeasurementIcon measurement={row.key} />
+                  </span>
+                  <span>
+                    {row.label} <span className="text-zinc-600">ⓘ</span>
+                  </span>
                 </dt>
                 <dd className="text-right font-medium tabular-nums text-zinc-200">{row.value}</dd>
               </div>
