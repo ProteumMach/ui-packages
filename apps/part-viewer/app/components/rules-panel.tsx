@@ -41,17 +41,18 @@ const RuleRow = ({ rule, unit }: { rule: Rule; unit: Unit }) => {
 
       {limits.length > 0 ? (
         <ul className="mt-1 flex flex-wrap gap-1">
-          {limits.map((limit, at) => (
+          {limits.map((limit) => (
             <li
-              key={limit}
+              key={limit.band}
               className="flex items-center gap-1 rounded bg-zinc-800/60 px-1.5 py-0.5 text-3xs text-zinc-300"
             >
               <span
                 aria-hidden="true"
                 className="size-1.5 shrink-0 rounded-full"
-                style={{ background: bandCss(BANDS[at] ?? null) }}
+                style={{ background: bandCss(limit.band) }}
               />
-              <span className="tabular-nums">{limit}</span>
+              <span>{limit.name}</span>
+              <span className="tabular-nums text-zinc-400">{limit.range}</span>
             </li>
           ))}
         </ul>

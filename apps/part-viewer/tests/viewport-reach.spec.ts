@@ -25,7 +25,14 @@ const readyEvent = {
         regionIdxs: [0],
         machiningDirection: { x: 0, y: 0, z: 1 },
         axis: { x: 0, y: 0, z: 1 },
-        datasheet: { facts: { diameter: 6.35 } },
+        // A datasheet with enough on it for a rule to have an opinion: 25.4 deep
+        // in a 6.35 bore is 4:1, which the shipped set calls `alright`.
+        datasheet: {
+          facts: { kind: 'Hole', diameter: 6.35 },
+          zMax: 0,
+          zMin: -25.4,
+          partZMax: 0,
+        },
       },
     ],
   },
@@ -41,7 +48,7 @@ const readyEvent = {
  * nothing on screen said why.
  */
 /** Connects, uploads and lands on the inspector with a report the server mocked. */
-const openInspector = async (page: Page) => {
+export const openInspector = async (page: Page) => {
   let connected = false
   await page.route('**/api/**', async (route) => {
     const request = route.request()
@@ -152,7 +159,7 @@ test('shows the limits it judges by, and what they made of a feature', async ({ 
   await expect(page.getByRole('heading', { name: 'Toolpath defaults' })).toBeVisible()
   await expect(page.getByText('Drilling L/D ratio')).toBeVisible()
   // The bands a measurement is judged against, in the same words the part uses.
-  await expect(page.getByText('easy 0.00:1 – 3.00:1').first()).toBeVisible()
+  await expect(page.getByText('0.00:1 – 3.00:1').first()).toBeVisible()
 
   await page.getByRole('tab', { name: 'Inspector' }).click()
   await page.getByRole('button', { name: /Blind hole/ }).click()
@@ -162,6 +169,18 @@ test('shows the limits it judges by, and what they made of a feature', async ({ 
     .click()
 
   await expect(page.getByRole('heading', { name: 'Difficulty' })).toBeVisible()
+
+  // The working, a hover away: the arithmetic, the datasheet fields behind it,
+  // and the limits with the band it landed in. A verdict saying "L/D is 4"
+  // cannot be checked; one that names its fields can be argued with.
+  await page.getByRole('button', { name: /How Drilling L\/D ratio is worked out/ }).hover()
+
+  // The arithmetic, then the fields it read and what each held. A ratio's
+  // inputs are lengths, so they carry no ":1" — that would be a unit the
+  // Engine never reported.
+  await expect(page.getByText('partZMax − zMin ÷ facts.diameter')).toBeVisible()
+  await expect(page.getByText('6.35 mm', { exact: true }).last()).toBeVisible()
+  await expect(page.getByText('8.00:1 – ∞')).toBeVisible()
   // A rule that agreed and a rule that never ran read identically on a feature
   // that scored well, so the silent ones are counted rather than dropped.
   await expect(page.getByText(/rules? said nothing/)).toBeVisible()

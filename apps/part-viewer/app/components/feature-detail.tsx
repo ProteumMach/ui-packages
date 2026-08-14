@@ -6,6 +6,7 @@ import { measurements, stripMeasurements, STRIP_LABELS } from '../shared/measure
 import { asRecord, directionLabel, facts, featureSummary, rawDatasheet } from '../shared/report'
 import type { Unit } from '../shared/units'
 import type { FeatureVerdict, Rule } from '../shared/rules'
+import type { PartContext } from '../shared/metrics'
 import { RuleVerdict } from './rule-verdict'
 import { KindIcon, MeasurementIcon } from './feature-icons'
 
@@ -64,6 +65,7 @@ export const FeatureDetail = ({
   unit,
   verdict,
   rules,
+  part,
 }: {
   feature: PartFeature | null
   report: PublicInspectionReport
@@ -75,6 +77,8 @@ export const FeatureDetail = ({
   /** What the rules made of the feature being read, if any is. */
   verdict: FeatureVerdict | null
   rules: readonly Rule[]
+  /** The context the verdict was judged with, so the working shows the same numbers. */
+  part: PartContext
 }) => (
   <aside className="flex size-full min-h-0 flex-col overflow-y-auto bg-zinc-900/40">
     {/* The readings a click could have meant, above the one being read: the
@@ -179,7 +183,7 @@ export const FeatureDetail = ({
         </header>
 
         {verdict ? (
-          <RuleVerdict feature={feature} rules={rules} unit={unit} verdict={verdict} />
+          <RuleVerdict feature={feature} part={part} rules={rules} unit={unit} verdict={verdict} />
         ) : null}
 
         <Section title="Measurements">

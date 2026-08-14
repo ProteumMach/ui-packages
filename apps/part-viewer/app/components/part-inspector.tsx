@@ -19,6 +19,7 @@ import { directionLabel, featureFromTags, filterFeatures, tagsOfType } from '../
 import { listHighlight } from '../shared/highlighting'
 import { DEFAULT_RULE_SET } from '../shared/rule-presets'
 import { evaluatePart } from '../shared/rules'
+import { partContext } from '../shared/metrics'
 import { escapeStep } from '../shared/escape'
 import { AppHeader } from './app-header'
 import { FeatureDetail } from './feature-detail'
@@ -125,6 +126,7 @@ export const PartInspector = ({
    * over every feature times every rule, and the part does not change while
    * somebody looks at it.
    */
+  const rulesContext = useMemo(() => partContext(report.features), [report.features])
   const verdicts = useMemo(
     () => evaluatePart(DEFAULT_RULE_SET.rules, report.features),
     [report.features],
@@ -393,6 +395,7 @@ export const PartInspector = ({
             onClose={() => setSelection(NOTHING_SELECTED)}
             unit={unit}
             rules={DEFAULT_RULE_SET.rules}
+            part={rulesContext}
             verdict={verdicts.find((each) => each.tag === focusedTag) ?? null}
           />
         </Panels.Panel>

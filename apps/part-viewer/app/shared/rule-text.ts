@@ -1,5 +1,5 @@
 import { METRICS, type MetricId, metricQuantity } from './metrics'
-import type { Band, Rule, RuleResult } from './rules'
+import type { Band, Rule } from './rules'
 import { bandName, bandRanges, rangeSpectrum } from './rules'
 import { type Unit, convertArea, convertLength, decimalsFor } from './units'
 
@@ -40,18 +40,31 @@ export function formatMetric(
   }
 }
 
-/** Where each band of a rule begins and ends, for showing what it was judged against. */
+/** One band of a rule, and the span of measurements that lands in it. */
+export interface RuleLimit {
+  readonly band: Band
+  /** What this shop calls the band. */
+  readonly name: string
+  /** The span, in the unit being read. */
+  readonly range: string
+}
+
+/**
+ * Where each band of a rule begins and ends, for showing what a measurement was
+ * judged against.
+ *
+ * An open bottom is zero and an open top is infinity, whichever way the rule
+ * runs: every measurement a rule reads — a length, a ratio, a count — bottoms
+ * out at zero, and "∞ – 3:1" for the easy band reads as a limit nobody wrote.
+ * The same reasoning the scoring already uses for the open end of a scale.
+ */
 export function ruleLimits(
   rule: Rule,
   unit: Unit,
   names?: Partial<Record<Band, string>>,
-): string[] {
+): RuleLimit[] {
   if (rule.type !== 'threshold' && rule.type !== 'range') return []
 
-  // An open bottom is zero and an open top is infinity, whichever way the rule
-  // runs: every measurement a rule reads — a length, a ratio, a count — bottoms
-  // out at zero, and "∞ – 3:1" for the easy band reads as a limit nobody wrote.
-  // The same reasoning the scoring already uses for the open end of a scale.
   const edge = (value: number | null, end: 'from' | 'to') => {
     if (value !== null) return formatMetric(value, rule.metric, unit)
 
@@ -60,38 +73,11 @@ export function ruleLimits(
 
   return (rule.type === 'threshold' ? bandRanges(rule) : rangeSpectrum(rule))
     .filter((span) => span.reachable)
-    .map(
-      (span) =>
-        `${bandName(span.band, names, rule.bandNames)} ${edge(span.from, 'from')} – ${edge(span.to, 'to')}`,
-    )
-}
-
-/**
- * Everything behind one rule's verdict, in the order somebody asks it.
- *
- * What the rule is for, how its number was arrived at, and where that number
- * fell among the limits. The middle one is the whole argument for showing the
- * Engine's own measurements: a number a shop cannot trace is one they have to
- * take on faith, and this is what makes it traceable without leaving the panel.
- */
-export function ruleWorking(
-  result: RuleResult,
-  unit: Unit,
-  /** The arithmetic the metric performed, from `metricFormula`. */
-  formula?: string | undefined,
-  names?: Partial<Record<Band, string>>,
-): string {
-  const lines = [result.rule.note]
-
-  // A rule written as a sum reads several measurements at once, so its own
-  // arithmetic is the answer rather than any one metric's.
-  const working = result.rule.expression ?? formula
-  if (working && result.rule.type !== 'baseline') lines.push(working)
-
-  const limits = ruleLimits(result.rule, unit, names)
-  if (limits.length > 0) lines.push(limits.join('\n'))
-
-  return lines.filter(Boolean).join('\n\n')
+    .map((span) => ({
+      band: span.band,
+      name: bandName(span.band, names, rule.bandNames),
+      range: `${edge(span.from, 'from')} – ${edge(span.to, 'to')}`,
+    }))
 }
 
 /** What a rule applies to, in words rather than a list of twenty type names. */
