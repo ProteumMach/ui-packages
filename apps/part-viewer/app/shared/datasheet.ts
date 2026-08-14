@@ -1,7 +1,6 @@
-import type { components } from '@toolpath/api'
+import type { KnownFeatureType } from '@toolpath/viewer'
+import type { Vec3 } from '@toolpath/api'
 import type { PartFeature } from './contracts'
-
-type Vec3 = components['schemas']['Vec3']
 
 /**
  * The Engine's datasheet, as a shape rather than as a bag.
@@ -268,6 +267,40 @@ export type FeatureDatasheet = {
   readonly depthVariation?: DepthVariation
   readonly axialStockToLeave?: number
   readonly radialStockToLeave?: number
+}
+
+/**
+ * The observed `featureType → facts.kind` mapping, from the kernel's own list.
+ *
+ * Advisory. `featureType` is an open set — the kernel adds values — so an
+ * unlisted type is normal and must not be treated as an error. Narrow on
+ * `facts.kind` rather than on this; what this is for is asking "which types
+ * are holes", which is how a rule set says who it applies to without naming
+ * every type by hand and forgetting the next one.
+ */
+export const FACTS_KIND_BY_FEATURE_TYPE: Readonly<Record<KnownFeatureType, FactsKind>> = {
+  blind_hole: 'Hole',
+  filleted_open_pocket: 'Pocket',
+  filleted_pocket: 'Pocket',
+  through_pocket: 'Pocket',
+  undercut_filleted_tslot: 'Tslot',
+  boss: 'Boss',
+  chamfer: 'Chamfer',
+  contour_surface: 'Three',
+  face: 'Face',
+  filleted_blind_hole: 'Hole',
+  filleted_boss: 'Boss',
+  inner_fillet: 'Three',
+  open_pocket: 'Pocket',
+  outer_fillet: 'Three',
+  pocket: 'Pocket',
+  profile: 'Profile',
+  sink: 'Chamfer',
+  slanted_face: 'Chamfer',
+  through_hole: 'Hole',
+  undercut_dovetail: 'Dovetail',
+  undercut_tslot: 'Tslot',
+  wall: 'Wall',
 }
 
 /**

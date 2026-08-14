@@ -40,7 +40,7 @@ export const ConnectionPanel = ({
           spellCheck={false}
           data-1p-ignore="true"
           data-lpignore="true"
-          className="api-key-input mt-2 block w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-3 font-mono text-sm text-zinc-100 outline-none focus-visible:ring-2 focus-visible:ring-info/75"
+          className="api-key-input mt-2 block w-full rounded-lg border border-zinc-700 bg-transparent px-3 py-3 font-mono text-sm text-zinc-100 outline-none focus-visible:ring-2 focus-visible:ring-info/75"
         />
       </label>
       {error ? (

@@ -17,6 +17,7 @@ import { READING_COLORS } from '../shared/selection-colors'
 import { loadShowAids, saveShowAids } from '../shared/scene-aids'
 import { directionLabel } from '../shared/report'
 import { PAINT_MODE_LABELS, type PaintMode, paintWash } from '../shared/paint'
+import type { Band } from '../shared/rules'
 import { Button } from '@toolpath/ui'
 import { ToolButton } from './tool-button'
 import type { PartReport, PublicInspectionReport } from '../shared/contracts'
@@ -93,6 +94,7 @@ export const FeatureViewer = ({
   arrowsVisible,
   paintMode,
   onPaintMode,
+  verdicts,
   focusFeature,
   onPickDirection,
   onPick,
@@ -128,6 +130,8 @@ export const FeatureViewer = ({
   /** The standing wash: what the part is coloured by while nothing is selected. */
   paintMode: PaintMode
   onPaintMode: (mode: PaintMode) => void
+  /** What the rules made of each feature, for the difficulty wash. */
+  verdicts: readonly { tag: string; band: Band | null }[]
   /** A feature to zoom to. Framed when it changes. */
   focusFeature: string | null
   onPickDirection: (index: number) => void
@@ -159,8 +163,8 @@ export const FeatureViewer = ({
   }
 
   const wash = useMemo(
-    () => paintWash(paintMode, report.features, report.candidateDirections),
-    [paintMode, report.candidateDirections, report.features],
+    () => paintWash(paintMode, report.features, report.candidateDirections, verdicts),
+    [paintMode, report.candidateDirections, report.features, verdicts],
   )
 
   const pickInViewport = (pick: PartPick) => {
@@ -203,14 +207,14 @@ export const FeatureViewer = ({
   )
 
   return (
-    <section className="relative size-full min-h-[32rem] bg-zinc-900">
+    <section className="relative size-full min-h-[32rem] bg-zinc-950">
       <div className="absolute left-3 top-3 z-10 flex flex-col items-start gap-1.5">
         <div className="flex items-center gap-1.5" aria-label="Viewer controls">
           {/* A shelf rather than a toggle: what the part is coloured by is the
             first thing anybody changes, and a switch that hides the other mode
             makes you press it to find out what it was. */}
           <span
-            className="flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-900/80 p-1"
+            className="flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-950/85 p-1"
             role="group"
             aria-label="Colour the part by"
           >
@@ -223,7 +227,7 @@ export const FeatureViewer = ({
                 className={`rounded px-2 py-1 text-xs font-medium transition ${
                   paintMode === mode
                     ? 'bg-info/20 text-info'
-                    : 'text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100'
+                    : 'text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100'
                 } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/75`}
               >
                 {label}
@@ -244,26 +248,27 @@ export const FeatureViewer = ({
               className={`ml-0.5 grid size-6 place-items-center rounded border-l border-zinc-800 pl-1 transition ${
                 arrows === 'all'
                   ? 'bg-info/20 text-info'
-                  : 'text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100'
+                  : 'text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100'
               } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/75`}
             >
               <ArrowGlyph />
             </button>
+            <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-zinc-700" />
+            <ToolButton
+              label={showAids ? 'Grid and axes (on)' : 'Grid and axes'}
+              pressed={showAids}
+              onClick={toggleAids}
+            >
+              <GridFourIcon />
+            </ToolButton>
+            <ToolButton
+              label={sectioning ? 'Section (on)' : 'Section'}
+              pressed={sectioning}
+              onClick={() => (sectioning ? stopSectioning() : startSectioning())}
+            >
+              <SquareHalfIcon />
+            </ToolButton>
           </span>
-          <ToolButton
-            label={showAids ? 'Grid and axes (on)' : 'Grid and axes'}
-            pressed={showAids}
-            onClick={toggleAids}
-          >
-            <GridFourIcon />
-          </ToolButton>
-          <ToolButton
-            label={sectioning ? 'Section (on)' : 'Section'}
-            pressed={sectioning}
-            onClick={() => (sectioning ? stopSectioning() : startSectioning())}
-          >
-            <SquareHalfIcon />
-          </ToolButton>
           {sectioning ? (
             <>
               <ToolButton
@@ -282,7 +287,7 @@ export const FeatureViewer = ({
                 </span>
               ) : null}
               {plane && depthRange ? (
-                <label className="flex h-8 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900/85 px-3 text-xs text-zinc-300">
+                <label className="flex h-8 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-950/85 px-3 text-xs text-zinc-300">
                   <span className="sr-only">Cut depth</span>
                   <input
                     type="range"

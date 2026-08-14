@@ -83,9 +83,17 @@ test('connects, uploads, opens a redacted inspector, and focuses a feature', asy
   await expect(analyzePart).toBeEnabled()
   await analyzePart.click()
   await expect(page).toHaveURL(/\/parts\/part-1\?job=job-1/)
+
+  // The summary counts the types; opening one lists its features, and choosing
+  // one reads it on the right. Nothing is read until somebody asks for it —
+  // the panel opens on an invitation rather than on a guess.
+  await expect(page.getByText('Click a face on the part')).toBeVisible()
+  await page.getByRole('button', { name: /Blind hole/ }).click()
+  await page
+    .getByRole('button', { name: /wall-1|hole-1/ })
+    .first()
+    .click()
   await expect(page.getByRole('heading', { name: 'Blind Hole' })).toBeVisible()
-  await page.getByRole('button', { name: /Wall wall-1/ }).click()
-  await expect(page.getByRole('heading', { name: 'Wall' })).toBeVisible()
   await expect(page.locator('body')).not.toContainText('signature=')
   await page.getByRole('link', { name: 'Upload another part' }).click()
   await expect(page.getByLabel('CAD file')).toBeVisible()

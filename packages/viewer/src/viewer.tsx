@@ -310,9 +310,17 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
           // looks hollow. `localClippingEnabled` is what lets a material carry
           // its own clipping plane rather than the whole scene sharing one.
           gl={{ antialias: true, alpha: true, stencil: true, localClippingEnabled: true }}
-          // Same guard as the part's own click: an orbit that ends over empty
-          // space is not somebody putting the selection down.
+          // Two guards, and both are about gestures that are not a click.
+          //
+          // Only the primary button puts a selection down. R3F treats
+          // `contextmenu` as a click, and the browser sends that the instant a
+          // right button goes down — before any movement — so a pan cleared
+          // the selection at the moment it started, whatever it did next.
+          //
+          // And an orbit that ends over empty space is not somebody letting go
+          // of what they were orbiting to look at.
           onPointerMissed={(event) => {
+            if (event.button !== 0) return
             if (tracker.current?.isTap(event) ?? true) onPointerMissed?.()
           }}
         >

@@ -5,6 +5,11 @@ import { moveThroughList } from '../shared/list-keys'
 import { measurements, stripMeasurements, STRIP_LABELS } from '../shared/measurements'
 import { asRecord, directionLabel, facts, featureSummary, rawDatasheet } from '../shared/report'
 import type { Unit } from '../shared/units'
+import type { FeatureVerdict, Rule } from '../shared/rules'
+import type { PartContext } from '../shared/metrics'
+import { RuleVerdict } from './rule-verdict'
+import type { FeatureScore } from '../shared/feature-score'
+import { ScoreBadge } from './score-badge'
 import { KindIcon, MeasurementIcon } from './feature-icons'
 
 /** The Engine's own family for a feature, for the drawing that stands for it. */
@@ -56,20 +61,31 @@ export const FeatureDetail = ({
   feature,
   report,
   candidates,
+  scores,
   onChoose,
   onZoom,
   onClose,
   unit,
+  verdict,
+  rules,
+  part,
 }: {
   feature: PartFeature | null
   report: PublicInspectionReport
   candidates: readonly PartFeature[]
+  /** How hard each candidate is, so the list ranks as well as lists. */
+  scores: ReadonlyMap<string, FeatureScore>
   onChoose: (featureTag: string) => void
   onZoom: (featureTag: string) => void
   onClose: () => void
   unit: Unit
+  /** What the rules made of the feature being read, if any is. */
+  verdict: FeatureVerdict | null
+  rules: readonly Rule[]
+  /** The context the verdict was judged with, so the working shows the same numbers. */
+  part: PartContext
 }) => (
-  <aside className="flex size-full min-h-0 flex-col overflow-y-auto bg-zinc-900/40">
+  <aside className="flex size-full min-h-0 flex-col overflow-y-auto bg-zinc-900">
     {/* The readings a click could have meant, above the one being read: the
         click asked about a face, and which of its readings is on screen is the
         question still open. */}
@@ -97,10 +113,10 @@ export const FeatureDetail = ({
                   aria-pressed={chosen}
                   onClick={() => onChoose(candidate.featureTag)}
                   className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs transition ${
-                    chosen ? 'bg-info/15 text-info' : 'text-zinc-300 hover:bg-zinc-800/60'
+                    chosen ? 'bg-info/15 text-info' : 'text-zinc-300 hover:bg-zinc-950/60'
                   }`}
                 >
-                  <span className="w-3 tabular-nums text-zinc-600">{at + 1}</span>
+                  <span className="w-3 tabular-nums text-zinc-500">{at + 1}</span>
                   <span className="text-zinc-400">
                     <KindIcon featureType={candidate.featureType} kind={kindOf(candidate)} />
                   </span>
@@ -112,6 +128,7 @@ export const FeatureDetail = ({
                     style={{ background: directionCss(directionOf(report, candidate)) }}
                   />
                   <Badge variant="secondary">{summary.direction}</Badge>
+                  <ScoreBadge score={scores.get(candidate.featureTag)} />
                 </button>
               </li>
             )
@@ -171,6 +188,10 @@ export const FeatureDetail = ({
           </div>
         </header>
 
+        {verdict ? (
+          <RuleVerdict feature={feature} part={part} rules={rules} unit={unit} verdict={verdict} />
+        ) : null}
+
         <Section title="Measurements">
           <dl className="text-xs">
             {measurements({
@@ -190,7 +211,7 @@ export const FeatureDetail = ({
                     <MeasurementIcon measurement={row.key} />
                   </span>
                   <span>
-                    {row.label} <span className="text-zinc-600">ⓘ</span>
+                    {row.label} <span className="text-zinc-500">ⓘ</span>
                   </span>
                 </dt>
                 <dd className="text-right font-medium tabular-nums text-zinc-200">{row.value}</dd>
@@ -217,7 +238,7 @@ export const FeatureDetail = ({
           <summary className="cursor-pointer text-2xs font-bold uppercase tracking-wider text-zinc-500">
             Raw API record
           </summary>
-          <pre className="mt-2 max-h-80 overflow-auto rounded bg-zinc-950/60 p-2 text-2xs leading-5 text-zinc-400">
+          <pre className="mt-2 max-h-80 overflow-auto rounded bg-transparent p-2 text-2xs leading-5 text-zinc-400">
             {rawDatasheet(feature)}
           </pre>
         </details>

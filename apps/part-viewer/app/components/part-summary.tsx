@@ -4,6 +4,9 @@ import { duration, partSummary } from '../shared/part-summary'
 import { directionLabel } from '../shared/report'
 import { directionCss } from '../shared/direction-colors'
 import { moveThroughList } from '../shared/list-keys'
+import { Heading } from './heading'
+import type { FeatureScore } from '../shared/feature-score'
+import { ScoreBadge } from './score-badge'
 import type { Unit } from '../shared/units'
 
 const Count = ({ label, value }: { label: string; value: string | number }) => (
@@ -11,12 +14,6 @@ const Count = ({ label, value }: { label: string; value: string | number }) => (
     <span className="text-zinc-400">{label}</span>
     <span className="font-medium tabular-nums text-zinc-100">{value}</span>
   </div>
-)
-
-const Heading = ({ children }: { children: string }) => (
-  <h3 className="mb-1 mt-5 text-2xs font-bold uppercase tracking-wider text-zinc-500 first:mt-0">
-    {children}
-  </h3>
 )
 
 /**
@@ -41,6 +38,7 @@ export const PartSummary = ({
   onUnit,
   query,
   onQuery,
+  scores,
 }: {
   report: PublicInspectionReport
   /** The features to list, already filtered by whatever search is running. */
@@ -57,6 +55,8 @@ export const PartSummary = ({
   onUnit: (unit: Unit) => void
   query: string
   onQuery: (query: string) => void
+  /** How hard each feature is, where the rules had anything to say. */
+  scores: ReadonlyMap<string, FeatureScore>
 }) => {
   const summary = partSummary(report, activeDirection)
 
@@ -72,7 +72,7 @@ export const PartSummary = ({
           aria-label={`Units: ${unit}. Switch to ${unit === 'mm' ? 'in' : 'mm'}`}
           title={`Reading in ${unit} — click for ${unit === 'mm' ? 'in' : 'mm'}`}
           onClick={() => onUnit(unit === 'mm' ? 'in' : 'mm')}
-          className="rounded border border-zinc-700 px-2 py-0.5 text-2xs font-medium text-zinc-300 transition hover:bg-zinc-800 hover:text-zinc-100"
+          className="rounded border border-zinc-700 bg-transparent px-2 py-0.5 text-2xs font-medium text-zinc-400 transition hover:bg-zinc-950/60 hover:text-zinc-100"
         >
           {unit}
         </button>
@@ -118,7 +118,7 @@ export const PartSummary = ({
         value={query}
         onChange={(event) => onQuery(event.target.value)}
         placeholder="Search type, direction, or tag"
-        className="mb-1 w-full rounded border border-zinc-800 bg-zinc-950/60 px-2 py-1 text-2xs outline-none focus-visible:ring-2 focus-visible:ring-info/75"
+        className="mb-1 w-full rounded border border-zinc-700 bg-transparent px-2 py-1 text-2xs text-zinc-200 outline-none placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-info"
       />
       <ul
         data-keynav="types"
@@ -145,10 +145,10 @@ export const PartSummary = ({
                 aria-expanded={open}
                 onClick={() => onExpandType(open ? null : entry.type)}
                 className={`flex w-full items-baseline gap-2 rounded px-1 py-1 text-left transition ${
-                  open ? 'bg-zinc-800/70 text-zinc-100' : 'text-zinc-300 hover:bg-zinc-800/60'
+                  open ? 'bg-zinc-950/60 text-zinc-100' : 'text-zinc-300 hover:bg-zinc-950/60'
                 }`}
               >
-                <span aria-hidden="true" className="w-2 text-zinc-600">
+                <span aria-hidden="true" className="w-2 text-zinc-500">
                   {open ? '▾' : '▸'}
                 </span>
                 <span className="text-zinc-500">
@@ -166,7 +166,7 @@ export const PartSummary = ({
               {open ? (
                 <ul className="mb-1 ml-3 border-l border-zinc-800">
                   {ofType.length === 0 ? (
-                    <li className="px-2 py-1 text-2xs text-zinc-600">
+                    <li className="px-2 py-1 text-2xs text-zinc-500">
                       None match the current search.
                     </li>
                   ) : (
@@ -188,7 +188,7 @@ export const PartSummary = ({
                                 ? 'bg-info/15 text-info'
                                 : candidateTags.includes(feature.featureTag)
                                   ? 'bg-warning/10 text-zinc-200'
-                                  : 'text-zinc-400 hover:bg-zinc-800/60'
+                                  : 'text-zinc-400 hover:bg-zinc-950/60'
                             }`}
                           >
                             <span className="flex-1 truncate font-mono">
@@ -197,6 +197,7 @@ export const PartSummary = ({
                             <span className="text-zinc-500">
                               {directionLabel(feature.machiningDirection)}
                             </span>
+                            <ScoreBadge score={scores.get(feature.featureTag)} />
                           </button>
                         </li>
                       )

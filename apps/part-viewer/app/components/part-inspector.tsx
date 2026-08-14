@@ -17,13 +17,18 @@ import {
 } from '../shared/selection'
 import { directionLabel, featureFromTags, filterFeatures, tagsOfType } from '../shared/report'
 import { listHighlight } from '../shared/highlighting'
+import { useRules } from '../shared/use-rules'
+import { featureScores } from '../shared/feature-score'
+import { rulesSummary } from '../shared/rules-summary'
+import { partContext } from '../shared/metrics'
 import { escapeStep } from '../shared/escape'
 import { AppHeader } from './app-header'
 import { FeatureDetail } from './feature-detail'
 import { PartSummary } from './part-summary'
+import { RulesPanel } from './rules-panel'
 import { FeatureViewer } from './feature-viewer'
 
-type ViewerTab = 'inspector' | 'directions'
+type ViewerTab = 'inspector' | 'directions' | 'rules'
 
 /**
  * A 1px divider needs a grab area wider than 1px, and that area has to come out
@@ -114,6 +119,35 @@ export const PartInspector = ({
     () => report.features.find((feature) => feature.featureTag === focusedTag) ?? null,
     [focusedTag, report.features],
   )
+  /**
+   * What the shipped rules make of every feature.
+   *
+   * Judged once for the part rather than per paint: this is arithmetic over
+   * numbers already in hand — no Engine call, no geometry — but it is arithmetic
+   * over every feature times every rule, and the part does not change while
+   * somebody looks at it.
+   */
+  const rulesContext = useMemo(() => partContext(report.features), [report.features])
+  /** The types this part actually has, so a rule is aimed at what is in front of somebody. */
+  const featureTypes = useMemo(
+    () => [...new Set(report.features.map((feature) => feature.featureType))].sort(),
+    [report.features],
+  )
+  /**
+   * The set in force, and what it makes of every feature.
+   *
+   * Judging is arithmetic over numbers already in hand — no Engine call, no
+   * geometry — which is what lets a threshold moved in the Rules tab recolour
+   * the part as it is typed.
+   */
+  const rules = useRules(report.features)
+  /** How each feature came out, for the rows that name one. */
+  const scores = useMemo(() => featureScores(rules.verdicts), [rules.verdicts])
+  const summary = useMemo(
+    () => rulesSummary(rules.verdicts, report.features, rules.ruleSet.rules),
+    [report.features, rules.ruleSet.rules, rules.verdicts],
+  )
+
   const [expandedType, setExpandedType] = useState<string | null>(null)
   /**
    * Whether the open type is still the question being asked.
@@ -244,7 +278,7 @@ export const PartInspector = ({
 
   const tabPanel =
     tab === 'inspector' ? (
-      <aside className="flex size-full min-h-0 flex-col overflow-y-auto bg-zinc-900/40">
+      <aside className="flex size-full min-h-0 flex-col overflow-y-auto bg-zinc-900">
         <PartSummary
           report={report}
           features={features}
@@ -260,10 +294,23 @@ export const PartInspector = ({
           onUnit={chooseUnit}
           query={query}
           onQuery={setQuery}
+          scores={scores}
         />
       </aside>
+    ) : tab === 'rules' ? (
+      <RulesPanel
+        features={report.features}
+        focusedTag={focusedTag}
+        onChoose={choose}
+        onHover={setHoveredTags}
+        rules={rules}
+        scores={scores}
+        summary={summary}
+        types={featureTypes}
+        unit={unit}
+      />
     ) : (
-      <aside className="size-full overflow-y-auto bg-zinc-900/40 p-4">
+      <aside className="size-full overflow-y-auto bg-zinc-900 p-4">
         <p className="text-xs font-bold uppercase tracking-wide text-info">Directions</p>
         <h2 className="mt-1 font-display text-2xl font-bold">Machining directions</h2>
         <p className="mt-3 text-sm leading-6 text-zinc-400">
@@ -310,6 +357,7 @@ export const PartInspector = ({
             <Tabs.List>
               <Tabs.Tab value="inspector">Inspector</Tabs.Tab>
               <Tabs.Tab value="directions">Directions</Tabs.Tab>
+              <Tabs.Tab value="rules">Rules</Tabs.Tab>
             </Tabs.List>
           </Tabs>
         }
@@ -320,7 +368,7 @@ export const PartInspector = ({
               <p className="font-mono">{report.partId}</p>
             </div>
             <Link
-              className="rounded-md border border-zinc-700 px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:bg-zinc-800"
+              className="rounded border border-zinc-700 bg-transparent px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:bg-zinc-900"
               to="/"
             >
               Upload another part
@@ -333,11 +381,11 @@ export const PartInspector = ({
       </AppHeader>
 
       <Panels.Group className="min-h-0 flex-1" orientation="horizontal">
-        <Panels.Panel defaultSize={460} minSize={260}>
+        <Panels.Panel className="min-h-0 overflow-hidden" defaultSize={460} minSize={260}>
           {tabPanel}
         </Panels.Panel>
         <Panels.Separator className={leftSeparatorClassName} />
-        <Panels.Panel minSize={400}>
+        <Panels.Panel className="min-h-0 overflow-hidden" minSize={400}>
           <FeatureViewer
             activeDirection={activeDirection}
             onPickDirection={(index) => holdDirection(index)}
@@ -355,6 +403,7 @@ export const PartInspector = ({
             onArrows={setArrows}
             arrowsVisible={arrowsVisible(arrows, arrowContext)}
             paintMode={paintMode}
+            verdicts={rules.verdicts}
             onPaintMode={choosePaintMode}
             focusFeature={focusFeature}
             onPick={pickFromPart}
@@ -363,15 +412,19 @@ export const PartInspector = ({
           />
         </Panels.Panel>
         <Panels.Separator className={rightSeparatorClassName} />
-        <Panels.Panel defaultSize={460} minSize={320}>
+        <Panels.Panel className="min-h-0 overflow-hidden" defaultSize={460} minSize={320}>
           <FeatureDetail
             feature={focused}
             report={report}
             candidates={candidates}
+            scores={scores}
             onChoose={focusCandidate}
             onZoom={zoomToFeature}
             onClose={() => setSelection(NOTHING_SELECTED)}
             unit={unit}
+            rules={rules.ruleSet.rules}
+            part={rulesContext}
+            verdict={rules.verdicts.find((each) => each.tag === focusedTag) ?? null}
           />
         </Panels.Panel>
       </Panels.Group>
