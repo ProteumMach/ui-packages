@@ -17,6 +17,7 @@ import {
 } from '../shared/selection'
 import { directionLabel, featureFromTags, filterFeatures, tagsOfType } from '../shared/report'
 import { listHighlight } from '../shared/highlighting'
+import { escapeStep } from '../shared/escape'
 import { AppHeader } from './app-header'
 import { FeatureDetail } from './feature-detail'
 import { PartSummary } from './part-summary'
@@ -24,8 +25,27 @@ import { FeatureViewer } from './feature-viewer'
 
 type ViewerTab = 'inspector' | 'directions'
 
-const separatorClassName =
-  "relative z-20 w-px cursor-col-resize hover:border-info data-[separator=active]:border-info before:absolute before:inset-y-0 before:-left-[5px] before:-right-[5px] before:content-['']"
+/**
+ * A 1px divider needs a grab area wider than 1px, and that area has to come out
+ * of one of its neighbours.
+ *
+ * It takes it from the list, not from the part. A strip over the canvas is a
+ * strip where a drag starting there never reaches the viewer at all — the
+ * resizer ignores every button but the primary one, so the gesture lands on
+ * nothing and reads as a dead spot down the whole edge. A strip over a list
+ * costs a couple of pixels of a row nobody aims at.
+ *
+ * Two pixels still reach over the canvas, which is what lets the cursor change
+ * before the pointer is exactly on the line.
+ */
+const separatorBase =
+  "relative z-20 w-px cursor-col-resize hover:border-info data-[separator=active]:border-info before:absolute before:inset-y-0 before:content-['']"
+
+/** The divider with the summary on its left. */
+const leftSeparatorClassName = `${separatorBase} before:-left-[8px] before:-right-[2px]`
+
+/** The divider with the detail panel on its right. */
+const rightSeparatorClassName = `${separatorBase} before:-left-[2px] before:-right-[8px]`
 
 export const PartInspector = ({
   report,
@@ -179,12 +199,16 @@ export const PartInspector = ({
       // focus is still on the canvas that produced the candidates.
       if (target?.closest('[data-keynav]')) return
 
-      // Escape works outward: the selection first, then the direction being
-      // worked in. Clearing both at once throws away a scope somebody set
-      // deliberately along with the click they are undoing.
+      // Escape works outward, one thing per press — see `escapeStep`.
       if (event.key === 'Escape') {
-        if (isEmptySelection(selection)) setActiveDirection(null)
-        else setSelection(NOTHING_SELECTED)
+        const step = escapeStep({
+          hasSelection: !isEmptySelection(selection),
+          expandedType,
+          direction: activeDirection,
+        })
+        if (step === 'selection') setSelection(NOTHING_SELECTED)
+        else if (step === 'expandedType') setExpandedType(null)
+        else if (step === 'direction') setActiveDirection(null)
         return
       }
 
@@ -196,7 +220,7 @@ export const PartInspector = ({
 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selection])
+  }, [activeDirection, expandedType, selection])
 
   const tabPanel =
     tab === 'inspector' ? (
@@ -292,7 +316,7 @@ export const PartInspector = ({
         <Panels.Panel defaultSize={460} minSize={260}>
           {tabPanel}
         </Panels.Panel>
-        <Panels.Separator className={separatorClassName} />
+        <Panels.Separator className={leftSeparatorClassName} />
         <Panels.Panel minSize={400}>
           <FeatureViewer
             activeDirection={activeDirection}
@@ -319,7 +343,7 @@ export const PartInspector = ({
             onClearSelection={() => setSelection(NOTHING_SELECTED)}
           />
         </Panels.Panel>
-        <Panels.Separator className={separatorClassName} />
+        <Panels.Separator className={rightSeparatorClassName} />
         <Panels.Panel defaultSize={460} minSize={320}>
           <FeatureDetail
             feature={focused}
