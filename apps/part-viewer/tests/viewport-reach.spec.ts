@@ -200,7 +200,10 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
   // The hole is 4:1, which the shipped set calls `alright`.
   const drillingRule = page.getByRole('button', { name: 'Drilling L/D ratio', exact: true })
   await drillingRule.click()
-  await expect(page.getByLabel('easy to')).toHaveValue('3.00')
+  // Trailing zeros stripped, so a box does not rewrite itself between
+  // keystrokes: rendered as `3.00`, typing `1` gives `1.00` with the caret at
+  // the end and the next digit lands after the zeros.
+  await expect(page.getByLabel('easy to')).toHaveValue('3')
 
   // Tighten the whole scale under it. Tightened rather than loosened
   // deliberately: a feature's band is the *worst* rule's, so widening one limit
@@ -213,6 +216,13 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
   ] as const) {
     await page.getByLabel(`${band} to`).fill(limit)
   }
+
+  // Typed a digit at a time rather than filled, because that is where a box
+  // that reformats itself mid-edit goes wrong, and `fill` would never show it.
+  const weight = page.getByLabel('weight')
+  await weight.fill('')
+  await weight.pressSequentially('12')
+  await expect(weight).toHaveValue('12')
   await expect(page.getByText('Changed, and not saved to a set.')).toBeVisible()
 
   await page.getByRole('tab', { name: 'Inspector' }).click()
