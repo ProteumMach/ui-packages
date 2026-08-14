@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { CaretDownIcon, PencilSimpleIcon } from '@phosphor-icons/react'
 import { Button, Input } from '@toolpath/ui'
 import { bandCss } from '../shared/bands'
@@ -33,17 +34,20 @@ const NumberBox = ({
   id,
   label,
   band,
+  placeholder,
   value,
   metric,
   unit,
   raw = false,
-  width = 'w-16',
+  width = 'w-24',
   onChange,
 }: {
   id: string
   label: string
   /** The band this number closes, shown as its colour beside the caption. */
   band?: Band | undefined
+  /** What an empty box says, where empty is a real answer. */
+  placeholder?: string | undefined
   value: number | undefined
   metric: Rule['metric']
   unit: Unit
@@ -71,6 +75,7 @@ const NumberBox = ({
       id={id}
       inputMode="decimal"
       name={id}
+      placeholder={placeholder}
       size="md"
       suffix={raw ? undefined : unitSuffix(metric, unit)}
       type="number"
@@ -324,7 +329,14 @@ const BandSelect = ({
   </select>
 )
 
-/** What a rule reads, who it judges, and its shape. Decided once, so folded away. */
+const Field = ({ label, children }: { label: string; children: ReactNode }) => (
+  <div className="flex flex-col gap-0.5">
+    <span className="text-2xs text-zinc-400">{label}</span>
+    {children}
+  </div>
+)
+
+/** Every part of a rule, in the shape the feature picker settled on. */
 const Settings = ({
   rule,
   types,
@@ -339,46 +351,381 @@ const Settings = ({
   onRemove: () => void
 }) => {
   const chosen = new Set(rule.featureTypes)
+  const metric = rule.type === 'baseline' ? undefined : rule.metric
 
   return (
-    <div className="mt-1.5 flex flex-col gap-2 rounded border border-zinc-800 bg-zinc-900/60 p-2">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <select
-          aria-label="Shape"
-          className={SELECT}
-          onChange={(event) => onChange(asType(rule, event.target.value as RuleType))}
-          value={rule.type}
-        >
-          {RULE_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {type}
-            </option>
-          ))}
-        </select>
+    <div className="ml-4 mt-1 flex flex-col gap-2 rounded border border-info/40 bg-info/5 p-2">
+      <div className="flex flex-wrap items-end gap-2">
+        <Field label="Name">
+          <Input
+            aria-label="Rule name"
+            className="w-48"
+            id={`${rule.id}-name`}
+            name={`${rule.id}-name`}
+            size="md"
+            value={rule.name}
+            onChange={(event) => onChange({ ...rule, name: event.target.value })}
+          />
+        </Field>
 
-        {rule.type === 'baseline' ? null : (
+        <NumberBox
+          id={`${rule.id}-weight`}
+          label="Weight"
+          metric={undefined}
+          onChange={(value) => onChange({ ...rule, weight: value ?? 0 })}
+          raw
+          unit={unit}
+          value={rule.weight}
+          width="w-16"
+        />
+
+        <Field label="Shape">
           <select
-            aria-label="Reads"
-            className={`${SELECT} max-w-48`}
-            onChange={(event) =>
-              onChange({ ...rule, metric: event.target.value as Rule['metric'] } as Rule)
-            }
-            value={rule.metric}
+            aria-label="Rule shape"
+            className={SELECT}
+            onChange={(event) => onChange(asType(rule, event.target.value as RuleType))}
+            value={rule.type}
           >
-            {METRICS.map((metric) => (
-              <option key={metric.id} value={metric.id}>
-                {metric.label}
+            {RULE_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {type}
               </option>
             ))}
           </select>
-        )}
+        </Field>
 
+        {rule.type === 'baseline' ? null : (
+          <Field label="Reads">
+            <select
+              aria-label="Measurement"
+              className={`${SELECT} max-w-64`}
+              onChange={(event) => onChange({ ...rule, metric: event.target.value as never })}
+              value={rule.metric}
+            >
+              {METRICS.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.label}
+                  {entry.field ? ` — ${entry.field}` : ''}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+      </div>
+
+      {rule.type === 'threshold' ? (
+        <div className="flex flex-wrap items-end gap-2">
+          <Field label="Direction">
+            <select
+              aria-label="Which way the numbers get worse"
+              className={SELECT}
+              onChange={(event) =>
+                onChange({ ...rule, direction: event.target.value as ThresholdRule['direction'] })
+              }
+              value={rule.direction}
+            >
+              <option value="higher is harder">higher is harder</option>
+              <option value="lower is harder">lower is harder</option>
+            </select>
+          </Field>
+
+          {rule.thresholds.map((threshold, at) => (
+            <NumberBox
+              key={BANDS[at]}
+              band={BANDS[at]}
+              id={`${rule.id}-band-${at}`}
+              label={bandName(BANDS[at] as Band, undefined, rule.bandNames)}
+              metric={metric}
+              onChange={(value) => {
+                if (value === undefined) return
+                const thresholds = [...rule.thresholds] as ThresholdRule['thresholds']
+                thresholds[at] = value
+                onChange({ ...rule, thresholds })
+              }}
+              unit={unit}
+              value={threshold}
+            />
+          ))}
+
+          <NumberBox
+            band="no go"
+            id={`${rule.id}-no-go`}
+            label={bandName('no go', undefined, rule.bandNames)}
+            metric={metric}
+            onChange={(value) => {
+              const { noGo: _dropped, ...rest } = rule
+              onChange(value === undefined ? rest : { ...rule, noGo: value })
+            }}
+            placeholder="none"
+            unit={unit}
+            value={rule.noGo}
+          />
+        </div>
+      ) : null}
+
+      {rule.type === 'threshold' ? <BandDots rule={rule} unit={unit} /> : null}
+
+      {rule.type === 'range' ? (
+        <div className="flex flex-col gap-1">
+          {rule.spans.map((span, at) => (
+            <div key={BANDS[at]} className="flex items-center gap-2">
+              <span className="flex w-16 items-center gap-1 text-2xs text-zinc-300">
+                <span
+                  aria-hidden="true"
+                  className="size-1.5 rounded-full"
+                  style={{ background: bandCss(BANDS[at] ?? null) }}
+                />
+                {BANDS[at]}
+              </span>
+              <NumberBox
+                id={`${rule.id}-span-${at}-from`}
+                label={`${BANDS[at]} from`}
+                metric={metric}
+                onChange={(value) => {
+                  const spans = [...rule.spans] as typeof rule.spans
+                  spans[at] = [value ?? 0, span[1]]
+                  onChange({ ...rule, spans })
+                }}
+                unit={unit}
+                value={span[0]}
+              />
+              <span className="text-2xs text-zinc-500">to</span>
+              <NumberBox
+                id={`${rule.id}-span-${at}-to`}
+                label={`${BANDS[at]} to`}
+                metric={metric}
+                onChange={(value) => {
+                  const spans = [...rule.spans] as typeof rule.spans
+                  spans[at] = [span[0], value ?? 0]
+                  onChange({ ...rule, spans })
+                }}
+                unit={unit}
+                value={span[1]}
+              />
+            </div>
+          ))}
+          <label className="flex items-center gap-1.5 text-2xs text-zinc-300">
+            <input
+              checked={rule.refuseOutside}
+              className="size-3 accent-info"
+              onChange={(event) => onChange({ ...rule, refuseOutside: event.target.checked })}
+              type="checkbox"
+            />
+            Outside every span is a no go
+          </label>
+        </div>
+      ) : null}
+
+      {rule.type === 'match' ? (
+        <div className="flex flex-col gap-2">
+          <Field label="Sizes held">
+            <div className="flex flex-wrap items-center gap-1">
+              {rule.standards.map((size, at) => (
+                <span key={`${size}-${at}`} className="flex items-center gap-0.5">
+                  <NumberBox
+                    id={`${rule.id}-size-${at}`}
+                    label={`Size ${at + 1}`}
+                    metric={metric}
+                    onChange={(value) => {
+                      const standards = [...rule.standards]
+                      standards[at] = value ?? 0
+                      onChange({ ...rule, standards })
+                    }}
+                    unit={unit}
+                    value={size}
+                  />
+                  <button
+                    aria-label={`Remove size ${at + 1}`}
+                    className="px-0.5 text-2xs text-zinc-500 hover:text-danger"
+                    onClick={() =>
+                      onChange({ ...rule, standards: rule.standards.filter((_, i) => i !== at) })
+                    }
+                    type="button"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              <Button
+                onClick={() => onChange({ ...rule, standards: [...rule.standards, 0] })}
+                size="sm"
+                variant="secondary"
+              >
+                Add size
+              </Button>
+            </div>
+          </Field>
+
+          <div className="flex flex-wrap items-end gap-2">
+            <NumberBox
+              id={`${rule.id}-tolerance`}
+              label="Tolerance"
+              metric={metric}
+              onChange={(value) => onChange({ ...rule, tolerance: value ?? 0 })}
+              unit={unit}
+              value={rule.tolerance}
+            />
+            <Field label="On the list">
+              <BandSelect
+                id={`${rule.id}-matched`}
+                label="Where a match lands"
+                onChange={(matched) => onChange({ ...rule, matched })}
+                value={rule.matched}
+              />
+            </Field>
+            <Field label="Off the list">
+              <BandSelect
+                id={`${rule.id}-unmatched`}
+                label="Where anything else lands"
+                onChange={(unmatched) => onChange({ ...rule, unmatched })}
+                value={rule.unmatched}
+              />
+            </Field>
+          </div>
+        </div>
+      ) : null}
+
+      {rule.type === 'flag' ? (
+        <div className="flex flex-wrap items-end gap-2">
+          <Field label="Fires when it">
+            <select
+              aria-label="Test"
+              className={SELECT}
+              onChange={(event) => {
+                if (event.target.value === 'is set') {
+                  const { op: _o, against: _a, ...rest } = rule
+                  onChange(rest)
+                  return
+                }
+                onChange({
+                  ...rule,
+                  op: event.target.value as FlagRule['op'],
+                  against: rule.against ?? 0,
+                })
+              }}
+              value={rule.op ?? 'is set'}
+            >
+              <option value="is set">is set</option>
+              {FLAG_TESTS.map((test) => (
+                <option key={test} value={test}>
+                  {test}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          {rule.op ? (
+            <NumberBox
+              id={`${rule.id}-against`}
+              label="this"
+              metric={metric}
+              onChange={(value) => onChange({ ...rule, against: value ?? 0 })}
+              unit={unit}
+              value={typeof rule.against === 'number' ? rule.against : 0}
+            />
+          ) : null}
+
+          <Field label="When it fires">
+            <BandSelect
+              id={`${rule.id}-raises`}
+              label="Where a flagged feature lands"
+              onChange={(raises) => onChange({ ...rule, raises })}
+              value={rule.raises}
+            />
+          </Field>
+        </div>
+      ) : null}
+
+      {rule.type === 'baseline' ? (
+        <div className="flex flex-col gap-1">
+          {Object.entries(rule.bands).map(([type, band]) => (
+            <div key={type} className="flex items-center gap-2">
+              <span className="flex-1 text-2xs text-zinc-300">{type.replaceAll('_', ' ')}</span>
+              <BandSelect
+                id={`${rule.id}-baseline-${type}`}
+                label={`Where ${type} starts`}
+                onChange={(next) => onChange({ ...rule, bands: { ...rule.bands, [type]: next } })}
+                value={band as Band}
+              />
+              <button
+                aria-label={`Stop judging ${type}`}
+                className="px-0.5 text-2xs text-zinc-500 hover:text-danger"
+                onClick={() => {
+                  const bands = { ...rule.bands }
+                  delete bands[type as keyof typeof bands]
+                  onChange({ ...rule, bands })
+                }}
+                type="button"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          <select
+            aria-label="Add a feature type"
+            className={SELECT}
+            onChange={(event) =>
+              onChange({ ...rule, bands: { ...rule.bands, [event.target.value]: 'meh' } })
+            }
+            value=""
+          >
+            <option value="">Add a feature type…</option>
+            {types
+              .filter((type) => !(type in rule.bands))
+              .map((type) => (
+                <option key={type} value={type}>
+                  {type.replaceAll('_', ' ')}
+                </option>
+              ))}
+          </select>
+        </div>
+      ) : null}
+
+      <div className="flex flex-col gap-1">
+        <span className="text-2xs text-zinc-400">
+          Applies to {chosen.size === 0 ? 'every feature type' : `${chosen.size} types`}
+        </span>
+        <div className="flex flex-wrap gap-1">
+          {types.map((type) => (
+            <button
+              key={type}
+              aria-pressed={chosen.has(type)}
+              className={`rounded px-1.5 py-0.5 text-3xs ${
+                chosen.has(type) ? 'bg-info/25 text-info' : 'bg-zinc-800 text-zinc-400'
+              }`}
+              onClick={() =>
+                onChange({
+                  ...rule,
+                  featureTypes: chosen.has(type)
+                    ? rule.featureTypes.filter((each) => each !== type)
+                    : [...rule.featureTypes, type],
+                })
+              }
+              type="button"
+            >
+              {type.replaceAll('_', ' ')}
+            </button>
+          ))}
+          <button
+            aria-pressed={chosen.size === 0}
+            className={`rounded px-1.5 py-0.5 text-3xs ${
+              chosen.size === 0 ? 'bg-info/25 text-info' : 'bg-zinc-800 text-zinc-400'
+            }`}
+            onClick={() => onChange({ ...rule, featureTypes: [] })}
+            type="button"
+          >
+            Every type
+          </button>
+        </div>
+      </div>
+
+      <Field label="Custom arithmetic">
         <Input
-          aria-label="Custom arithmetic"
-          className="min-w-48 flex-1 font-mono"
+          aria-label="Custom expression"
+          className="w-full font-mono"
           id={`${rule.id}-expression`}
           name={`${rule.id}-expression`}
-          placeholder="arithmetic, e.g. depth / requiredCutter"
+          placeholder="e.g. depthBelowPartTop / requiredCutter"
           size="md"
           value={rule.expression ?? ''}
           onChange={(event) => {
@@ -386,54 +733,19 @@ const Settings = ({
             onChange(event.target.value === '' ? rest : { ...rule, expression: event.target.value })
           }}
         />
-      </div>
+      </Field>
 
-      <div className="flex flex-wrap gap-1">
-        <span className="text-2xs text-zinc-400">
-          {chosen.size === 0 ? 'every feature type' : `${chosen.size} types`}
-        </span>
-        {types.map((type) => (
-          <button
-            key={type}
-            aria-pressed={chosen.has(type)}
-            className={`rounded px-1.5 py-0.5 text-3xs ${
-              chosen.has(type) ? 'bg-info/25 text-info' : 'bg-zinc-800 text-zinc-400'
-            }`}
-            onClick={() =>
-              onChange({
-                ...rule,
-                featureTypes: chosen.has(type)
-                  ? rule.featureTypes.filter((each) => each !== type)
-                  : [...rule.featureTypes, type],
-              })
-            }
-            type="button"
-          >
-            {type.replaceAll('_', ' ')}
-          </button>
-        ))}
-      </div>
-
-      <details>
-        <summary className="cursor-pointer text-2xs text-zinc-500">band names</summary>
-        <div className="mt-1 flex flex-wrap gap-1">
-          {BANDS.map((band) => (
-            <Input
-              key={band}
-              aria-label={`What to call ${band}`}
-              className="w-20"
-              id={`${rule.id}-name-${band.replace(' ', '-')}`}
-              name={`${rule.id}-name-${band.replace(' ', '-')}`}
-              placeholder={band}
-              size="md"
-              value={rule.bandNames?.[band] ?? ''}
-              onChange={(event) =>
-                onChange({ ...rule, bandNames: { ...rule.bandNames, [band]: event.target.value } })
-              }
-            />
-          ))}
-        </div>
-      </details>
+      <Field label="Note">
+        <Input
+          aria-label="Rule note"
+          className="w-full"
+          id={`${rule.id}-note`}
+          name={`${rule.id}-note`}
+          size="md"
+          value={rule.note}
+          onChange={(event) => onChange({ ...rule, note: event.target.value })}
+        />
+      </Field>
 
       <div className="flex justify-end">
         <Button onClick={onRemove} size="sm" variant="danger">
@@ -532,20 +844,19 @@ export const RuleCard = ({
 
       {open ? (
         <>
-          <div className="ml-4 mt-1 flex flex-col gap-2 rounded border border-zinc-800 bg-zinc-900/50 p-2">
-            <Limits onChange={onChange} rule={rule} unit={unit} />
-
-            <NumberBox
-              id={`${rule.id}-weight`}
-              label="weight"
-              metric={undefined}
-              onChange={(value) => onChange({ ...rule, weight: value ?? 0 })}
-              raw
+          {editing ? (
+            <Settings
+              onChange={onChange}
+              onRemove={onRemove}
+              rule={rule}
+              types={types}
               unit={unit}
-              value={rule.weight}
-              width="w-16"
             />
-          </div>
+          ) : (
+            <div className="ml-4 mt-1 rounded border border-zinc-800 bg-zinc-900/50 p-2">
+              <Limits onChange={onChange} rule={rule} unit={unit} />
+            </div>
+          )}
 
           {/* What the limit actually cost, which is what somebody looks at
               before deciding whether the limit or the part is wrong. */}
@@ -595,16 +906,6 @@ export const RuleCard = ({
                 </li>
               ) : null}
             </ul>
-          ) : null}
-
-          {editing ? (
-            <Settings
-              onChange={onChange}
-              onRemove={onRemove}
-              rule={rule}
-              types={types}
-              unit={unit}
-            />
           ) : null}
         </>
       ) : null}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@toolpath/ui'
 import { RuleCard } from './rule-editor'
 import type { RulesState } from '../shared/use-rules'
@@ -40,6 +40,17 @@ export const RulesPanel = ({
   const set = rules.ruleSet
   const sets = [...rules.presets, ...rules.savedSets]
 
+  // A rule written from nothing is all defaults, so it opens on the fields
+  // somebody has to fill in rather than on limits that mean nothing yet.
+  const [pending, setPending] = useState(false)
+
+  useEffect(() => {
+    if (!pending) return
+    const written = set.rules.at(-1)
+    if (written) setEditing(written.id)
+    setPending(false)
+  }, [pending, set.rules])
+
   return (
     <aside className="size-full overflow-y-auto bg-zinc-900/40 p-3">
       <div className="flex items-center gap-1.5">
@@ -61,7 +72,14 @@ export const RulesPanel = ({
           ))}
         </select>
 
-        <Button onClick={rules.addRule} size="sm" variant="secondary">
+        <Button
+          onClick={() => {
+            rules.addRule()
+            setPending(true)
+          }}
+          size="sm"
+          variant="secondary"
+        >
           Add rule
         </Button>
       </div>

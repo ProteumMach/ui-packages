@@ -219,9 +219,12 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
     await drilling.getByLabel(`${band} to`).fill(limit)
   }
 
+  // The weight lives with the things decided once, behind the pencil.
+  await drilling.getByRole('button', { name: /^Edit / }).click()
+
   // Typed a digit at a time rather than filled, because that is where a box
   // that reformats itself mid-edit goes wrong, and `fill` would never show it.
-  const weight = drilling.getByLabel('weight')
+  const weight = drilling.getByLabel('Weight')
   await weight.fill('')
   await weight.pressSequentially('12')
   await expect(weight).toHaveValue('12')
