@@ -23,9 +23,10 @@ import { escapeStep } from '../shared/escape'
 import { AppHeader } from './app-header'
 import { FeatureDetail } from './feature-detail'
 import { PartSummary } from './part-summary'
+import { RulesPanel } from './rules-panel'
 import { FeatureViewer } from './feature-viewer'
 
-type ViewerTab = 'inspector' | 'directions'
+type ViewerTab = 'inspector' | 'directions' | 'rules'
 
 /**
  * A 1px divider needs a grab area wider than 1px, and that area has to come out
@@ -277,6 +278,8 @@ export const PartInspector = ({
           onQuery={setQuery}
         />
       </aside>
+    ) : tab === 'rules' ? (
+      <RulesPanel set={DEFAULT_RULE_SET} unit={unit} />
     ) : (
       <aside className="size-full overflow-y-auto bg-zinc-900/40 p-4">
         <p className="text-xs font-bold uppercase tracking-wide text-info">Directions</p>
@@ -325,6 +328,7 @@ export const PartInspector = ({
             <Tabs.List>
               <Tabs.Tab value="inspector">Inspector</Tabs.Tab>
               <Tabs.Tab value="directions">Directions</Tabs.Tab>
+              <Tabs.Tab value="rules">Rules</Tabs.Tab>
             </Tabs.List>
           </Tabs>
         }
@@ -388,6 +392,8 @@ export const PartInspector = ({
             onZoom={zoomToFeature}
             onClose={() => setSelection(NOTHING_SELECTED)}
             unit={unit}
+            rules={DEFAULT_RULE_SET.rules}
+            verdict={verdicts.find((each) => each.tag === focusedTag) ?? null}
           />
         </Panels.Panel>
       </Panels.Group>

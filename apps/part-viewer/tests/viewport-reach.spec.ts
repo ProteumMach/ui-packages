@@ -139,3 +139,30 @@ test('paints the part by difficulty, and remembers that it was asked to', async 
     'true',
   )
 })
+
+/**
+ * The colours on the part are a verdict, and a verdict from nowhere is one
+ * nobody can argue with. Both halves of saying where it came from: the limits
+ * in force, and what they made of the feature being read.
+ */
+test('shows the limits it judges by, and what they made of a feature', async ({ page }) => {
+  await openInspector(page)
+
+  await page.getByRole('tab', { name: 'Rules' }).click()
+  await expect(page.getByRole('heading', { name: 'Toolpath defaults' })).toBeVisible()
+  await expect(page.getByText('Drilling L/D ratio')).toBeVisible()
+  // The bands a measurement is judged against, in the same words the part uses.
+  await expect(page.getByText('easy 0.00:1 – 3.00:1').first()).toBeVisible()
+
+  await page.getByRole('tab', { name: 'Inspector' }).click()
+  await page.getByRole('button', { name: /Blind hole/ }).click()
+  await page
+    .getByRole('button', { name: /hole-1/ })
+    .first()
+    .click()
+
+  await expect(page.getByRole('heading', { name: 'Difficulty' })).toBeVisible()
+  // A rule that agreed and a rule that never ran read identically on a feature
+  // that scored well, so the silent ones are counted rather than dropped.
+  await expect(page.getByText(/rules? said nothing/)).toBeVisible()
+})

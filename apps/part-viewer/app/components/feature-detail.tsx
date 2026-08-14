@@ -5,6 +5,8 @@ import { moveThroughList } from '../shared/list-keys'
 import { measurements, stripMeasurements, STRIP_LABELS } from '../shared/measurements'
 import { asRecord, directionLabel, facts, featureSummary, rawDatasheet } from '../shared/report'
 import type { Unit } from '../shared/units'
+import type { FeatureVerdict, Rule } from '../shared/rules'
+import { RuleVerdict } from './rule-verdict'
 import { KindIcon, MeasurementIcon } from './feature-icons'
 
 /** The Engine's own family for a feature, for the drawing that stands for it. */
@@ -60,6 +62,8 @@ export const FeatureDetail = ({
   onZoom,
   onClose,
   unit,
+  verdict,
+  rules,
 }: {
   feature: PartFeature | null
   report: PublicInspectionReport
@@ -68,6 +72,9 @@ export const FeatureDetail = ({
   onZoom: (featureTag: string) => void
   onClose: () => void
   unit: Unit
+  /** What the rules made of the feature being read, if any is. */
+  verdict: FeatureVerdict | null
+  rules: readonly Rule[]
 }) => (
   <aside className="flex size-full min-h-0 flex-col overflow-y-auto bg-zinc-900/40">
     {/* The readings a click could have meant, above the one being read: the
@@ -170,6 +177,10 @@ export const FeatureDetail = ({
             ))}
           </div>
         </header>
+
+        {verdict ? (
+          <RuleVerdict feature={feature} rules={rules} unit={unit} verdict={verdict} />
+        ) : null}
 
         <Section title="Measurements">
           <dl className="text-xs">
