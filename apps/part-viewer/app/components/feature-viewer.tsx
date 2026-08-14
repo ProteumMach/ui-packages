@@ -253,21 +253,22 @@ export const FeatureViewer = ({
             >
               <ArrowGlyph />
             </button>
+            <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-zinc-700" />
+            <ToolButton
+              label={showAids ? 'Grid and axes (on)' : 'Grid and axes'}
+              pressed={showAids}
+              onClick={toggleAids}
+            >
+              <GridFourIcon />
+            </ToolButton>
+            <ToolButton
+              label={sectioning ? 'Section (on)' : 'Section'}
+              pressed={sectioning}
+              onClick={() => (sectioning ? stopSectioning() : startSectioning())}
+            >
+              <SquareHalfIcon />
+            </ToolButton>
           </span>
-          <ToolButton
-            label={showAids ? 'Grid and axes (on)' : 'Grid and axes'}
-            pressed={showAids}
-            onClick={toggleAids}
-          >
-            <GridFourIcon />
-          </ToolButton>
-          <ToolButton
-            label={sectioning ? 'Section (on)' : 'Section'}
-            pressed={sectioning}
-            onClick={() => (sectioning ? stopSectioning() : startSectioning())}
-          >
-            <SquareHalfIcon />
-          </ToolButton>
           {sectioning ? (
             <>
               <ToolButton

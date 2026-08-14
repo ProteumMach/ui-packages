@@ -19,6 +19,7 @@ import { directionLabel, featureFromTags, filterFeatures, tagsOfType } from '../
 import { listHighlight } from '../shared/highlighting'
 import { useRules } from '../shared/use-rules'
 import { featureScores } from '../shared/feature-score'
+import { rulesSummary } from '../shared/rules-summary'
 import { partContext } from '../shared/metrics'
 import { escapeStep } from '../shared/escape'
 import { AppHeader } from './app-header'
@@ -142,6 +143,10 @@ export const PartInspector = ({
   const rules = useRules(report.features)
   /** How each feature came out, for the rows that name one. */
   const scores = useMemo(() => featureScores(rules.verdicts), [rules.verdicts])
+  const summary = useMemo(
+    () => rulesSummary(rules.verdicts, report.features, rules.ruleSet.rules),
+    [report.features, rules.ruleSet.rules, rules.verdicts],
+  )
 
   const [expandedType, setExpandedType] = useState<string | null>(null)
   /**
@@ -300,6 +305,7 @@ export const PartInspector = ({
         onHover={setHoveredTags}
         rules={rules}
         scores={scores}
+        summary={summary}
         types={featureTypes}
         unit={unit}
       />

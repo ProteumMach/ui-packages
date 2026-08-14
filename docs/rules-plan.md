@@ -295,6 +295,18 @@ The honest stopping points, if this has to stop:
 5. **I cannot see this app.** The same constraint as everything else here: the
    logic is tested in node, and the colouring needs your eyes on a real part.
 
+## 6a. What directions will change here
+
+Once confirmed machining directions exist, they feed this page rather than sit
+beside it: the lists are filled from the work each confirmed direction actually
+holds, and the colouring follows from that rather than from every reading the
+Engine offered.
+
+The difference matters for the score. A part scored over every reading is scored
+over readings nobody chose — the same face counted as an awkward wall from one
+way up _and_ an easy face from another. Once a plan exists, the summary covers
+the work that plan runs, and the caveat on the card says which it is.
+
 ## 7. What comes after, sized
 
 - **Direction scores** (~110 LOC): "the easiest way up to open on", which wants

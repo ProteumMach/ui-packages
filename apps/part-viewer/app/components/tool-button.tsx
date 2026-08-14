@@ -27,10 +27,8 @@ export const ToolButton = ({
     aria-label={label}
     aria-pressed={pressed}
     onClick={onClick}
-    className={`grid size-8 place-items-center rounded-md border text-lg transition ${
-      pressed
-        ? 'border-info bg-info/20 text-info'
-        : 'border-zinc-700 bg-zinc-900/80 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100'
+    className={`grid size-6 place-items-center rounded transition ${
+      pressed ? 'bg-info/20 text-info' : 'text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100'
     } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/75`}
   >
     {children}

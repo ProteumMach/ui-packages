@@ -6,6 +6,7 @@ import { bandCss } from '../shared/bands'
 import { KindIcon } from './feature-icons'
 import { METRICS } from '../shared/metrics'
 import type { RuleHit } from '../shared/rule-text'
+import { costlyCount, worstOf } from '../shared/rules-summary'
 import type { FeatureScore } from '../shared/feature-score'
 import { ScoreBadge } from './score-badge'
 import {
@@ -835,14 +836,33 @@ export const RuleCard = ({
           {rule.name}
         </span>
 
-        {hits.length > 0 ? (
-          <span
-            className="shrink-0 font-medium tabular-nums text-zinc-400"
-            title="Readings it caught"
-          >
-            {hits.length}
-          </span>
-        ) : null}
+        {/* How hard this rule is being on this part, and how much of that a
+            shop would mind: the two numbers somebody scans a list of limits
+            for. A rule with nothing to say says so, rather than showing a zero
+            that reads like a verdict. */}
+        {hits.length === 0 ? (
+          <span className="shrink-0 text-2xs italic text-zinc-600">nothing to measure</span>
+        ) : (
+          <>
+            <span
+              className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-2xs"
+              style={{ background: `${bandCss(worstOf(hits))}22`, color: bandCss(worstOf(hits)) }}
+            >
+              <span
+                aria-hidden="true"
+                className="size-1.5 rounded-full"
+                style={{ background: bandCss(worstOf(hits)) }}
+              />
+              {bandName(worstOf(hits) ?? 'easy')}
+            </span>
+            <span
+              className="shrink-0 tabular-nums text-zinc-500"
+              title="Readings a shop would mind, of the readings it made"
+            >
+              {costlyCount(hits)} costly · {hits.length}
+            </span>
+          </>
+        )}
 
         <button
           aria-label={`Edit ${rule.name}`}

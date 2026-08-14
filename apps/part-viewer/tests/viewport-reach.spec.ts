@@ -40,7 +40,7 @@ const readyEvent = {
 
 /** The rules fold up, so reading one starts by opening it. */
 export const openRule = async (page: Page, name: string) => {
-  const rule = page.getByRole('listitem').filter({ hasText: name }).first()
+  const rule = page.locator('[data-keynav="rules"] > li').filter({ hasText: name }).first()
   await rule.getByRole('button', { name: /limits and what it caught/ }).click()
   return rule
 }
@@ -261,7 +261,7 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
   // A rule switched off stops judging without being deleted.
   await page.getByRole('tab', { name: 'Rules' }).click()
   const applies = page
-    .getByRole('listitem')
+    .locator('[data-keynav="rules"] > li')
     .filter({ hasText: 'Drilling L/D ratio' })
     .first()
     .getByRole('checkbox')
@@ -391,4 +391,31 @@ test('fills the window rather than growing past it', async ({ page }) => {
   const panel = page.locator('aside').first()
   await panel.evaluate((el) => el.scrollBy(0, 400))
   expect(await panel.evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
+})
+
+/**
+ * The question somebody arrives with is how the part looks under their limits,
+ * and every number that answers it has to be a press that finds what it counts.
+ */
+test('sums the part up, and filters the limits by what they cost', async ({ page }) => {
+  await openInspector(page)
+  await page.getByRole('tab', { name: 'Rules' }).click()
+
+  // A score over readings rather than features: one rule speaking about one
+  // feature is one reading, which is what the average is taken over.
+  await expect(page.getByText(/across \d+ readings/)).toBeVisible()
+  await expect(page.getByText(/Rules that spoke/)).toBeVisible()
+
+  // A rule with nothing to measure says so rather than showing a zero.
+  await expect(page.getByText('nothing to measure').first()).toBeVisible()
+
+  // Pressing a band narrows the limits to the ones that handed it out, and a
+  // rule that caught nothing under that question drops out of the list.
+  const rules = page.locator('[data-keynav="rules"] > li')
+  const before = await rules.count()
+  await page.getByRole('button', { name: /^alright/ }).click()
+  expect(await rules.count()).toBeLessThan(before)
+
+  await page.getByRole('button', { name: /^alright/ }).click()
+  expect(await rules.count()).toBe(before)
 })
