@@ -13,6 +13,7 @@ import { Component, Suspense, useMemo, useRef, useState } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import type { PartPick, SectionPlacement, SectionState } from '@toolpath/viewer'
 import { type Arrows, nextArrows } from '../shared/arrows'
+import { READING_COLORS } from '../shared/selection-colors'
 import { directionLabel } from '../shared/report'
 import { PAINT_MODE_LABELS, type PaintMode, paintWash } from '../shared/paint'
 import { Button } from '@toolpath/ui'
@@ -310,6 +311,7 @@ export const FeatureViewer = ({
                 selection={selectedFeatureTag ? [selectedFeatureTag] : []}
                 hoveredFeatureIds={highlightedFeatureTags}
                 pickedRegions={heldRegions}
+                theme={READING_COLORS}
                 highlights={wash}
                 focusFeature={focusFeature}
                 onPick={pickInViewport}
