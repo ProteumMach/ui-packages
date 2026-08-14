@@ -5,6 +5,8 @@ import { Button, Input } from '@toolpath/ui'
 import { bandCss } from '../shared/bands'
 import { METRICS } from '../shared/metrics'
 import type { RuleHit } from '../shared/rule-text'
+import type { FeatureScore } from '../shared/feature-score'
+import { ScoreBadge } from './score-badge'
 import {
   displayDecimals,
   formatMetric,
@@ -303,7 +305,7 @@ const Limits = ({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
       {Object.entries(rule.bands).map(([type, band]) => (
         <span key={type} className="flex items-center gap-1 text-2xs text-zinc-400">
           {type.replaceAll('_', ' ')}
@@ -319,6 +321,13 @@ const Limits = ({
   )
 }
 
+/**
+ * A band, chosen.
+ *
+ * Carries the band's own colour, because a column of identical dropdowns
+ * reading "rats rats rats meh" is a list somebody has to read word by word to
+ * find the one that differs.
+ */
 const BandSelect = ({
   id,
   label,
@@ -330,19 +339,27 @@ const BandSelect = ({
   value: Band
   onChange: (band: Band) => void
 }) => (
-  <select
-    aria-label={label}
-    className={SELECT}
-    id={id}
-    onChange={(event) => onChange(event.target.value as Band)}
-    value={value}
-  >
-    {BANDS.map((band) => (
-      <option key={band} value={band}>
-        {band}
-      </option>
-    ))}
-  </select>
+  <span className="inline-flex items-center gap-1">
+    <span
+      aria-hidden="true"
+      className="size-1.5 shrink-0 rounded-full"
+      style={{ background: bandCss(value) }}
+    />
+    <select
+      aria-label={label}
+      className={SELECT}
+      id={id}
+      onChange={(event) => onChange(event.target.value as Band)}
+      style={{ color: bandCss(value) }}
+      value={value}
+    >
+      {BANDS.map((band) => (
+        <option key={band} className="text-zinc-200" value={band}>
+          {band}
+        </option>
+      ))}
+    </select>
+  </span>
 )
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => (
@@ -751,6 +768,7 @@ const Settings = ({
 export const RuleCard = ({
   rule,
   hits,
+  scores,
   types,
   unit,
   open,
@@ -765,6 +783,7 @@ export const RuleCard = ({
 }: {
   rule: Rule
   hits: readonly RuleHit[]
+  scores: ReadonlyMap<string, FeatureScore>
   types: readonly string[]
   unit: Unit
   /** Whether the rule is showing anything at all below its name. */
@@ -879,6 +898,7 @@ export const RuleCard = ({
                     <span className="min-w-0 flex-1 truncate">{hit.label}</span>
                     <span className="shrink-0 text-zinc-500">{hit.direction}</span>
                     <span className="shrink-0 tabular-nums text-zinc-500">{hit.regions}f</span>
+                    <ScoreBadge score={scores.get(hit.tag)} />
                   </button>
                 </li>
               ))}

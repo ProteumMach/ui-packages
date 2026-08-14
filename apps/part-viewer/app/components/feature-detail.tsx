@@ -8,6 +8,8 @@ import type { Unit } from '../shared/units'
 import type { FeatureVerdict, Rule } from '../shared/rules'
 import type { PartContext } from '../shared/metrics'
 import { RuleVerdict } from './rule-verdict'
+import type { FeatureScore } from '../shared/feature-score'
+import { ScoreBadge } from './score-badge'
 import { KindIcon, MeasurementIcon } from './feature-icons'
 
 /** The Engine's own family for a feature, for the drawing that stands for it. */
@@ -59,6 +61,7 @@ export const FeatureDetail = ({
   feature,
   report,
   candidates,
+  scores,
   onChoose,
   onZoom,
   onClose,
@@ -70,6 +73,8 @@ export const FeatureDetail = ({
   feature: PartFeature | null
   report: PublicInspectionReport
   candidates: readonly PartFeature[]
+  /** How hard each candidate is, so the list ranks as well as lists. */
+  scores: ReadonlyMap<string, FeatureScore>
   onChoose: (featureTag: string) => void
   onZoom: (featureTag: string) => void
   onClose: () => void
@@ -123,6 +128,7 @@ export const FeatureDetail = ({
                     style={{ background: directionCss(directionOf(report, candidate)) }}
                   />
                   <Badge variant="secondary">{summary.direction}</Badge>
+                  <ScoreBadge score={scores.get(candidate.featureTag)} />
                 </button>
               </li>
             )

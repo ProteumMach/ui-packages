@@ -299,3 +299,22 @@ test('walks the rules and their features with the keyboard', async ({ page }) =>
   await page.getByRole('tab', { name: 'Inspector' }).click()
   await expect(page.getByRole('heading', { name: 'Blind Hole' })).toBeVisible()
 })
+
+/**
+ * A shop sorts by how hard the work is, so the ranking belongs on the rows
+ * rather than one click away on a panel.
+ */
+test('scores every feature where it is named', async ({ page }) => {
+  await openInspector(page)
+
+  // In the summary's list, under the type that holds it.
+  await page.getByRole('button', { name: /Blind hole/ }).click()
+  const row = page.getByRole('button', { name: /hole-1/ }).first()
+  await expect(row).toContainText(/\d+/)
+
+  // And under the rule that judged it, with the band's own colour.
+  await page.getByRole('tab', { name: 'Rules' }).click()
+  const drilling = page.getByRole('listitem').filter({ hasText: 'Drilling L/D ratio' }).first()
+  const badge = drilling.getByTitle(/scores \d+ across the rules that applied/).first()
+  await expect(badge).toBeVisible()
+})

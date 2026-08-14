@@ -4,6 +4,7 @@ import { RuleCard } from './rule-editor'
 import type { RulesState } from '../shared/use-rules'
 import type { Unit } from '../shared/units'
 import type { PartFeature } from '../shared/contracts'
+import type { FeatureScore } from '../shared/feature-score'
 import { ruleHits } from '../shared/rule-text'
 import { moveThroughList } from '../shared/list-keys'
 
@@ -17,6 +18,7 @@ import { moveThroughList } from '../shared/list-keys'
 export const RulesPanel = ({
   rules,
   features,
+  scores,
   types,
   unit,
   focusedTag,
@@ -25,6 +27,8 @@ export const RulesPanel = ({
 }: {
   rules: RulesState
   features: readonly PartFeature[]
+  /** How hard each feature is, for the rows a rule bit on. */
+  scores: ReadonlyMap<string, FeatureScore>
   /** The feature types this part actually has, for aiming a rule. */
   types: readonly string[]
   unit: Unit
@@ -130,6 +134,7 @@ export const RulesPanel = ({
             hits={hits.get(rule.id) ?? []}
             onChoose={onChoose}
             onHover={onHover}
+            scores={scores}
             onChange={rules.updateRule}
             editing={editing === rule.id}
             onEdit={() => setEditing((open) => (open === rule.id ? null : rule.id))}

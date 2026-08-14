@@ -18,6 +18,7 @@ import {
 import { directionLabel, featureFromTags, filterFeatures, tagsOfType } from '../shared/report'
 import { listHighlight } from '../shared/highlighting'
 import { useRules } from '../shared/use-rules'
+import { featureScores } from '../shared/feature-score'
 import { partContext } from '../shared/metrics'
 import { escapeStep } from '../shared/escape'
 import { AppHeader } from './app-header'
@@ -139,6 +140,8 @@ export const PartInspector = ({
    * the part as it is typed.
    */
   const rules = useRules(report.features)
+  /** How each feature came out, for the rows that name one. */
+  const scores = useMemo(() => featureScores(rules.verdicts), [rules.verdicts])
 
   const [expandedType, setExpandedType] = useState<string | null>(null)
   /**
@@ -286,6 +289,7 @@ export const PartInspector = ({
           onUnit={chooseUnit}
           query={query}
           onQuery={setQuery}
+          scores={scores}
         />
       </aside>
     ) : tab === 'rules' ? (
@@ -295,6 +299,7 @@ export const PartInspector = ({
         onChoose={choose}
         onHover={setHoveredTags}
         rules={rules}
+        scores={scores}
         types={featureTypes}
         unit={unit}
       />
@@ -406,6 +411,7 @@ export const PartInspector = ({
             feature={focused}
             report={report}
             candidates={candidates}
+            scores={scores}
             onChoose={focusCandidate}
             onZoom={zoomToFeature}
             onClose={() => setSelection(NOTHING_SELECTED)}

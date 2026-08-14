@@ -4,6 +4,8 @@ import { duration, partSummary } from '../shared/part-summary'
 import { directionLabel } from '../shared/report'
 import { directionCss } from '../shared/direction-colors'
 import { moveThroughList } from '../shared/list-keys'
+import type { FeatureScore } from '../shared/feature-score'
+import { ScoreBadge } from './score-badge'
 import type { Unit } from '../shared/units'
 
 const Count = ({ label, value }: { label: string; value: string | number }) => (
@@ -41,6 +43,7 @@ export const PartSummary = ({
   onUnit,
   query,
   onQuery,
+  scores,
 }: {
   report: PublicInspectionReport
   /** The features to list, already filtered by whatever search is running. */
@@ -57,6 +60,8 @@ export const PartSummary = ({
   onUnit: (unit: Unit) => void
   query: string
   onQuery: (query: string) => void
+  /** How hard each feature is, where the rules had anything to say. */
+  scores: ReadonlyMap<string, FeatureScore>
 }) => {
   const summary = partSummary(report, activeDirection)
 
@@ -197,6 +202,7 @@ export const PartSummary = ({
                             <span className="text-zinc-500">
                               {directionLabel(feature.machiningDirection)}
                             </span>
+                            <ScoreBadge score={scores.get(feature.featureTag)} />
                           </button>
                         </li>
                       )
