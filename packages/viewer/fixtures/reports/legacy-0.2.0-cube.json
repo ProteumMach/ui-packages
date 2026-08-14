@@ -1,5 +1,5 @@
 {
-  "partId": "afe3b4ec-855d-4900-97ba-6ad269ea97d4",
+  "partId": "legacy-0.2.0-cube",
   "kernelVersion": "0.2.0",
   "features": [
     {
@@ -1353,9 +1353,9 @@
   ],
   "meshPointCount": 8,
   "meshTriangleCount": 12,
-  "thumbnailUrl": "https://s3.us-east-1.amazonaws.com/toolpath-engine-staging/parts/afe3b4ec-855d-4900-97ba-6ad269ea97d4/thumbnail.png?<presigned-redacted>",
-  "meshStlUrl": "https://s3.us-east-1.amazonaws.com/toolpath-engine-staging/parts/afe3b4ec-855d-4900-97ba-6ad269ea97d4/reports/b0dd4e48-72c3-43f6-95a2-9cb1100a87c7/mesh.stl?<presigned-redacted>",
-  "meshGlbUrl": "https://s3.us-east-1.amazonaws.com/toolpath-engine-staging/parts/afe3b4ec-855d-4900-97ba-6ad269ea97d4/reports/b0dd4e48-72c3-43f6-95a2-9cb1100a87c7/mesh.glb?<presigned-redacted>",
+  "thumbnailUrl": "https://example.invalid/legacy-0.2.0-cube/thumbnail.png",
+  "meshStlUrl": "https://example.invalid/legacy-0.2.0-cube/mesh.stl",
+  "meshGlbUrl": "https://example.invalid/legacy-0.2.0-cube/mesh.glb",
   "downloadMs": 76,
   "analysisMs": 240,
   "totalMs": 590

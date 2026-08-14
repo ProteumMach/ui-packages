@@ -2,6 +2,7 @@ node_modules/
 artifacts/
 release-artifacts/
 .tmp/
+.turbo/
 .venv/
 __pycache__/
 *.pyc

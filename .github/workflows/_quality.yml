@@ -23,7 +23,4 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: >-
           pnpm --filter @toolpath/example-react-viewer exec playwright install --with-deps chromium
-      - run: >-
-          pnpm --filter @toolpath/api build && pnpm --filter @toolpath/ui build && pnpm --filter
-          @toolpath/part-viewer check-types
       - run: pnpm check

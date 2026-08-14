@@ -200,8 +200,8 @@ function sameDirection(
 }
 
 describe('normalizePartReport — kernel version gating', () => {
-  it('rejects a real 0.2.0 report', () => {
-    const report = loadReportFixture('staging-0.2.0-2inches-cube')
+  it('rejects a legacy 0.2.0 report', () => {
+    const report = loadReportFixture('legacy-0.2.0-cube')
 
     expect(() => normalizePartReport(report)).toThrow(UnsupportedKernelVersionError)
     // The failure has to name the version — a 0.2.0 report is structurally
@@ -360,7 +360,7 @@ describe('fixture integrity', () => {
    * tidier one cannot silently remove the evidence.
    */
   it('the cube still reports far more features than triangles', () => {
-    const report = loadReportFixture('staging-0.2.0-2inches-cube')
+    const report = loadReportFixture('legacy-0.2.0-cube')
 
     // 24 features over 12 triangles: features are not a partition of the mesh.
     expect(report['features']).toHaveLength(24)

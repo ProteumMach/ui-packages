@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "analyze": "tsx src/analyze-part.ts",
-    "build": "tsc --noEmit",
+    "build": "pnpm check-types",
+    "check-types": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
