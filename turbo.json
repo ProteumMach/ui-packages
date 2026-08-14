@@ -6,6 +6,7 @@
       "outputs": ["dist/**", "build/**", ".react-router/**"]
     },
     "@toolpath/example-typescript#build": {
+      "dependsOn": ["^build"],
       "outputs": []
     },
     "check-types": {
