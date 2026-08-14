@@ -69,3 +69,48 @@ test('selects a feature and responds to CAD camera navigation', async ({ page })
   // through to the part, the selection would have changed with it.
   await expect(page.getByText('Selected:', { exact: false })).toHaveText(selected ?? '')
 })
+
+test('pans with either pan button, from wherever the drag starts', async ({ page }) => {
+  await page.goto('/')
+  const canvas = page.locator('canvas')
+  await page.waitForTimeout(700)
+  const box = await canvas.boundingBox()
+  if (!box) throw new Error('Viewer canvas has no bounding box')
+
+  // The <p>, not the <strong> inside it: `getByText('Selected:')` matches the
+  // label alone, whose text never changes, so every assertion below would hold
+  // whatever the viewer did.
+  const selected = page.locator('p', { hasText: 'Selected:' })
+  const centre = { x: box.width / 2, y: box.height / 2 }
+
+  // The gesture starts in the bottom-left corner: empty, as far from the part
+  // as the viewport gets, and clear of the toolbar in the top-left. A pan that
+  // needs the pointer over the part is a pan that stops working on exactly the
+  // view somebody was trying to fix.
+  const panFromCorner = async (button: 'right' | 'middle') => {
+    const from = { x: box.x + 40, y: box.y + box.height - 40 }
+    await page.mouse.move(from.x, from.y)
+    await page.mouse.down({ button })
+    for (let step = 1; step <= 10; step += 1) {
+      await page.mouse.move(from.x + step * (box.width * 0.15), from.y)
+    }
+    await page.mouse.up({ button })
+    await page.waitForTimeout(300)
+  }
+
+  for (const button of ['right', 'middle'] as const) {
+    await page.getByRole('button', { name: 'Fit' }).click()
+    await page.waitForTimeout(300)
+    await canvas.click({ position: centre })
+    await expect(selected).not.toContainText('none')
+
+    await panFromCorner(button)
+
+    // The part has left the middle of the view, which a pan does and an orbit
+    // does not: an orbit turns the part about that point and leaves it there.
+    // Clicking where it was now hits nothing, which is what puts the selection
+    // down.
+    await canvas.click({ position: centre })
+    await expect(selected).toContainText('none')
+  }
+})
