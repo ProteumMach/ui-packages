@@ -1,11 +1,11 @@
 /**
  * What the part wears for "this is the thing I am reading".
  *
- * Blue, and saturated enough to still read as blue over a light grey part.
- * Brightening these drains them: a pale blue over the part is a white patch,
- * and the thing being read stops being a colour at all. Bright means
- * *luminous*, not washed out — the saturation stays up and the value comes down
- * a little.
+ * Blue, and saturated enough to still read as blue over a light grey part —
+ * but eased off the fully saturated version, which sat on the part as a slab of
+ * colour rather than as a face wearing one. There is a floor to this: brightened
+ * or drained much further it becomes a white patch, and the thing being read
+ * stops being a colour at all.
  *
  * The hover takes the blue the selection had and the selection goes a step
  * deeper: hovering is the commoner state and the one that has to read as blue
@@ -17,7 +17,7 @@
  * them cannot be warm too.
  */
 export const READING_COLORS = {
-  highlight: 0x1a55d6,
-  hover: 0x2f6fe0,
-  picked: 0x1e5fd0,
+  highlight: 0x3e6bcc,
+  hover: 0x608ad2,
+  picked: 0x4878cb,
 } as const
