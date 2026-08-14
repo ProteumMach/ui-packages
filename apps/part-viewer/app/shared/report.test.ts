@@ -33,6 +33,27 @@ describe('report view model', () => {
   })
 
   test('keeps every ownership candidate from an ambiguous mesh click', () => {
-    expect(featureFromTags([hole, wall], ['wall-456', 'hole-123'])).toEqual([hole, wall])
+    // In the order they were named — they arrive ranked, and this used to hand
+    // them back in report order instead.
+    expect(featureFromTags([hole, wall], ['wall-456', 'hole-123'])).toEqual([wall, hole])
+  })
+})
+
+describe('featureFromTags', () => {
+  const features = [hole, wall]
+
+  test('returns them in the order they were named, not report order', () => {
+    // The candidates are ranked. Shown in report order while the keyboard walks
+    // the ranking, the highlight jumps around the list.
+    expect(featureFromTags(features, ['wall-456', 'hole-123']).map((f) => f.featureTag)).toEqual([
+      'wall-456',
+      'hole-123',
+    ])
+  })
+
+  test('skips a tag no feature answers to', () => {
+    expect(featureFromTags(features, ['nope', 'wall-456']).map((f) => f.featureTag)).toEqual([
+      'wall-456',
+    ])
   })
 })

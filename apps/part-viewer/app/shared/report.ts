@@ -16,12 +16,12 @@ export interface DetailRow {
   value: string
 }
 
-const asRecord = (value: unknown): Record<string, unknown> | null =>
+export const asRecord = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null
 
-const asNumber = (value: unknown): number | null =>
+export const asNumber = (value: unknown): number | null =>
   typeof value === 'number' && Number.isFinite(value) ? value : null
 
 const labelForType = (value: string): string =>
@@ -46,7 +46,7 @@ export const directionLabel = ({ x, y, z }: components['schemas']['Vec3']): stri
 
 const millimeters = (value: number): string => `${value.toFixed(value < 10 ? 2 : 1)} mm`
 
-const facts = (feature: PartFeature): Record<string, unknown> => {
+export const facts = (feature: PartFeature): Record<string, unknown> => {
   const sheet = asRecord(feature.datasheet)
   return asRecord(sheet?.facts) ?? {}
 }
@@ -110,10 +110,20 @@ export const featureDetailRows = (feature: PartFeature): DetailRow[] => {
 export const rawDatasheet = (feature: PartFeature): string =>
   JSON.stringify(feature.datasheet ?? {}, null, 2)
 
+/**
+ * The named features, **in the order they were named**.
+ *
+ * Report order would be a different list: the candidates are ranked, and a list
+ * shown in one order while the keyboard walks another sends the highlight
+ * jumping around it.
+ */
 export const featureFromTags = (
   features: readonly PartFeature[],
   tags: readonly string[],
 ): PartFeature[] => {
-  const wanted = new Set(tags)
-  return features.filter((feature) => wanted.has(feature.featureTag))
+  const byTag = new Map(features.map((feature) => [feature.featureTag, feature]))
+  return tags.flatMap((tag) => {
+    const feature = byTag.get(tag)
+    return feature ? [feature] : []
+  })
 }

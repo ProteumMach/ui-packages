@@ -1,6 +1,7 @@
 import { directionIndexOf, sameDirection, type PartPick } from '@toolpath/viewer'
 import { type Arrows, arrowsVisible, shownArrow } from '../shared/arrows'
 import { type PaintMode, loadPaintMode, savePaintMode } from '../shared/paint'
+import { type Unit, loadUnit, saveUnit } from '../shared/units'
 import { Panels, Tabs } from '@toolpath/ui'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
@@ -17,7 +18,7 @@ import {
 import { directionLabel, featureFromTags, filterFeatures } from '../shared/report'
 import { AppHeader } from './app-header'
 import { FeatureDetail } from './feature-detail'
-import { FeatureList } from './feature-list'
+import { PartSummary } from './part-summary'
 import { FeatureViewer } from './feature-viewer'
 
 type ViewerTab = 'inspector' | 'directions'
@@ -91,7 +92,21 @@ export const PartInspector = ({
     () => report.features.find((feature) => feature.featureTag === focusedTag) ?? null,
     [focusedTag, report.features],
   )
+  const [expandedType, setExpandedType] = useState<string | null>(null)
+  const [unit, setUnit] = useState<Unit>('mm')
   const features = useMemo(() => filterFeatures(report.features, query), [query, report.features])
+
+  // Read after mount, like the paint mode: the server has no localStorage, and
+  // a unit that differed between the two would hydrate as a flash of the wrong
+  // numbers.
+  useEffect(() => {
+    setUnit(loadUnit(globalThis.localStorage ?? null))
+  }, [])
+
+  const chooseUnit = (next: Unit) => {
+    setUnit(next)
+    saveUnit(globalThis.localStorage ?? null, next)
+  }
   /**
    * Once a feature is being read, its own way up is the only one worth drawing.
    * An explicit direction still wins: choosing one is a question about that
@@ -143,6 +158,9 @@ export const PartInspector = ({
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return
+      // A list under the pointer walks itself; this is the shortcut for when
+      // focus is still on the canvas that produced the candidates.
+      if (target?.closest('[data-keynav]')) return
 
       // Escape works outward: the selection first, then the direction being
       // worked in. Clearing both at once throws away a scope somebody set
@@ -165,27 +183,22 @@ export const PartInspector = ({
 
   const tabPanel =
     tab === 'inspector' ? (
-      <aside className="flex size-full min-h-0 flex-col bg-zinc-900/40">
-        <div className="border-b border-zinc-800 p-3">
-          <label className="sr-only" htmlFor="feature-search">
-            Search features
-          </label>
-          <input
-            id="feature-search"
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search type, direction, or tag"
-            className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-info/75"
-          />
-        </div>
-        <FeatureList
-          className="min-h-0 flex-1"
+      <aside className="flex size-full min-h-0 flex-col overflow-y-auto bg-zinc-900/40">
+        <PartSummary
+          report={report}
           features={features}
+          activeDirection={activeDirection}
+          onPickDirection={holdDirection}
+          expandedType={expandedType}
+          onExpandType={setExpandedType}
           focusedTag={focusedTag}
           candidateTags={candidateTags}
           onChoose={choose}
           onHover={setHoveredTags}
+          unit={unit}
+          onUnit={chooseUnit}
+          query={query}
+          onQuery={setQuery}
         />
       </aside>
     ) : (
@@ -259,7 +272,7 @@ export const PartInspector = ({
       </AppHeader>
 
       <Panels.Group className="min-h-0 flex-1" orientation="horizontal">
-        <Panels.Panel defaultSize={300} minSize={220}>
+        <Panels.Panel defaultSize={460} minSize={260}>
           {tabPanel}
         </Panels.Panel>
         <Panels.Separator className={separatorClassName} />
@@ -284,15 +297,16 @@ export const PartInspector = ({
           />
         </Panels.Panel>
         <Panels.Separator className={separatorClassName} />
-        <Panels.Panel defaultSize={360} minSize={280}>
-          {focused || candidates.length ? (
-            <FeatureDetail
-              feature={focused}
-              candidates={candidates}
-              onChoose={focusCandidate}
-              onZoom={zoomToFeature}
-            />
-          ) : null}
+        <Panels.Panel defaultSize={460} minSize={320}>
+          <FeatureDetail
+            feature={focused}
+            report={report}
+            candidates={candidates}
+            onChoose={focusCandidate}
+            onZoom={zoomToFeature}
+            onClose={() => setSelection(NOTHING_SELECTED)}
+            unit={unit}
+          />
         </Panels.Panel>
       </Panels.Group>
     </main>

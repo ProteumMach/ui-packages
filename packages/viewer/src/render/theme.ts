@@ -19,7 +19,6 @@ export interface ViewerTheme {
   readonly partEmissive: number
   /** The region under the cursor. */
   readonly hover: number
-  readonly hoverEmissive: number
   /** Selected features; see also {@link HIGHLIGHT_COLORS}. */
   readonly highlight: number
   /**
@@ -113,7 +112,6 @@ export const DEFAULT_THEME: ViewerTheme = {
    * been picked. Nothing in the direction cycle is warm.
    */
   hover: 0xffb066,
-  hoverEmissive: 0x7a4a10,
   highlight: HIGHLIGHT_COLORS.default,
   picked: 0xf97316,
   edge: 0x000000,
@@ -149,7 +147,6 @@ export function themesEqual(a: ViewerTheme, b: ViewerTheme): boolean {
     a.part === b.part &&
     a.partEmissive === b.partEmissive &&
     a.hover === b.hover &&
-    a.hoverEmissive === b.hoverEmissive &&
     a.highlight === b.highlight &&
     a.picked === b.picked &&
     a.edge === b.edge &&
