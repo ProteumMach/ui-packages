@@ -82,6 +82,24 @@ editor** — which changes two things that would otherwise have been trimmed:
   that evaluates to nothing once converted is worse than one that was never
   offered.
 
+## 3a. Bands are ranks with names on them
+
+A shop that grades work "fine / watch it / call me" is not using a different
+scale, it is using different words for the same five steps. So:
+
+- **Five fixed ranks are the model.** `easy` through `no go` stay as the
+  canonical ids, and every comparison — worst-band, sorting, scoring — runs on
+  the rank. Nothing keys off a name.
+- **Names are display, and overridable.** A rule set carries a `bandNames` map,
+  defaulting to the shipped five, and a rule may override it where one rule
+  really does deserve its own vocabulary.
+- **A rename is never a data migration.** Because the id is what is stored, a
+  set renamed today still reads against a rule written yesterday, and a rename
+  cannot silently re-band a feature.
+
+The shipped names stay `easy`, `alright`, `meh`, `rats`, `no go`. This costs a
+map and a lookup in PRs 2–3, and a text field per band in PR 8.
+
 ## 4. PR breakdown
 
 Each is independently reviewable and independently landable. The first three are
@@ -209,8 +227,8 @@ every keystroke recolour the part. Nothing here calls the Engine, ever.
 ### PR 8 — one rule, with every part of it editable
 
 The rule editor: what the rule reads, which feature types it judges, the shape
-of the scale, where every band ends, the refusal, the weight, and whether it
-applies at all.
+of the scale, where every band ends, the refusal, the weight, whether it applies
+at all — and what the five bands are called (§3a).
 
 Every part of it, because a panel that only moved four threshold numbers makes
 the other shapes read as decoration — a range with no visible spans and a match
