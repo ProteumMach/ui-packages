@@ -26,7 +26,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: >-
           pnpm --filter @toolpath/example-react-viewer exec playwright install --with-deps chromium
-      - run: pnpm --filter @toolpath/api build && pnpm --filter @toolpath/part-viewer check-types
+      - run: >-
+          pnpm --filter @toolpath/api build && pnpm --filter @toolpath/ui build && pnpm --filter
+          @toolpath/part-viewer check-types
       - run: pnpm check
       # The app's own browser tests, which `pnpm check` does not reach: its
       # `test` script is vitest alone. They cover what only a browser can say —
