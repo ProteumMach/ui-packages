@@ -25,6 +25,8 @@ export {
 } from './render/section.js'
 export { arrowPlacement } from './render/directions.js'
 export { useContentBox } from './content-box.js'
+export { useTapGuard } from './tap.js'
+export { TAP_SLOP, movedFar, trackTaps } from './render/tap.js'
 export {
   CHAMFER,
   VIEW_NAMES,
@@ -123,6 +125,7 @@ export type { ArrowPlacement } from './render/directions.js'
 export type { SectionOptions, SectionState } from './section-view.js'
 export type { SectionAnchor, SectionBounds, SectionPlacement } from './render/section.js'
 export type { GridSpec } from './render/grid.js'
+export type { TapPoint, TapTracker } from './render/tap.js'
 export type { CadCameraControlsProps } from './camera.js'
 export type { Projection, SceneBounds, ViewerCamera, ViewportSize } from './render/camera.js'
 export type { ControlScheme, ExtendedCameraControlsOptions } from './render/controls.js'

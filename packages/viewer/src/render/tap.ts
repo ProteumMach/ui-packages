@@ -1,0 +1,56 @@
+/**
+ * Telling a click apart from the end of a drag.
+ *
+ * The browser calls both a click: press, move, release over the same element
+ * fires `click` however far the pointer travelled in between. In a viewport
+ * that is the difference between "select this face" and "I have finished
+ * orbiting" — and the part is one mesh, so releasing over a different face is
+ * still the same element and still a click.
+ *
+ * Left unguarded, every orbit that happens to end over the part selects
+ * whatever it ended on, throwing away the selection the orbit was made to look
+ * at.
+ */
+
+/** How far a pointer may travel and still be a click, in CSS pixels. */
+export const TAP_SLOP = 4
+
+export interface TapPoint {
+  readonly clientX: number
+  readonly clientY: number
+}
+
+/** Whether the pointer travelled far enough for this to be a drag. */
+export function movedFar(from: TapPoint, to: TapPoint, slop: number = TAP_SLOP): boolean {
+  return Math.hypot(to.clientX - from.clientX, to.clientY - from.clientY) > slop
+}
+
+export interface TapTracker {
+  /** Whether the gesture ending at this event was a click rather than a drag. */
+  isTap(event: TapPoint): boolean
+  dispose(): void
+}
+
+/**
+ * Watches an element for the start of every gesture, so its end can be judged.
+ *
+ * Listens in the capture phase: whatever else handles the press — the camera
+ * controls, a drag handle — the start of the gesture still has to be recorded,
+ * and a listener that runs after `stopPropagation` runs never.
+ */
+export function trackTaps(element: HTMLElement): TapTracker {
+  let start: TapPoint | null = null
+
+  const down = (event: PointerEvent) => {
+    start = { clientX: event.clientX, clientY: event.clientY }
+  }
+
+  element.addEventListener('pointerdown', down, { capture: true })
+
+  return {
+    // No recorded press means the gesture began somewhere else — over a panel,
+    // or before this element existed. Not a click on this element.
+    isTap: (event: TapPoint) => start !== null && !movedFar(start, event),
+    dispose: () => element.removeEventListener('pointerdown', down, { capture: true }),
+  }
+}

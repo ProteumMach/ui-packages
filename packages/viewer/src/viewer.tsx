@@ -12,6 +12,7 @@ import {
 import type { CSSProperties, PropsWithChildren, ReactNode } from 'react'
 import { Box3, Group, Vector3 } from 'three'
 import { CadCameraControls } from './camera.js'
+import { type TapTracker, trackTaps } from './render/tap.js'
 import {
   DEFAULT_FIT_MARGIN,
   PERSPECTIVE_FOV,
@@ -287,9 +288,17 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
     actionsRef.current = next
   }, [])
 
+  // Watched on the wrapper rather than the canvas: `onPointerMissed` is the
+  // Canvas's own prop, and this side of it has no hooks into the scene.
+  const tracker = useRef<TapTracker | null>(null)
+  const hold = useCallback((element: HTMLDivElement | null) => {
+    tracker.current?.dispose()
+    tracker.current = element ? trackTaps(element) : null
+  }, [])
+
   return (
     <ViewerControlsContext.Provider value={proxy}>
-      <div className={className} style={{ height: '100%', width: '100%', ...style }}>
+      <div className={className} ref={hold} style={{ height: '100%', width: '100%', ...style }}>
         <Canvas
           key={projection}
           orthographic={projection === 'orthographic'}
@@ -301,7 +310,11 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
           // looks hollow. `localClippingEnabled` is what lets a material carry
           // its own clipping plane rather than the whole scene sharing one.
           gl={{ antialias: true, alpha: true, stencil: true, localClippingEnabled: true }}
-          onPointerMissed={onPointerMissed}
+          // Same guard as the part's own click: an orbit that ends over empty
+          // space is not somebody putting the selection down.
+          onPointerMissed={(event) => {
+            if (tracker.current?.isTap(event) ?? true) onPointerMissed?.()
+          }}
         >
           <ViewerScene
             setControls={setControls}
