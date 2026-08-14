@@ -79,6 +79,9 @@ importers:
       three:
         specifier: 0.185.1
         version: 0.185.1
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.5
       zod:
         specifier: 4.4.3
         version: 4.4.3
@@ -119,9 +122,6 @@ importers:
       tailwindcss:
         specifier: ^4.1.7
         version: 4.3.3
-      tsx:
-        specifier: ^4.19.2
-        version: 4.23.5
       typescript:
         specifier: 5.9.3
         version: 5.9.3
