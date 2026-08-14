@@ -96,6 +96,7 @@ export const FeatureViewer = ({
   focusFeature,
   onPickDirection,
   onPick,
+  onHoverPart,
   onClearSelection,
 }: {
   report: PublicInspectionReport
@@ -131,6 +132,8 @@ export const FeatureViewer = ({
   focusFeature: string | null
   onPickDirection: (index: number) => void
   onPick: (pick: PartPick) => void
+  /** Whether the pointer is over the part itself, rather than empty space. */
+  onHoverPart: (over: boolean) => void
   /** A click that hit nothing in the scene. */
   onClearSelection: () => void
 }) => {
@@ -328,6 +331,7 @@ export const FeatureViewer = ({
                 highlights={wash}
                 focusFeature={focusFeature}
                 onPick={pickInViewport}
+                onHover={(pick) => onHoverPart(pick !== null)}
                 activeDirection={activeDirection}
                 // No plane, no cut. A section that starts by lopping off an
                 // arbitrary half of the part hides the face you were about to
