@@ -10,10 +10,10 @@ const store = (value?: string) => {
 }
 
 describe('the grid and triad preference', () => {
-  test('draws them until somebody turns them off', () => {
-    expect(loadShowAids(store())).toBe(true)
-    expect(loadShowAids(null)).toBe(true)
-    expect(loadShowAids(store('nonsense'))).toBe(true)
+  test('leaves them off until somebody asks for them', () => {
+    expect(loadShowAids(store())).toBe(false)
+    expect(loadShowAids(null)).toBe(false)
+    expect(loadShowAids(store('nonsense'))).toBe(false)
   })
 
   test('remembers the choice, in both directions', () => {
