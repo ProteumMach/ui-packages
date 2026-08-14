@@ -16,6 +16,7 @@ import {
   stepCandidate,
 } from '../shared/selection'
 import { directionLabel, featureFromTags, filterFeatures, tagsOfType } from '../shared/report'
+import { listHighlight } from '../shared/highlighting'
 import { AppHeader } from './app-header'
 import { FeatureDetail } from './feature-detail'
 import { PartSummary } from './part-summary'
@@ -36,6 +37,7 @@ export const PartInspector = ({
   const [tab, setTab] = useState<ViewerTab>('inspector')
   const [query, setQuery] = useState('')
   const [hoveredTags, setHoveredTags] = useState<string[]>([])
+  const [pointerOnPart, setPointerOnPart] = useState(false)
   const [selection, setSelection] = useState<SelectionState>(NOTHING_SELECTED)
   const [activeDirection, setActiveDirection] = useState<number | null>(null)
   const [paintMode, setPaintMode] = useState<PaintMode>('plain')
@@ -298,7 +300,12 @@ export const PartInspector = ({
             report={report}
             jobId={jobId}
             selectedFeatureTag={focusedTag}
-            highlightedFeatureTags={hoveredTags.length > 0 ? hoveredTags : typeTags}
+            highlightedFeatureTags={listHighlight({
+              selected: focusedTag,
+              hovered: hoveredTags,
+              ofType: typeTags,
+              pointerOnPart,
+            })}
             heldRegions={heldRegions(selection)}
             shownDirection={shownArrow(arrows, arrowContext)}
             arrows={arrows}
@@ -308,6 +315,7 @@ export const PartInspector = ({
             onPaintMode={choosePaintMode}
             focusFeature={focusFeature}
             onPick={pickFromPart}
+            onHoverPart={setPointerOnPart}
             onClearSelection={() => setSelection(NOTHING_SELECTED)}
           />
         </Panels.Panel>
