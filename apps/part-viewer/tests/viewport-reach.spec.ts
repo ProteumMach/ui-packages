@@ -157,7 +157,7 @@ test('shows the limits it judges by, and what they made of a feature', async ({ 
 
   await page.getByRole('tab', { name: 'Rules' }).click()
   await expect(page.getByLabel('Rule set')).toHaveValue('default')
-  await expect(page.getByText('Drilling L/D ratio')).toBeVisible()
+  await expect(page.getByText('Drilling L/D ratio').first()).toBeVisible()
   // The bands a measurement is judged against, in the same words the part uses.
   await expect(page.getByText('∞ – 3.0').first()).toBeVisible()
 
@@ -237,8 +237,9 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
 
   // A rule switched off stops judging without being deleted.
   await page.getByRole('tab', { name: 'Rules' }).click()
-  await drilling.getByRole('button', { name: 'switch off' }).click()
-  await expect(drilling.getByRole('button', { name: 'switched off' })).toBeVisible()
+  const applies = drilling.getByRole('checkbox')
+  await applies.uncheck()
+  await expect(applies).not.toBeChecked()
 
   // And putting it back is one press: a shipped set is never written over.
   await page.getByRole('button', { name: 'Put back' }).click()
@@ -269,20 +270,26 @@ test('lists the features each rule bit on, and opens one', async ({ page }) => {
 test('walks the rules and their features with the keyboard', async ({ page }) => {
   await openInspector(page)
   await page.getByRole('tab', { name: 'Rules' }).click()
+  // Wait for the panel to be the rules panel: `[data-row]` also matches the
+  // summary's type rows, and reaching for one mid-swap grabs a row on its way
+  // out of the document.
+  await expect(page.getByRole('button', { name: 'Add rule' })).toBeVisible()
 
-  await page
-    .getByRole('button', { name: /What .* reads and judges/ })
-    .first()
-    .focus()
-  await page.keyboard.press('ArrowDown')
-
-  // Whatever is on screen in document order is what the keyboard walks, so the
-  // row after a rule is the first feature it bit on rather than the next rule.
-  // Whatever is on screen in document order is what the keyboard walks, so the
-  // row after a rule is the first feature it bit on rather than the next rule.
-  await expect(page.locator(':focus')).toHaveAttribute('data-row', /.+/)
+  const rows = page.locator('[data-row]')
+  await rows.first().focus()
   const first = await page.locator(':focus').getAttribute('data-row')
 
+  // Whatever is on screen in document order is what the keyboard walks, so the
+  // row after a rule is the first feature it bit on rather than the next rule.
   await page.keyboard.press('ArrowDown')
+  await expect(page.locator(':focus')).toHaveAttribute('data-row', /.+/)
   await expect(page.locator(':focus')).not.toHaveAttribute('data-row', first ?? '')
+
+  // And landing on a feature opens it on the right, so the keyboard thumbs
+  // through features rather than moving a highlight somebody must then press.
+  // Reached directly: the rules above it in this fixture caught nothing, and
+  // walking past them would be testing the fixture rather than the keyboard.
+  await page.locator('[data-row="hole-1"]').first().focus()
+  await page.getByRole('tab', { name: 'Inspector' }).click()
+  await expect(page.getByRole('heading', { name: 'Blind Hole' })).toBeVisible()
 })

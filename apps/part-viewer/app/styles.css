@@ -8,10 +8,13 @@
   --color-warning: #ffe066;
   --color-info: #6bb0b3;
   --font-display: Nunito, ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Open Sans', ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  /* The same pair the feature picker reads in: Open Sans for text, Nunito for
+     headings. The two apps are read side by side by the same people. */
+  font-family: var(--font-body);
   background: #09090b;
 }
 

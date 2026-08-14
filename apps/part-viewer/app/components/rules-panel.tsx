@@ -33,7 +33,10 @@ export const RulesPanel = ({
   onHover: (tags: string[]) => void
 }) => {
   const hits = useMemo(() => ruleHits(rules.verdicts, features), [features, rules.verdicts])
-  const [openRule, setOpenRule] = useState<string | null>(null)
+  // Open by default: a panel of collapsed names says nothing about the part,
+  // and the limits are what somebody came here to read.
+  const [closed, setClosed] = useState<ReadonlySet<string>>(new Set())
+  const [editing, setEditing] = useState<string | null>(null)
   const set = rules.ruleSet
   const sets = [...rules.presets, ...rules.savedSets]
 
@@ -92,8 +95,13 @@ export const RulesPanel = ({
         data-keynav="rules"
         onKeyDown={(event) =>
           moveThroughList(event, {
-            onOpen: (value) => setOpenRule(value),
-            onClose: () => setOpenRule(null),
+            onOpen: (value) =>
+              setClosed((shut) => {
+                const next = new Set(shut)
+                next.delete(value)
+                return next
+              }),
+            onClose: () => setClosed((shut) => new Set([...shut, ...set.rules.map((r) => r.id)])),
           })
         }
       >
@@ -105,9 +113,18 @@ export const RulesPanel = ({
             onChoose={onChoose}
             onHover={onHover}
             onChange={rules.updateRule}
-            onOpen={() => setOpenRule((open) => (open === rule.id ? null : rule.id))}
+            editing={editing === rule.id}
+            onEdit={() => setEditing((open) => (open === rule.id ? null : rule.id))}
+            onOpen={() =>
+              setClosed((shut) => {
+                const next = new Set(shut)
+                if (next.has(rule.id)) next.delete(rule.id)
+                else next.add(rule.id)
+                return next
+              })
+            }
             onRemove={() => rules.removeRule(rule.id)}
-            open={openRule === rule.id}
+            open={!closed.has(rule.id)}
             rule={rule}
             types={types}
             unit={unit}

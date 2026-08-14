@@ -3,8 +3,8 @@
 **Goal:** make the 3D viewer on `toolpath@pc-part-viewer` behave like the one on
 `tp-ui@pc-feature-picker`, **staying on React Three Fiber**.
 
-Status: **Phases A and B landed.** Phase A (PRs 1–5) is merged to `main`;
-Phase B (PRs 6–10) is on `paul/viewer-camera` → `paul/viewer-chrome` →
+Status: **Phases A and B landed.** Phase A (PRs 1–5) is merged to `main`; Phase
+B (PRs 6–10) is on `paul/viewer-camera` → `paul/viewer-chrome` →
 `paul/viewer-directions` → `paul/viewer-surface`. Only Phase C is left, and it
 is app work rather than viewer work.
 
@@ -57,19 +57,19 @@ Splitting it by what it actually is:
 | `overlays/{axes,grid}.ts`                                                              | the existing `primitives.tsx`, restyled to `theme.ts`.                                                                                                                                                    |
 | `overlays/{directions,section-*}.ts`                                                   | R3F components; clipping via `gl.localClippingEnabled` and material `clippingPlanes`.                                                                                                                     |
 
-So the parity work is **not** "reimplement 9k LOC declaratively". The load-bearing
-ideas — the state-texture highlighting, the layer stack, owner ranking, the
-report normalizer, the section and cube maths — are all framework-free and come
-across as they are. What gets rewritten is mostly the imperative plumbing R3F
-already provides.
+So the parity work is **not** "reimplement 9k LOC declaratively". The
+load-bearing ideas — the state-texture highlighting, the layer stack, owner
+ranking, the report normalizer, the section and cube maths — are all
+framework-free and come across as they are. What gets rewritten is mostly the
+imperative plumbing R3F already provides.
 
 **The one hard rule:** highlight painting stays a texture write held in a ref.
 It must not become React state — a hover repainting through a render pass is the
 regression that undoes the whole point. Keep `frameloop="demand"` and call
 `invalidate()` after a paint, exactly as `part-mesh.tsx` does today.
 
-**Not ported:** `tp-ui`'s `packages/viewer/src/api/*`. It is a second HTTP client
-for the Engine API, and this repo has `@toolpath/api` generated from
+**Not ported:** `tp-ui`'s `packages/viewer/src/api/*`. It is a second HTTP
+client for the Engine API, and this repo has `@toolpath/api` generated from
 `openapi/openapi.json`. Only the _normalizer_ (report → `PartModel`) comes
 across, re-homed under the existing `src/engine/` adapter boundary.
 
@@ -109,97 +109,102 @@ across, keep `pnpm check-types` / `test` / `build` green.
 
 ### Phase A — the renderer (PRs 1–5) — **done**
 
-**PR 1 — the pure layer** · `paul/viewer-pure-layer` ✅
-Port `model/{types,region-index,normals,directions,errors}.ts`, `core/theme.ts`
-and `core/selection.ts` verbatim (modulo style). No three, no React, no scene.
+**PR 1 — the pure layer** · `paul/viewer-pure-layer` ✅ Port
+`model/{types,region-index,normals,directions,errors}.ts`, `core/theme.ts` and
+`core/selection.ts` verbatim (modulo style). No three, no React, no scene.
 Nothing consumes it yet. Tests port unchanged: `region-index`, `directions`,
 `theme`, `selection`. The easiest PR here to review, and the vocabulary
 everything later uses.
 
 **PR 2 — Engine adapter: report → `PartModel`, and mesh loading** ·
-`paul/viewer-engine-adapter` ✅
-Port the normalizer out of `api/report.ts` as `engine/normalize.ts`, typed
-against `@toolpath/api`'s `PartReportResponse` instead of a hand-rolled guard
-set — keeping the `MIN_KERNEL_VERSION` 0.3.0 gate, `PartReportFormatError`
-(which collects every problem, not the first) and `UnsupportedKernelVersionError`.
-Port `core/loaders.ts` for its report/mesh agreement check, which
-`mesh-loader.ts` lacks today, folding in the existing GLB→STL fallback.
-`region-mapping.ts` stays until PR 10.
-_Decide here:_ copy `tp-ui`'s `packages/viewer/fixtures` (reports + meshes) as
-the shared test corpus. Recommended — the agreement test needs a real pair.
+`paul/viewer-engine-adapter` ✅ Port the normalizer out of `api/report.ts` as
+`engine/normalize.ts`, typed against `@toolpath/api`'s `PartReportResponse`
+instead of a hand-rolled guard set — keeping the `MIN_KERNEL_VERSION` 0.3.0
+gate, `PartReportFormatError` (which collects every problem, not the first) and
+`UnsupportedKernelVersionError`. Port `core/loaders.ts` for its report/mesh
+agreement check, which `mesh-loader.ts` lacks today, folding in the existing
+GLB→STL fallback. `region-mapping.ts` stays until PR 10. _Decide here:_ copy
+`tp-ui`'s `packages/viewer/fixtures` (reports + meshes) as the shared test
+corpus. Recommended — the agreement test needs a real pair.
 
-**PR 3 — `<PartMesh>` becomes one mesh, one material** · `paul/viewer-part-mesh` ✅
-The core parity change, in R3F. Port `buildRegionAttribute` / `buildRegionTexels`
-and the `onBeforeCompile` material; attach the region attribute to the geometry
-and the `DataTexture` as a uniform; expose `paintRegion` / `paintFeature` /
-`clearPaint` through a ref, each write followed by `invalidate()`. Delete the
-material-group path. Selection and hover keep working through the new mechanism,
-so behaviour is unchanged and performance is not — a good PR to attach a
-before/after draw-call count to. Tests: `part.test.ts`, adapted.
+**PR 3 — `<PartMesh>` becomes one mesh, one material** · `paul/viewer-part-mesh`
+✅ The core parity change, in R3F. Port `buildRegionAttribute` /
+`buildRegionTexels` and the `onBeforeCompile` material; attach the region
+attribute to the geometry and the `DataTexture` as a uniform; expose
+`paintRegion` / `paintFeature` / `clearPaint` through a ref, each write followed
+by `invalidate()`. Delete the material-group path. Selection and hover keep
+working through the new mechanism, so behaviour is unchanged and performance is
+not — a good PR to attach a before/after draw-call count to. Tests:
+`part.test.ts`, adapted.
 
-**PR 4 — the highlight layer stack** · `paul/viewer-highlights` ✅
-Props for `selection`, `hover`, `candidates`, `highlights` (feature → colour +
-weight) and `regionHighlights`, painted weakest-first in the order
-`highlighting.md` §2 specifies. Now that a layer is a texel write, this is
-mostly ordering logic plus its test.
+**PR 4 — the highlight layer stack** · `paul/viewer-highlights` ✅ Props for
+`selection`, `hover`, `candidates`, `highlights` (feature → colour + weight) and
+`regionHighlights`, painted weakest-first in the order `highlighting.md` §2
+specifies. Now that a layer is a texel write, this is mostly ordering logic plus
+its test.
 
-**PR 5 — picking, ranking and cycling** · `paul/viewer-picking` ✅
-Resolve an R3F pointer hit to region → owners; rank owners with PR 1's
-`selection.ts`; emit `onPick` with `owners` alongside `best` so a consumer
-cannot wire the viewport up without seeing the ambiguity. Implements
-"clicking one face repeatedly walks its readings" (`interactions.md` §3.5) and
-an empty-space click reporting `null`. Tests: `picking`, `selection` integration.
+**PR 5 — picking, ranking and cycling** · `paul/viewer-picking` ✅ Resolve an
+R3F pointer hit to region → owners; rank owners with PR 1's `selection.ts`; emit
+`onPick` with `owners` alongside `best` so a consumer cannot wire the viewport
+up without seeing the ambiguity. Implements "clicking one face repeatedly walks
+its readings" (`interactions.md` §3.5) and an empty-space click reporting
+`null`. Tests: `picking`, `selection` integration.
 
 ### Phase B — camera and chrome (PRs 6–10)
 
 PRs 7, 8 and 9 are independent of each other and can land in any order or in
 parallel.
 
-**PR 6 — camera and controls** · ~350 LOC + tests
-Swap drei `OrbitControls` → drei `CameraControls`; port the `toolpath` /
-`fusion` mouse-button presets, free-orbit, zoom-to-cursor, and the fit /
-projection / start-position maths from `core/camera.ts`. Adds the ortho ⇄
-perspective toggle. Keeps `ViewerHandle.fit/reset/setView`.
-_Watch:_ `camera-controls` binds to one three instance — get the peer-dep and
-pnpm dedupe right here, or it fails silently later.
+**PR 6 — camera and controls** · ~350 LOC + tests Swap drei `OrbitControls` →
+drei `CameraControls`; port the `toolpath` / `fusion` mouse-button presets,
+free-orbit, zoom-to-cursor, and the fit / projection / start-position maths from
+`core/camera.ts`. Adds the ortho ⇄ perspective toggle. Keeps
+`ViewerHandle.fit/reset/setView`. _Watch:_ `camera-controls` binds to one three
+instance — get the peer-dep and pnpm dedupe right here, or it fails silently
+later.
 
-**PR 7 — axes, grid, view cube** · ~450 LOC + tests
-Restyle the axes and grid to `theme.ts`; replace drei's `GizmoViewport` with the
-ported cube inside a `<GizmoHelper>` — chamfered zones, named views, hover
-feedback — and wire `onViewChange`. _Optional trim:_ if chamfer-zone picking is
-not wanted, `GizmoViewcube` gets most of the way for ~50 LOC; the ported cube is
-what makes corner and edge views clickable.
+**PR 7 — axes, grid, view cube** · ~450 LOC + tests Restyle the axes and grid to
+`theme.ts`; replace drei's `GizmoViewport` with the ported cube inside a
+`<GizmoHelper>` — chamfered zones, named views, hover feedback — and wire
+`onViewChange`. _Optional trim:_ if chamfer-zone picking is not wanted,
+`GizmoViewcube` gets most of the way for ~50 LOC; the ported cube is what makes
+corner and edge views clickable.
 
-**PR 8 — direction arrows** · ~350 LOC + tests
-Port `arrowPlacement` and render the arrows as an R3F component: `activeDirection`,
-`shownDirection`, `previewDirection`, `namedDirections`, `onPickDirection`, and
-the nine-colour cycle from `theme.ts`. Fed by `candidateDirections` and
-`machiningDirection`, both already in the public report.
+**PR 8 — direction arrows** · ~350 LOC + tests Port `arrowPlacement` and render
+the arrows as an R3F component: `activeDirection`, `shownDirection`,
+`previewDirection`, `namedDirections`, `onPickDirection`, and the nine-colour
+cycle from `theme.ts`. Fed by `candidateDirections` and `machiningDirection`,
+both already in the public report.
 
-**PR 9 — section view** · ~600 LOC + tests
-Port the section maths; render the cap and the drag handle as components; enable
-`gl.localClippingEnabled` and feed `clippingPlanes` to the part material. Props:
-axis sweep, plane-from-pick, depth, flip, plus `onSectionChange`. Self-contained
-and droppable if the part viewer does not need cutaways.
+**PR 9 — section view** · ~600 LOC + tests Port the section maths; render the
+cap and the drag handle as components; enable `gl.localClippingEnabled` and feed
+`clippingPlanes` to the part material. Props: axis sweep, plane-from-pick,
+depth, flip, plus `onSectionChange`. Self-contained and droppable if the part
+viewer does not need cutaways.
 
-**PR 10 — surface and docs** · small
-Re-cut `index.ts` exports and the `package.json` `exports` map, delete
-`region-mapping.ts` and the last of the material-group code, migrate
-`examples/react-viewer/src/main.tsx`, rewrite `packages/viewer/README.md`, bump
-the version. Mostly red diff.
+**PR 10 — surface and docs** · small Re-cut `index.ts` exports and the
+`package.json` `exports` map, delete `region-mapping.ts` and the last of the
+material-group code, migrate `examples/react-viewer/src/main.tsx`, rewrite
+`packages/viewer/README.md`, bump the version. Mostly red diff.
 
 ### Phase C — app-level interaction parity (PRs 11–13)
 
 Half of what makes the feature picker feel the way it does is which layers
-`feature-picker.tsx` hands down, and when. These are `apps/part-viewer` changes,
-specified by `highlighting.md` and `interactions.md`. Scope is a judgement call —
-the part viewer is a report-inspection app, not a planning app, so this phase
+`feature-picker.tsx` hands down, and when.
+
+**The Directions page has its own plan now —
+[directions-plan.md](directions-plan.md)** — which supersedes what PRs 11–13
+sketch for that page and answers open question 1 with "here is what it would
+cost, in eleven PRs, with stop points". These are `apps/part-viewer` changes,
+specified by `highlighting.md` and `interactions.md`. Scope is a judgement call
+— the part viewer is a report-inspection app, not a planning app, so this phase
 should be trimmed rather than ported wholesale.
 
 **PR 11 — selection model** · multi-select with ⌘/Ctrl (intersection of owners —
 port `src/features/face-picks.ts`), a candidate list beside the part, guessed vs
-chosen focus (`interactions.md` §4: a guessed focus paints nothing - unless specifically inferring features (see `inference.md`)), Escape and
-empty-space clearing.
+chosen focus (`interactions.md` §4: a guessed focus paints nothing - unless
+specifically inferring features (see `inference.md`)), Escape and empty-space
+clearing.
 
 **PR 12 — paint modes** · the Plain / Directions / Difficulty control at the
 viewport's top-left, `localStorage` persistence, and the owner-wins rules from
@@ -216,8 +221,8 @@ feature list.
   `apps/part-viewer` and `examples/react-viewer` could follow each PR instead of
   waiting for a cut-over, so both are already on `PartModel`, the candidate
   layer, and ranked picks. There is no big-bang migration left to do.
-- **`region-mapping.ts` and `mesh-loader.ts` went in PR 3, not PR 10.** Both were
-  superseded outright; leaving them would have been dead code with tests.
+- **`region-mapping.ts` and `mesh-loader.ts` went in PR 3, not PR 10.** Both
+  were superseded outright; leaving them would have been dead code with tests.
 - **No `datasheet` on `PartModelFeature`.** The public report carries none —
   datasheets come from a separate endpoint — so the field was dropped rather
   than ported.

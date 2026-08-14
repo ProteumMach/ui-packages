@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CaretDownIcon } from '@phosphor-icons/react'
+import { CaretDownIcon, PencilSimpleIcon } from '@phosphor-icons/react'
 import { Button, Input } from '@toolpath/ui'
 import { bandCss } from '../shared/bands'
 import { METRICS } from '../shared/metrics'
@@ -32,6 +32,7 @@ const SELECT =
 const NumberBox = ({
   id,
   label,
+  band,
   value,
   metric,
   unit,
@@ -41,6 +42,8 @@ const NumberBox = ({
 }: {
   id: string
   label: string
+  /** The band this number closes, shown as its colour beside the caption. */
+  band?: Band | undefined
   value: number | undefined
   metric: Rule['metric']
   unit: Unit
@@ -52,7 +55,16 @@ const NumberBox = ({
   <div className="flex min-w-0 flex-col gap-0.5">
     {/* A div rather than a label: the caption names a control that labels
         itself, and two labels on one box is one too many for a screen reader. */}
-    <span className="truncate text-2xs text-zinc-400">{label}</span>
+    <span className="flex items-center gap-1 truncate text-2xs text-zinc-400">
+      {band ? (
+        <span
+          aria-hidden="true"
+          className="size-1.5 shrink-0 rounded-full"
+          style={{ background: bandCss(band) }}
+        />
+      ) : null}
+      {label}
+    </span>
     <Input
       aria-label={label}
       className={`${width} tabular-nums`}
@@ -137,30 +149,41 @@ const Limits = ({
       onChange({ ...rule, thresholds })
     }
 
+    const limits = ruleLimits(rule, unit)
+
     return (
-      <div className="flex flex-wrap items-center gap-1">
+      <div className="flex flex-wrap items-start gap-2">
         {rule.thresholds.map((threshold, at) => (
-          <NumberBox
-            key={BANDS[at]}
-            id={`${rule.id}-band-${at}`}
-            label={`${bandName(BANDS[at] as Band, undefined, rule.bandNames)} to`}
-            metric={rule.metric}
-            onChange={(value) => write(at, value)}
-            unit={unit}
-            value={threshold}
-          />
+          <div key={BANDS[at]} className="flex flex-col gap-0.5">
+            <NumberBox
+              band={BANDS[at]}
+              id={`${rule.id}-band-${at}`}
+              label={`${bandName(BANDS[at] as Band, undefined, rule.bandNames)} to`}
+              metric={rule.metric}
+              onChange={(value) => write(at, value)}
+              unit={unit}
+              value={threshold}
+            />
+            <span className="text-3xs tabular-nums text-zinc-500">{limits[at]?.range}</span>
+          </div>
         ))}
-        <NumberBox
-          id={`${rule.id}-no-go`}
-          label={`${bandName('no go', undefined, rule.bandNames)} past`}
-          metric={rule.metric}
-          onChange={(value) => {
-            const { noGo: _dropped, ...rest } = rule
-            onChange(value === undefined ? rest : { ...rule, noGo: value })
-          }}
-          unit={unit}
-          value={rule.noGo}
-        />
+        <div className="flex flex-col gap-0.5">
+          <NumberBox
+            band="no go"
+            id={`${rule.id}-no-go`}
+            label={`${bandName('no go', undefined, rule.bandNames)} past`}
+            metric={rule.metric}
+            onChange={(value) => {
+              const { noGo: _dropped, ...rest } = rule
+              onChange(value === undefined ? rest : { ...rule, noGo: value })
+            }}
+            unit={unit}
+            value={rule.noGo}
+          />
+          <span className="text-3xs tabular-nums text-zinc-500">
+            {limits.at(-1)?.band === 'no go' ? limits.at(-1)?.range : ''}
+          </span>
+        </div>
       </div>
     )
   }
@@ -427,8 +450,10 @@ export const RuleCard = ({
   types,
   unit,
   open,
+  editing,
   focusedTag,
   onOpen,
+  onEdit,
   onChange,
   onRemove,
   onChoose,
@@ -438,9 +463,13 @@ export const RuleCard = ({
   hits: readonly RuleHit[]
   types: readonly string[]
   unit: Unit
+  /** Whether the rule is showing anything at all below its name. */
   open: boolean
+  /** Whether what a rule reads and judges is open for changing. */
+  editing: boolean
   focusedTag: string | null
   onOpen: () => void
+  onEdit: () => void
   onChange: (rule: Rule) => void
   onRemove: () => void
   onChoose: (tag: string) => void
@@ -454,7 +483,7 @@ export const RuleCard = ({
       <div className="flex items-center gap-1.5">
         <button
           aria-expanded={open}
-          aria-label={`What ${rule.name} reads and judges`}
+          aria-label={`${rule.name}: limits and what it caught`}
           className="shrink-0 text-zinc-500 hover:text-zinc-200"
           data-row={rule.id}
           onClick={onOpen}
@@ -476,83 +505,108 @@ export const RuleCard = ({
             {hits.length}
           </span>
         ) : null}
-      </div>
 
-      <div className="ml-4 mt-1 flex flex-col gap-2 rounded border border-zinc-800 bg-zinc-900/50 p-2">
-        <Limits onChange={onChange} rule={rule} unit={unit} />
-        <BandDots rule={rule} unit={unit} />
+        <button
+          aria-label={`Edit ${rule.name}`}
+          aria-pressed={editing}
+          className={`shrink-0 rounded p-1 ${
+            editing ? 'bg-info/20 text-info' : 'text-zinc-500 hover:text-zinc-200'
+          }`}
+          onClick={onEdit}
+          title="What it reads, who it judges, its shape"
+          type="button"
+        >
+          <PencilSimpleIcon className="size-3" />
+        </button>
 
-        <div className="flex items-end gap-2">
-          <NumberBox
-            id={`${rule.id}-weight`}
-            label="weight"
-            metric={undefined}
-            onChange={(value) => onChange({ ...rule, weight: value ?? 0 })}
-            raw
-            unit={unit}
-            value={rule.weight}
-            width="w-16"
+        <label className="flex shrink-0 items-center" title="Whether this rule judges anything">
+          <span className="sr-only">{rule.name} applies</span>
+          <input
+            checked={rule.enabled}
+            className="size-3 accent-info"
+            onChange={(event) => onChange({ ...rule, enabled: event.target.checked })}
+            type="checkbox"
           />
-          <Button
-            onClick={() => onChange({ ...rule, enabled: !rule.enabled })}
-            size="sm"
-            title="Stop this rule judging anything, without deleting it"
-            variant={rule.enabled ? 'secondary' : 'info'}
-          >
-            {rule.enabled ? 'switch off' : 'switched off'}
-          </Button>
-        </div>
+        </label>
       </div>
-
-      {/* What the limit actually cost, which is what somebody looks at before
-          deciding whether the limit or the part is wrong. */}
-      {shown.length > 0 ? (
-        <ul className="mt-1" onMouseLeave={() => onHover([])}>
-          {shown.map((hit) => (
-            <li key={hit.tag}>
-              <button
-                className={`flex w-full items-center gap-2 rounded py-0.5 pl-4 pr-1 text-left text-2xs ${
-                  hit.tag === focusedTag
-                    ? 'bg-info/15 text-info'
-                    : 'text-zinc-400 hover:bg-zinc-800/60'
-                }`}
-                data-row={hit.tag}
-                onClick={() => onChoose(hit.tag)}
-                onFocus={() => onHover([hit.tag])}
-                onMouseEnter={() => onHover([hit.tag])}
-                type="button"
-              >
-                <span
-                  aria-hidden="true"
-                  className="size-1.5 shrink-0 rounded-full"
-                  style={{ background: bandCss(hit.band) }}
-                />
-                <span className="min-w-0 flex-1 truncate">{hit.label}</span>
-                <span className="shrink-0 text-zinc-500">{hit.direction}</span>
-                <span className="shrink-0 tabular-nums text-zinc-500">{hit.regions}f</span>
-              </button>
-            </li>
-          ))}
-
-          {/* The fifth feature a rule bit on is as interesting as the first to
-              somebody auditing it, and "and 20 more" with no way to see them is
-              a number to be taken on trust. */}
-          {hits.length > 4 ? (
-            <li>
-              <button
-                className="pl-4 text-3xs text-zinc-500 underline decoration-dotted"
-                onClick={() => setShowAll((all) => !all)}
-                type="button"
-              >
-                {showAll ? 'fewer' : `and ${hits.length - 4} more`}
-              </button>
-            </li>
-          ) : null}
-        </ul>
-      ) : null}
 
       {open ? (
-        <Settings onChange={onChange} onRemove={onRemove} rule={rule} types={types} unit={unit} />
+        <>
+          <div className="ml-4 mt-1 flex flex-col gap-2 rounded border border-zinc-800 bg-zinc-900/50 p-2">
+            <Limits onChange={onChange} rule={rule} unit={unit} />
+
+            <NumberBox
+              id={`${rule.id}-weight`}
+              label="weight"
+              metric={undefined}
+              onChange={(value) => onChange({ ...rule, weight: value ?? 0 })}
+              raw
+              unit={unit}
+              value={rule.weight}
+              width="w-16"
+            />
+          </div>
+
+          {/* What the limit actually cost, which is what somebody looks at
+              before deciding whether the limit or the part is wrong. */}
+          {shown.length > 0 ? (
+            <ul className="mt-1" onMouseLeave={() => onHover([])}>
+              {shown.map((hit) => (
+                <li key={hit.tag}>
+                  <button
+                    className={`flex w-full items-center gap-2 rounded py-0.5 pl-4 pr-1 text-left text-2xs ${
+                      hit.tag === focusedTag
+                        ? 'bg-info/15 text-info'
+                        : 'text-zinc-400 hover:bg-zinc-800/60'
+                    }`}
+                    data-row={hit.tag}
+                    onClick={() => onChoose(hit.tag)}
+                    // Arrowing onto a row opens it on the right, so the keyboard
+                    // thumbs through features rather than moving a highlight
+                    // somebody then has to press to read.
+                    onFocus={() => onChoose(hit.tag)}
+                    onMouseEnter={() => onHover([hit.tag])}
+                    type="button"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="size-1.5 shrink-0 rounded-full"
+                      style={{ background: bandCss(hit.band) }}
+                    />
+                    <span className="min-w-0 flex-1 truncate">{hit.label}</span>
+                    <span className="shrink-0 text-zinc-500">{hit.direction}</span>
+                    <span className="shrink-0 tabular-nums text-zinc-500">{hit.regions}f</span>
+                  </button>
+                </li>
+              ))}
+
+              {/* The fifth feature a rule bit on is as interesting as the first
+                  to somebody auditing it, and "and 20 more" with no way to see
+                  them is a number to be taken on trust. */}
+              {hits.length > 4 ? (
+                <li>
+                  <button
+                    className="pl-4 text-3xs text-zinc-500 underline decoration-dotted"
+                    onClick={() => setShowAll((all) => !all)}
+                    type="button"
+                  >
+                    {showAll ? 'fewer' : `and ${hits.length - 4} more`}
+                  </button>
+                </li>
+              ) : null}
+            </ul>
+          ) : null}
+
+          {editing ? (
+            <Settings
+              onChange={onChange}
+              onRemove={onRemove}
+              rule={rule}
+              types={types}
+              unit={unit}
+            />
+          ) : null}
+        </>
       ) : null}
     </li>
   )
