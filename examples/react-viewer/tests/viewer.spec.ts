@@ -114,3 +114,45 @@ test('pans with either pan button, from wherever the drag starts', async ({ page
     await expect(selected).toContainText('none')
   }
 })
+
+test('finishing a drag over a face is not a request to select it', async ({ page }) => {
+  await page.goto('/')
+  const canvas = page.locator('canvas')
+  await page.waitForTimeout(700)
+  const box = await canvas.boundingBox()
+  if (!box) throw new Error('Viewer canvas has no bounding box')
+
+  const selected = page.locator('p', { hasText: 'Selected:' })
+  const hovered = page.locator('p', { hasText: 'Hovered:' })
+  // Two points on two different faces of the cube.
+  const one = { x: box.width * 0.5, y: box.height * 0.32 }
+  const other = { x: box.width * 0.5, y: box.height * 0.62 }
+
+  await canvas.click({ position: one })
+  await expect(selected).not.toContainText('none')
+  const chosen = await selected.textContent()
+
+  // Press on the *other* face and orbit a little. The gesture ends over a face
+  // that is not the selected one, which is what the browser calls a click.
+  await page.mouse.move(box.x + other.x, box.y + other.y)
+  await page.mouse.down()
+  for (let step = 1; step <= 6; step += 1) {
+    await page.mouse.move(box.x + other.x + step * 4, box.y + other.y + step * 2)
+  }
+  await page.mouse.up()
+  await page.waitForTimeout(250)
+
+  // It really is a different face under the pointer, or this test would hold
+  // whatever the code did.
+  await expect(hovered).not.toContainText('none')
+  expect(await hovered.textContent()).not.toBe((chosen ?? '').replace('Selected:', 'Hovered:'))
+
+  // The selection is what the orbit was made to look at. Taking it away is
+  // taking away the reason for the gesture.
+  await expect(selected).toHaveText(chosen ?? '')
+
+  // A click still selects: the guard is about the drag, not about having
+  // dragged recently.
+  await canvas.click({ position: other })
+  await expect(selected).toContainText('back-face')
+})

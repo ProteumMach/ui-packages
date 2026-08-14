@@ -115,6 +115,20 @@ export const PartInspector = ({
     [focusedTag, report.features],
   )
   const [expandedType, setExpandedType] = useState<string | null>(null)
+  /**
+   * Whether the open type is still the question being asked.
+   *
+   * Separate from the type being open, because the two stop being the same
+   * thing the moment somebody clicks: the list stays open — it is how they got
+   * here and how they get back — but sixty painted walls have stopped being an
+   * answer to anything, and leaving them up buries whatever was just chosen.
+   */
+  const [typeIsAsking, setTypeIsAsking] = useState(false)
+
+  const expandType = (type: string | null) => {
+    setExpandedType(type)
+    setTypeIsAsking(type !== null)
+  }
 
   /**
    * The open type, lit on the part. Held under the pointer's own highlight:
@@ -125,10 +139,10 @@ export const PartInspector = ({
     () =>
       tagsOfType(
         report.features,
-        expandedType,
+        typeIsAsking ? expandedType : null,
         activeDirection === null ? null : (report.candidateDirections[activeDirection] ?? null),
       ),
-    [activeDirection, expandedType, report.candidateDirections, report.features],
+    [activeDirection, expandedType, report.candidateDirections, report.features, typeIsAsking],
   )
   const [unit, setUnit] = useState<Unit>('mm')
   const features = useMemo(() => filterFeatures(report.features, query), [query, report.features])
@@ -160,6 +174,7 @@ export const PartInspector = ({
   /** Naming a feature in the list is a different question from the one a click asked. */
   const choose = (featureTag: string) => {
     setSelection({ picks: [], candidates: [], focused: featureTag })
+    setTypeIsAsking(false)
   }
 
   /**
@@ -168,8 +183,10 @@ export const PartInspector = ({
    * Keeps the candidate list up: it is the control being used, and clearing it
    * on the first press left nothing to switch back with.
    */
-  const focusCandidate = (featureTag: string) =>
+  const focusCandidate = (featureTag: string) => {
     setSelection((current) => ({ ...current, focused: featureTag }))
+    setTypeIsAsking(false)
+  }
 
   /**
    * A click on the part offers its readings rather than deciding between them.
@@ -182,7 +199,10 @@ export const PartInspector = ({
    * is the end of the cycle, which is the point at which walking them again
    * would say nothing new.
    */
-  const pickFromPart = (pick: PartPick) => setSelection((current) => pickFace(current, pick))
+  const pickFromPart = (pick: PartPick) => {
+    setSelection((current) => pickFace(current, pick))
+    setTypeIsAsking(false)
+  }
 
   /**
    * Arrow keys walk the readings of the face that was clicked.
@@ -207,7 +227,7 @@ export const PartInspector = ({
           direction: activeDirection,
         })
         if (step === 'selection') setSelection(NOTHING_SELECTED)
-        else if (step === 'expandedType') setExpandedType(null)
+        else if (step === 'expandedType') expandType(null)
         else if (step === 'direction') setActiveDirection(null)
         return
       }
@@ -231,7 +251,7 @@ export const PartInspector = ({
           activeDirection={activeDirection}
           onPickDirection={holdDirection}
           expandedType={expandedType}
-          onExpandType={setExpandedType}
+          onExpandType={expandType}
           focusedTag={focusedTag}
           candidateTags={candidateTags}
           onChoose={choose}
@@ -325,7 +345,6 @@ export const PartInspector = ({
             jobId={jobId}
             selectedFeatureTag={focusedTag}
             highlightedFeatureTags={listHighlight({
-              selected: focusedTag,
               hovered: hoveredTags,
               ofType: typeTags,
               pointerOnPart,

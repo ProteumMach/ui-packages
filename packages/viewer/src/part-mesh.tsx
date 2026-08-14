@@ -6,6 +6,7 @@ import type { FeatureTag, PartModel } from './model/types.js'
 import type { FeatureHighlight, RegionHighlight } from './render/paint.js'
 import { applyHighlightLayers } from './render/paint.js'
 import { sectionBounds, sectionDepth, sectionOffset } from './render/section.js'
+import { useTapGuard } from './tap.js'
 import { createPart } from './render/part.js'
 import { type PartPick, buildPick, viewDirection } from './render/picking.js'
 import { useViewerControls } from './viewer.js'
@@ -216,6 +217,8 @@ export const PartMesh = ({
     repaint()
   }, [layerKey, repaint])
 
+  const isTap = useTapGuard()
+
   const pickFor = (event: ThreeEvent<PointerEvent | MouseEvent>): PartPick | null => {
     const triangleIndex = event.faceIndex
     if (triangleIndex == null) return null
@@ -278,6 +281,11 @@ export const PartMesh = ({
         onPointerMove={(event: ThreeEvent<PointerEvent>) => emitHover(pickFor(event))}
         onPointerOut={() => emitHover(null)}
         onClick={(event: ThreeEvent<MouseEvent>) => {
+          // The end of an orbit is not a request to select whatever it ended
+          // over — and it usually ends over the part, since that is what was
+          // being orbited.
+          if (!isTap(event.nativeEvent)) return
+
           const pick = pickFor(event)
           if (pick) onPick?.(pick)
         }}
