@@ -1,4 +1,4 @@
-import type { components } from '@toolpath/api'
+import type { Vec3 } from '@toolpath/api'
 import { sameDirection } from '@toolpath/viewer'
 import type { PartFeature } from './contracts'
 
@@ -32,7 +32,7 @@ const labelForType = (value: string): string =>
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
 
-export const directionLabel = ({ x, y, z }: components['schemas']['Vec3']): string => {
+export const directionLabel = ({ x, y, z }: Vec3): string => {
   const values: Array<[string, number]> = [
     ['X', x],
     ['Y', y],
@@ -130,7 +130,7 @@ export const rawDatasheet = (feature: PartFeature): string =>
 export function tagsOfType(
   features: readonly PartFeature[],
   featureType: string | null,
-  direction: components['schemas']['Vec3'] | null,
+  direction: Vec3 | null,
 ): string[] {
   if (featureType === null) return []
   return features

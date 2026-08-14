@@ -1,8 +1,11 @@
 {
   "name": "@toolpath/api",
   "version": "1.0.0",
-  "description": "Async TypeScript SDK for the Toolpath Engine API",
+  "description": "TypeScript bindings and upload helper for the Toolpath Engine API",
   "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/toolpath/toolpath.git",
@@ -32,9 +35,6 @@
   ],
   "scripts": {
     "build": "tsc"
-  },
-  "dependencies": {
-    "openapi-fetch": "0.17.0"
   },
   "devDependencies": {
     "@types/node": "24.10.1",

@@ -1,4 +1,4 @@
-import { createToolpath } from '@toolpath/api'
+import { createToolpathClient, ResponseError } from '@toolpath/api'
 import type { PartFeature, PartReport } from '../app/shared/contracts'
 
 const DATASHEET_BATCH_SIZE = 50
@@ -44,14 +44,20 @@ const engineFetch: typeof fetch = async (input, init) => {
 
 /** The sole construction point for the Toolpath TypeScript SDK in this application. */
 export const createEngineClient = (apiKey: string) =>
-  createToolpath({ apiKey, baseUrl: apiBaseUrl(), fetch: engineFetch }).api
+  createToolpathClient({ apiKey, baseUrl: apiBaseUrl(), fetch: engineFetch })
 
-export const requireData = <T>(
-  result: { data?: T; error?: unknown; response: Response },
+export const requireData = async <T>(
+  operationResult: Promise<T>,
   operation: string,
-): T => {
-  if (result.data) return result.data
-  throw new EngineError(result.response.status, 'engine_request_failed', operation)
+): Promise<T> => {
+  try {
+    return await operationResult
+  } catch (error) {
+    if (error instanceof ResponseError) {
+      throw new EngineError(error.response.status, 'engine_request_failed', operation)
+    }
+    throw error
+  }
 }
 
 export const getPartReport = async (
@@ -59,12 +65,18 @@ export const getPartReport = async (
   partId: string,
   jobId: string | null,
 ): Promise<PartReport | null> => {
-  const result = await createEngineClient(apiKey).GET('/v1/parts/{id}/report', {
-    params: { path: { id: partId }, query: jobId ? { jobId } : undefined },
-  })
-  if (result.data) return result.data as unknown as PartReport
-  if (result.response.status === 404) return null
-  throw new EngineError(result.response.status, 'engine_request_failed', 'get report')
+  try {
+    return (await createEngineClient(apiKey).parts.getPartReport({
+      id: partId,
+      jobId: jobId ?? undefined,
+    })) as PartReport
+  } catch (error) {
+    if (error instanceof ResponseError && error.response.status === 404) return null
+    if (error instanceof ResponseError) {
+      throw new EngineError(error.response.status, 'engine_request_failed', 'get report')
+    }
+    throw error
+  }
 }
 
 /**
@@ -89,8 +101,8 @@ export const getWholePartReport = async (
   const engine = createEngineClient(apiKey)
   for (let index = 0; index < missingIds.length; index += DATASHEET_BATCH_SIZE) {
     const ids = missingIds.slice(index, index + DATASHEET_BATCH_SIZE)
-    const datasheets = requireData(
-      await engine.GET('/v1/features/datasheets', { params: { query: { ids: ids.join(',') } } }),
+    const datasheets = await requireData(
+      engine.features.getFeatureDatasheets({ ids: ids.join(',') }),
       'get feature datasheets',
     )
     for (const entry of datasheets.datasheets) {

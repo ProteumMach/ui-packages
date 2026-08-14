@@ -1,6 +1,4 @@
-import createClient, { type Client } from 'openapi-fetch'
-
-import type { paths } from './generated/schema.js'
+import { Configuration, FeaturesApi, JobsApi, PartsApi, ServiceApi } from './generated/index.js'
 
 export interface ToolpathClientOptions {
   apiKey: string
@@ -8,17 +6,27 @@ export interface ToolpathClientOptions {
   fetch?: typeof globalThis.fetch
 }
 
-export type ToolpathClient = Client<paths>
+export interface ToolpathClient {
+  features: FeaturesApi
+  jobs: JobsApi
+  parts: PartsApi
+  service: ServiceApi
+}
 
 export const createToolpathClient = ({
   apiKey,
   baseUrl = 'https://api.toolpath.com',
   fetch,
-}: ToolpathClientOptions): ToolpathClient =>
-  createClient<paths>({
-    baseUrl,
-    fetch,
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-    },
+}: ToolpathClientOptions): ToolpathClient => {
+  const configuration = new Configuration({
+    basePath: baseUrl,
+    accessToken: apiKey,
+    fetchApi: fetch,
   })
+  return {
+    features: new FeaturesApi(configuration),
+    jobs: new JobsApi(configuration),
+    parts: new PartsApi(configuration),
+    service: new ServiceApi(configuration),
+  }
+}

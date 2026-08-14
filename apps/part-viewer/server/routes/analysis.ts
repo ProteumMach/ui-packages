@@ -1,7 +1,9 @@
 import { zValidator } from '@hono/zod-validator'
+import { createParser } from 'eventsource-parser'
 import type { Hono } from 'hono'
-import { streamSSE } from 'hono/streaming'
+import { streamSSE, type SSEStreamingApi } from 'hono/streaming'
 import { z } from 'zod'
+import { instanceOfJobDetail, JobDetailFromJSON, type JobDetail } from '@toolpath/api'
 import { toPublicInspectionReport, type AnalysisEvent } from '../../app/shared/contracts'
 import {
   EngineError,
@@ -13,19 +15,14 @@ import {
 import { requireApiKey } from '../connection'
 import type { AppEnv } from '../types'
 
-const POLL_INTERVAL_MS = 2_000
 const paramsSchema = z.object({ partId: z.string().min(1) })
 const querySchema = z.object({ jobId: z.string().min(1) })
 
 const readAnalysis = async (
   apiKey: string,
   partId: string,
-  jobId: string,
+  job: JobDetail,
 ): Promise<AnalysisEvent> => {
-  const job = requireData(
-    await createEngineClient(apiKey).GET('/v1/jobs/{id}', { params: { path: { id: jobId } } }),
-    'get analysis status',
-  )
   if (job.status === 'failed') {
     return {
       status: 'failed',
@@ -39,9 +36,63 @@ const readAnalysis = async (
       message: job.status === 'running' ? 'Analyzing geometry…' : 'Analysis is queued…',
     }
   }
-  const report = await getWholePartReport(apiKey, partId, jobId)
-  if (!report) return { status: 'pending', progress: job.progress, message: 'Finalizing report…' }
+  const report = await getWholePartReport(apiKey, partId, job.jobUuid)
+  if (!report) {
+    return {
+      status: 'failed',
+      message: 'Analysis completed, but the report was not available. Try opening the part again.',
+    }
+  }
   return { status: 'ready', report: toPublicInspectionReport(report) }
+}
+
+/** Forwards Engine job SSE events as the app-owned, redacted analysis stream. */
+const streamAnalysis = async (
+  apiKey: string,
+  partId: string,
+  jobId: string,
+  stream: SSEStreamingApi,
+): Promise<void> => {
+  const response = await requireData(
+    createEngineClient(apiKey).jobs.streamJobEventsRaw({ id: jobId }),
+    'open analysis events',
+  )
+  if (!response.raw.body) throw new Error('The Toolpath Engine returned an empty event stream.')
+
+  const jobs: JobDetail[] = []
+  const parser = createParser({
+    onEvent: (event) => {
+      if (event.event !== 'job') return
+      const payload: unknown = JSON.parse(event.data)
+      if (!payload || typeof payload !== 'object' || !instanceOfJobDetail(payload)) {
+        throw new Error('The Toolpath Engine returned an invalid job event.')
+      }
+      jobs.push(JobDetailFromJSON(payload))
+    },
+    onError: (error) => {
+      throw new Error(`The Toolpath Engine returned an invalid SSE event: ${error.message}`, {
+        cause: error,
+      })
+    },
+  })
+
+  const textStream = response.raw.body.pipeThrough(new TextDecoderStream())
+  try {
+    for await (const chunk of textStream) {
+      parser.feed(chunk)
+      while (jobs.length > 0) {
+        const job = jobs.shift()!
+        const analysis = await readAnalysis(apiKey, partId, job)
+        if (stream.aborted) return
+        await stream.writeSSE({ event: 'analysis', data: JSON.stringify(analysis) })
+        if (analysis.status !== 'pending') return
+      }
+    }
+  } finally {
+    await textStream.cancel()
+  }
+
+  throw new Error('The Toolpath Engine closed the event stream before analysis completed.')
 }
 
 export const registerAnalysisRoutes = (app: Hono<AppEnv>) => {
@@ -56,16 +107,7 @@ export const registerAnalysisRoutes = (app: Hono<AppEnv>) => {
 
       return streamSSE(c, async (stream) => {
         try {
-          // The browser always consumes this app-owned SSE stream. Until Engine exposes its own
-          // analysis-event endpoint, this loop polls the SDK's job endpoint and forwards its
-          // normalized states. Replace this loop with an Engine SSE subscription when available;
-          // keep the events emitted below so the React client does not need to change.
-          while (!stream.aborted) {
-            const event = await readAnalysis(apiKey, partId, jobId)
-            await stream.writeSSE({ event: 'analysis', data: JSON.stringify(event) })
-            if (event.status !== 'pending') return
-            await stream.sleep(POLL_INTERVAL_MS)
-          }
+          await streamAnalysis(apiKey, partId, jobId, stream)
         } catch (error) {
           if (stream.aborted) return
           const message =

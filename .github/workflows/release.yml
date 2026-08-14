@@ -31,11 +31,18 @@ jobs:
           node-version: 24.18.0
           package-manager-cache: false
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        if: inputs.package != 'sdk'
         with:
           version: 0.11.28
           python-version: '3.11'
       - run: pnpm install --frozen-lockfile
-      - run: pnpm check
+      - name: Validate the selected package
+        run: |
+          if [ "${{ inputs.package }}" = "sdk" ]; then
+            pnpm release:typescript-sdk:check
+          else
+            pnpm check
+          fi
       - run: node scripts/prepare-release.mjs
         env:
           RELEASE_PACKAGE: ${{ inputs.package }}
@@ -69,28 +76,10 @@ jobs:
       - run: npm install --global npm@11.19.0
       - name: Publish TypeScript SDK
         if: inputs.package == 'sdk'
-        run: npm publish release-artifacts/toolpath-api-*.tgz --access public
+        run: npm publish release-artifacts/toolpath-api-*.tgz --access public --provenance
       - name: Publish UI package
         if: inputs.package == 'ui'
         run: npm publish release-artifacts/toolpath-ui-*.tgz --access public
       - name: Publish viewer package
         if: inputs.package == 'viewer'
         run: npm publish release-artifacts/toolpath-viewer-*.tgz --access public
-
-  publish-pypi:
-    if: inputs.publish && inputs.package == 'sdk'
-    needs:
-      - build-and-test
-      - publish-npm
-    runs-on: ubuntu-latest
-    environment: publish
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v7
-        with:
-          name: release-packages
-          path: release-artifacts
-      - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: release-artifacts

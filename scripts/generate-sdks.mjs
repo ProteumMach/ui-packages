@@ -5,6 +5,7 @@ import { assertInsideRepository, repositoryRoot, run } from './lib.mjs'
 
 const openApiPath = join(repositoryRoot, 'openapi/openapi.json')
 const typescriptRoot = join(repositoryRoot, 'packages/sdk-typescript')
+const typescriptGeneratedRoot = join(typescriptRoot, 'src/generated')
 const pythonRoot = join(repositoryRoot, 'packages/sdk-python')
 const pythonPackageRoot = join(pythonRoot, 'toolpath')
 const [openApiChecksum, releaseMetadata] = await Promise.all([
@@ -18,20 +19,46 @@ if (!pythonVersion) {
   throw new Error('Python generator config does not declare package_version_override')
 }
 
-await mkdir(join(typescriptRoot, 'src/generated'), { recursive: true })
-await rm(assertInsideRepository(join(typescriptRoot, 'src/schema.ts')), { force: true })
-await run('pnpm', [
-  'exec',
-  'openapi-typescript',
-  openApiPath,
-  '--output',
-  join(typescriptRoot, 'src/generated/schema.ts'),
-])
-await run('pnpm', ['exec', 'prettier', '--write', join(typescriptRoot, 'src/generated/schema.ts')])
+const typescriptStagingRoot = await mkdtemp(join(tmpdir(), 'toolpath-typescript-codegen-'))
 const pythonStagingRoot = await mkdtemp(join(tmpdir(), 'toolpath-python-codegen-'))
 const pythonStagingOutput = join(pythonStagingRoot, 'client')
 
 try {
+  const user = `${process.getuid?.() ?? 1000}:${process.getgid?.() ?? 1000}`
+  await run('docker', [
+    'run',
+    '--rm',
+    '--user',
+    user,
+    '--volume',
+    `${repositoryRoot}:/local:ro`,
+    '--volume',
+    `${typescriptStagingRoot}:/out`,
+    'openapitools/openapi-generator-cli:v7.24.0',
+    'generate',
+    '--input-spec',
+    '/local/openapi/openapi.json',
+    '--generator-name',
+    'typescript-fetch',
+    '--output',
+    '/out',
+    '--config',
+    '/local/codegen/typescript-fetch.yaml',
+  ])
+  await rm(assertInsideRepository(typescriptGeneratedRoot), { recursive: true, force: true })
+  await mkdir(assertInsideRepository(typescriptGeneratedRoot), { recursive: true })
+  await Promise.all([
+    cp(join(typescriptStagingRoot, 'apis'), join(typescriptGeneratedRoot, 'apis'), {
+      recursive: true,
+    }),
+    cp(join(typescriptStagingRoot, 'models'), join(typescriptGeneratedRoot, 'models'), {
+      recursive: true,
+    }),
+    cp(join(typescriptStagingRoot, 'index.ts'), join(typescriptGeneratedRoot, 'index.ts')),
+    cp(join(typescriptStagingRoot, 'runtime.ts'), join(typescriptGeneratedRoot, 'runtime.ts')),
+  ])
+  await run('pnpm', ['exec', 'prettier', '--write', typescriptGeneratedRoot])
+
   await run('uvx', [
     '--from',
     'openapi-python-client==0.29.0',
@@ -66,7 +93,10 @@ try {
     { recursive: true },
   )
 } finally {
-  await rm(pythonStagingRoot, { recursive: true, force: true })
+  await Promise.all([
+    rm(typescriptStagingRoot, { recursive: true, force: true }),
+    rm(pythonStagingRoot, { recursive: true, force: true }),
+  ])
 }
 
 const typescriptPackagePath = join(typescriptRoot, 'package.json')

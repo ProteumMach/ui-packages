@@ -21,6 +21,7 @@
     "@toolpath/api": "workspace:*",
     "@toolpath/ui": "workspace:*",
     "@toolpath/viewer": "workspace:*",
+    "eventsource-parser": "4.0.0",
     "hono": "4.13.0",
     "isbot": "^5",
     "jose": "6.2.8",

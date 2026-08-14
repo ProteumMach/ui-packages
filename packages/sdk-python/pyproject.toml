@@ -1,7 +1,7 @@
 [project]
 name = "toolpath"
 version = "1.0.0"
-description = "Async Python SDK for the Toolpath Engine API"
+description = "Python bindings and upload helper for the Toolpath Engine API"
 authors = [{ name = "Toolpath" }]
 requires-python = ">=3.11"
 readme = "README.md"

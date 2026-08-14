@@ -1,11 +1,10 @@
-"""Async SDK façade and generated API bindings for Toolpath Engine API."""
+"""Generated API bindings and upload helper for the Toolpath Engine API."""
 
 from .generated.client import AuthenticatedClient, Client
-from .toolpath import Toolpath, ToolpathWorkflowError
+from .upload import upload_to_presigned_url
 
 __all__ = (
     "AuthenticatedClient",
     "Client",
-    "Toolpath",
-    "ToolpathWorkflowError",
+    "upload_to_presigned_url",
 )

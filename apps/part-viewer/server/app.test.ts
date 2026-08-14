@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, test, vi } from 'vitest'
+import type { JobDetail } from '@toolpath/api'
 import { readAnalysis } from './routes/analysis'
 import { createApp } from './app'
 
@@ -32,6 +33,26 @@ const report = (meshGlbUrl: string | null = null) => ({
   analysisMs: 2,
   totalMs: 3,
 })
+
+const analysisJob = (status: JobDetail['status'], error: string | null = null): JobDetail => ({
+  partUuid: 'part-1',
+  jobUuid: 'job-1',
+  productType: 'analyze-part',
+  status,
+  progress: status === 'queued' ? null : 100,
+  error,
+  reportId: status === 'succeeded' ? 'report-1' : null,
+  createdAt: new Date('2026-08-13T00:00:00.000Z'),
+})
+
+const analysisStream = (job: JobDetail): Response =>
+  new Response(
+    `event: job\ndata: ${JSON.stringify({
+      ...job,
+      createdAt: job.createdAt.toISOString(),
+    })}\n\n`,
+    { headers: { 'Content-Type': 'text/event-stream' } },
+  )
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -201,12 +222,11 @@ describe('Part Viewer Hono API', () => {
     )
   })
 
-  test('streams a redacted ready report and never calls the jobs list endpoint', async () => {
+  test('streams a redacted ready report from Engine job events', async () => {
     vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
       const request = new Request(input, init)
       const url = new URL(request.url)
-      if (url.pathname === '/v1/jobs/job-1')
-        return Response.json({ jobId: 'job-1', partId: 'part-1', status: 'succeeded', progress: 1 })
+      if (url.pathname === '/v1/jobs/job-1/events') return analysisStream(analysisJob('succeeded'))
       if (url.pathname === '/v1/parts/part-1/report')
         return Response.json(report('https://mesh.test/a?signature=secret'))
       throw new Error(`Unexpected request ${request.method} ${request.url}`)
@@ -226,8 +246,7 @@ describe('Part Viewer Hono API', () => {
     vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
       const request = new Request(input, init)
       const url = new URL(request.url)
-      if (url.pathname === '/v1/jobs/job-1')
-        return Response.json({ jobId: 'job-1', partId: 'part-1', status: 'succeeded', progress: 1 })
+      if (url.pathname === '/v1/jobs/job-1/events') return analysisStream(analysisJob('succeeded'))
       if (url.pathname === '/v1/parts/part-1/report')
         return Response.json({
           ...report(),
@@ -259,7 +278,9 @@ describe('Part Viewer Hono API', () => {
       throw new Error(`Unexpected request ${request.method} ${request.url}`)
     })
 
-    await expect(readAnalysis('tp_secret_key', 'part-1', 'job-1')).resolves.toMatchObject({
+    await expect(
+      readAnalysis('tp_secret_key', 'part-1', analysisJob('succeeded')),
+    ).resolves.toMatchObject({
       status: 'ready',
       report: {
         features: [
@@ -272,36 +293,22 @@ describe('Part Viewer Hono API', () => {
     })
   })
 
-  test('maps queued and failed Engine jobs without requesting a report', async () => {
-    const requests: string[] = []
-    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
-      const request = new Request(input, init)
-      requests.push(new URL(request.url).pathname)
-      return Response.json({ jobId: 'job-1', partId: 'part-1', status: 'queued', progress: null })
-    })
-    await expect(readAnalysis('tp_secret_key', 'part-1', 'job-1')).resolves.toEqual({
+  test('maps queued and failed Engine job events without requesting a report', async () => {
+    await expect(readAnalysis('tp_secret_key', 'part-1', analysisJob('queued'))).resolves.toEqual({
       status: 'pending',
       progress: null,
       message: 'Analysis is queued…',
     })
-    expect(requests).toEqual(['/v1/jobs/job-1'])
 
-    vi.stubGlobal('fetch', async () =>
-      Response.json({
-        jobId: 'job-1',
-        partId: 'part-1',
-        status: 'failed',
-        progress: null,
-        error: 'Invalid geometry',
-      }),
-    )
-    await expect(readAnalysis('tp_secret_key', 'part-1', 'job-1')).resolves.toEqual({
+    await expect(
+      readAnalysis('tp_secret_key', 'part-1', analysisJob('failed', 'Invalid geometry')),
+    ).resolves.toEqual({
       status: 'failed',
       message: 'Invalid geometry',
     })
   })
 
-  test('sends a terminal event when Engine status reads fail', async () => {
+  test('sends a terminal event when the Engine event stream fails', async () => {
     vi.stubGlobal('fetch', async () => {
       throw new Error('Engine unavailable')
     })

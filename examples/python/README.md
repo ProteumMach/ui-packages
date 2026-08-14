@@ -1,7 +1,8 @@
 # Python part analysis
 
 This command uses the local `toolpath` package to create a part, upload a STEP file, start analysis,
-poll until the report is ready, and print the complete report as JSON.
+listen until the report is ready, fetch feature datasheets, and print the complete report as JSON.
+Analysis progress is received from the Engine job SSE stream.
 
 Install [Python 3.11 or newer](https://www.python.org/downloads/) and
 [uv](https://docs.astral.sh/uv/getting-started/installation/). Then replace the example API key and
@@ -27,11 +28,11 @@ macOS or Linux:
 TOOLPATH_API_KEY="your-api-key" uv run --project examples/python python examples/python/src/analyze_part.py "/path/to/part.step"
 ```
 
-The final output is the report returned by the API:
+The final output is the complete report returned by the API:
 
 ```text
-Analysis started as job 0195f02c-...
-Waiting for the report...
+Analysis started as job 0195f02d-...
+Analyzing geometry...
 {
   "partId": "0195f02c-...",
   "jobId": "0195f02d-...",

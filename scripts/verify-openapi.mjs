@@ -3,13 +3,20 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { repositoryRoot } from './lib.mjs'
 
+const target = process.env.VERIFY_OPENAPI_TARGET ?? 'all'
+if (target !== 'all' && target !== 'typescript') {
+  throw new Error('VERIFY_OPENAPI_TARGET must be all or typescript')
+}
+
 const [artifact, checksumFile, releaseFile, typescriptPackageFile, pythonPackageFile] =
   await Promise.all([
     readFile(join(repositoryRoot, 'openapi/openapi.json')),
     readFile(join(repositoryRoot, 'openapi/openapi.sha256'), 'utf8'),
     readFile(join(repositoryRoot, 'openapi/release.json'), 'utf8'),
     readFile(join(repositoryRoot, 'packages/sdk-typescript/package.json'), 'utf8'),
-    readFile(join(repositoryRoot, 'packages/sdk-python/pyproject.toml'), 'utf8'),
+    target === 'all'
+      ? readFile(join(repositoryRoot, 'packages/sdk-python/pyproject.toml'), 'utf8')
+      : Promise.resolve(null),
   ])
 const document = JSON.parse(artifact.toString('utf8'))
 const release = JSON.parse(releaseFile)
@@ -36,9 +43,11 @@ if (
 ) {
   throw new Error('TypeScript package provenance does not match the OpenAPI release metadata')
 }
-for (const value of [sha256, release.apiVersion]) {
-  if (!pythonPackageFile.includes(`"${value}"`)) {
-    throw new Error('Python package provenance does not match the OpenAPI release metadata')
+if (pythonPackageFile) {
+  for (const value of [sha256, release.apiVersion]) {
+    if (!pythonPackageFile.includes(`"${value}"`)) {
+      throw new Error('Python package provenance does not match the OpenAPI release metadata')
+    }
   }
 }
 
