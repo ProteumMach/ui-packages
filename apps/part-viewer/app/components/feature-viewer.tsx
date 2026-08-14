@@ -207,7 +207,7 @@ export const FeatureViewer = ({
   )
 
   return (
-    <section className="relative size-full min-h-[32rem] bg-zinc-900">
+    <section className="relative size-full min-h-[32rem] bg-zinc-950">
       <div className="absolute left-3 top-3 z-10 flex flex-col items-start gap-1.5">
         <div className="flex items-center gap-1.5" aria-label="Viewer controls">
           {/* A shelf rather than a toggle: what the part is coloured by is the

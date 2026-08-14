@@ -82,7 +82,7 @@ export const RulesPanel = ({
   }, [pending, set.rules])
 
   return (
-    <aside className="size-full overflow-y-auto bg-zinc-950 p-3 text-xs">
+    <aside className="size-full overflow-y-auto bg-zinc-900 p-3 text-xs">
       <Heading>Rule set</Heading>
 
       <div className="flex items-center gap-1.5">

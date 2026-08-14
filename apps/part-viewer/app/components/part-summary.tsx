@@ -72,7 +72,7 @@ export const PartSummary = ({
           aria-label={`Units: ${unit}. Switch to ${unit === 'mm' ? 'in' : 'mm'}`}
           title={`Reading in ${unit} — click for ${unit === 'mm' ? 'in' : 'mm'}`}
           onClick={() => onUnit(unit === 'mm' ? 'in' : 'mm')}
-          className="rounded border border-zinc-700 bg-transparent px-2 py-0.5 text-2xs font-medium text-zinc-400 transition hover:bg-zinc-900 hover:text-zinc-100"
+          className="rounded border border-zinc-700 bg-transparent px-2 py-0.5 text-2xs font-medium text-zinc-400 transition hover:bg-zinc-950/60 hover:text-zinc-100"
         >
           {unit}
         </button>
@@ -145,7 +145,7 @@ export const PartSummary = ({
                 aria-expanded={open}
                 onClick={() => onExpandType(open ? null : entry.type)}
                 className={`flex w-full items-baseline gap-2 rounded px-1 py-1 text-left transition ${
-                  open ? 'bg-zinc-900 text-zinc-100' : 'text-zinc-300 hover:bg-zinc-900'
+                  open ? 'bg-zinc-950/60 text-zinc-100' : 'text-zinc-300 hover:bg-zinc-950/60'
                 }`}
               >
                 <span aria-hidden="true" className="w-2 text-zinc-500">
@@ -188,7 +188,7 @@ export const PartSummary = ({
                                 ? 'bg-info/15 text-info'
                                 : candidateTags.includes(feature.featureTag)
                                   ? 'bg-warning/10 text-zinc-200'
-                                  : 'text-zinc-400 hover:bg-zinc-900'
+                                  : 'text-zinc-400 hover:bg-zinc-950/60'
                             }`}
                           >
                             <span className="flex-1 truncate font-mono">

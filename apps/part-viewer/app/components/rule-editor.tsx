@@ -157,7 +157,7 @@ const BandDots = ({ rule, unit }: { rule: Rule; unit: Unit }) => {
       {limits.map((limit) => (
         <li
           key={limit.band}
-          className="flex shrink-0 items-center gap-1 rounded bg-zinc-900 px-1.5 py-0.5 text-2xs tabular-nums text-zinc-300"
+          className="flex shrink-0 items-center gap-1 rounded bg-zinc-950/60 px-1.5 py-0.5 text-2xs tabular-nums text-zinc-300"
           title={`${limit.name} ${limit.range}`}
         >
           <span
@@ -914,7 +914,7 @@ export const RuleCard = ({
                     className={`flex w-full items-center gap-2 rounded py-0.5 pl-4 pr-1 text-left text-2xs ${
                       hit.tag === focusedTag
                         ? 'bg-info/15 text-info'
-                        : 'text-zinc-400 hover:bg-zinc-900'
+                        : 'text-zinc-400 hover:bg-zinc-950/60'
                     }`}
                     data-row={hit.tag}
                     onClick={() => onChoose(hit.tag)}

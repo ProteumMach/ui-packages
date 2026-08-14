@@ -113,7 +113,7 @@ export const FeatureDetail = ({
                   aria-pressed={chosen}
                   onClick={() => onChoose(candidate.featureTag)}
                   className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs transition ${
-                    chosen ? 'bg-info/15 text-info' : 'text-zinc-300 hover:bg-zinc-900'
+                    chosen ? 'bg-info/15 text-info' : 'text-zinc-300 hover:bg-zinc-950/60'
                   }`}
                 >
                   <span className="w-3 tabular-nums text-zinc-500">{at + 1}</span>

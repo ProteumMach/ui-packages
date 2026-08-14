@@ -278,7 +278,7 @@ export const PartInspector = ({
 
   const tabPanel =
     tab === 'inspector' ? (
-      <aside className="flex size-full min-h-0 flex-col overflow-y-auto bg-zinc-950">
+      <aside className="flex size-full min-h-0 flex-col overflow-y-auto bg-zinc-900">
         <PartSummary
           report={report}
           features={features}
@@ -310,7 +310,7 @@ export const PartInspector = ({
         unit={unit}
       />
     ) : (
-      <aside className="size-full overflow-y-auto bg-zinc-950 p-4">
+      <aside className="size-full overflow-y-auto bg-zinc-900 p-4">
         <p className="text-xs font-bold uppercase tracking-wide text-info">Directions</p>
         <h2 className="mt-1 font-display text-2xl font-bold">Machining directions</h2>
         <p className="mt-3 text-sm leading-6 text-zinc-400">
