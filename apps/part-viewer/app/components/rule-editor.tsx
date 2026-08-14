@@ -7,13 +7,14 @@ import { METRICS } from '../shared/metrics'
 import type { RuleHit } from '../shared/rule-text'
 import {
   displayDecimals,
+  formatMetric,
   fromDisplay,
   ruleLimits,
   toDisplay,
   unitSuffix,
 } from '../shared/rule-text'
 import type { Band, FlagRule, Rule, RuleType, ThresholdRule } from '../shared/rules'
-import { BANDS, FLAG_TESTS, RULE_TYPES, asType, bandName } from '../shared/rules'
+import { BANDS, FLAG_TESTS, RULE_TYPES, asType, bandName, hardStop } from '../shared/rules'
 import type { Unit } from '../shared/units'
 import { decimalsFor } from '../shared/units'
 
@@ -110,6 +111,24 @@ const NumberBox = ({
   </div>
 )
 
+/**
+ * A limit and the span it makes, in one column.
+ *
+ * The span sits under the box that sets it and shares its width, so the two
+ * stay together when the panel is narrowed and the row wraps — a range that
+ * reflows out from under its own number is worse than no range at all. Italic
+ * and small because it is derived: it says what the number above it means, and
+ * it is not another thing to type into.
+ */
+const ThresholdColumn = ({ range, children }: { range?: string; children: ReactNode }) => (
+  <div className="flex w-24 flex-col gap-0.5">
+    {children}
+    <span className="truncate text-3xs italic tabular-nums text-zinc-500" title={range}>
+      {range}
+    </span>
+  </div>
+)
+
 /** The five bands as dots, named on hover — one line, whatever the width. */
 const BandDots = ({ rule, unit }: { rule: Rule; unit: Unit }) => {
   const limits = ruleLimits(rule, unit)
@@ -157,9 +176,9 @@ const Limits = ({
     const limits = ruleLimits(rule, unit)
 
     return (
-      <div className="flex flex-wrap items-start gap-2">
+      <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
         {rule.thresholds.map((threshold, at) => (
-          <div key={BANDS[at]} className="flex flex-col gap-0.5">
+          <ThresholdColumn key={BANDS[at]} range={limits[at]?.range}>
             <NumberBox
               band={BANDS[at]}
               id={`${rule.id}-band-${at}`}
@@ -169,10 +188,9 @@ const Limits = ({
               unit={unit}
               value={threshold}
             />
-            <span className="text-3xs tabular-nums text-zinc-500">{limits[at]?.range}</span>
-          </div>
+          </ThresholdColumn>
         ))}
-        <div className="flex flex-col gap-0.5">
+        <ThresholdColumn range={limits.at(-1)?.range}>
           <NumberBox
             band="no go"
             id={`${rule.id}-no-go`}
@@ -182,13 +200,11 @@ const Limits = ({
               const { noGo: _dropped, ...rest } = rule
               onChange(value === undefined ? rest : { ...rule, noGo: value })
             }}
+            placeholder={formatMetric(hardStop(rule), rule.metric, unit)}
             unit={unit}
             value={rule.noGo}
           />
-          <span className="text-3xs tabular-nums text-zinc-500">
-            {limits.at(-1)?.band === 'no go' ? limits.at(-1)?.range : ''}
-          </span>
-        </div>
+        </ThresholdColumn>
       </div>
     )
   }
@@ -394,8 +410,16 @@ const Settings = ({
           </select>
         </Field>
 
-        {rule.type === 'baseline' ? null : (
-          <Field label="Reads">
+        <Field label="Reads">
+          {/* A baseline reads the kind of feature rather than a measurement.
+              Saying so here beats hiding the control: "what does this rule
+              read" is asked of every rule, and a gap where the answer should be
+              reads as a control somebody forgot to fill in. */}
+          {rule.type === 'baseline' ? (
+            <select aria-label="Measurement" className={`${SELECT} max-w-64`} disabled value="type">
+              <option value="type">The kind of feature</option>
+            </select>
+          ) : (
             <select
               aria-label="Measurement"
               className={`${SELECT} max-w-64`}
@@ -409,8 +433,8 @@ const Settings = ({
                 </option>
               ))}
             </select>
-          </Field>
-        )}
+          )}
+        </Field>
       </div>
 
       {rule.type === 'threshold' ? (
@@ -429,41 +453,9 @@ const Settings = ({
             </select>
           </Field>
 
-          {rule.thresholds.map((threshold, at) => (
-            <NumberBox
-              key={BANDS[at]}
-              band={BANDS[at]}
-              id={`${rule.id}-band-${at}`}
-              label={bandName(BANDS[at] as Band, undefined, rule.bandNames)}
-              metric={metric}
-              onChange={(value) => {
-                if (value === undefined) return
-                const thresholds = [...rule.thresholds] as ThresholdRule['thresholds']
-                thresholds[at] = value
-                onChange({ ...rule, thresholds })
-              }}
-              unit={unit}
-              value={threshold}
-            />
-          ))}
-
-          <NumberBox
-            band="no go"
-            id={`${rule.id}-no-go`}
-            label={bandName('no go', undefined, rule.bandNames)}
-            metric={metric}
-            onChange={(value) => {
-              const { noGo: _dropped, ...rest } = rule
-              onChange(value === undefined ? rest : { ...rule, noGo: value })
-            }}
-            placeholder="none"
-            unit={unit}
-            value={rule.noGo}
-          />
+          <Limits onChange={onChange} rule={rule} unit={unit} />
         </div>
       ) : null}
-
-      {rule.type === 'threshold' ? <BandDots rule={rule} unit={unit} /> : null}
 
       {rule.type === 'range' ? (
         <div className="flex flex-col gap-1">

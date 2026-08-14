@@ -53,15 +53,18 @@ describe('ruleLimits', () => {
   test('lays out the bands a measurement was judged against', () => {
     const limits = ruleLimits(drilling, 'mm')
 
+    // Every box bounds its own band: the fourth is where rats stops, which is
+    // also where a refusal begins when a rule does not name one of its own.
     expect(limits.map((limit) => `${limit.name} ${limit.range}`)).toEqual([
       'easy ∞ – 3.0',
       'alright 3.0 – 5.0',
       'meh 5.0 – 8.0',
-      'rats 8.0 – ∞',
+      'rats 8.0 – 12.0',
+      'no go 12.0 – ∞',
     ])
     // The band is carried alongside its words, so a row can be marked as the
     // one a measurement landed in without matching on the text.
-    expect(limits.map((limit) => limit.band)).toEqual(['easy', 'alright', 'meh', 'rats'])
+    expect(limits.map((limit) => limit.band)).toEqual(['easy', 'alright', 'meh', 'rats', 'no go'])
   })
 
   test('shows an open end as infinity at either end of the scale', () => {
@@ -79,7 +82,7 @@ describe('ruleLimits', () => {
   })
 
   test('uses a shop’s own words for the bands', () => {
-    expect(ruleLimits(drilling, 'mm', { rats: 'call me' }).at(-1)?.name).toBe('call me')
+    expect(ruleLimits(drilling, 'mm', { rats: 'call me' })[3]?.name).toBe('call me')
   })
 
   test('has nothing to lay out for a rule with no scale', () => {

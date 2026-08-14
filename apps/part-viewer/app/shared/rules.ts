@@ -480,9 +480,21 @@ export interface BandRange {
  * band and refused at the same time, which is a rule half-edited rather than a
  * scale.
  */
-const hardStop = (rule: ThresholdRule): number | null =>
+/**
+ * Where the scale stops being a scale.
+ *
+ * The fourth threshold is the rats limit, so it is where a refusal starts when
+ * a rule does not name one of its own. It used to be ignored unless a refusal
+ * sat below it, which left the box labelled "rats to" doing nothing at all and
+ * the rats band running off to infinity past a number somebody had typed.
+ *
+ * An explicit refusal can only push that boundary further out, never pull it
+ * in: "rats up to 12" is what a hard job looks like and "no go past 15" is
+ * where it stops being a job, and anything between the two is still rats.
+ */
+export const hardStop = (rule: ThresholdRule): number =>
   rule.noGo === undefined
-    ? null
+    ? rule.thresholds[3]
     : rule.direction === 'higher is harder'
       ? Math.max(rule.noGo, rule.thresholds[3])
       : Math.min(rule.noGo, rule.thresholds[3])
@@ -499,16 +511,13 @@ const hardStop = (rule: ThresholdRule): number | null =>
  */
 export const bandRanges = (rule: ThresholdRule): Array<BandRange> => {
   const [easy, alright, meh] = rule.thresholds
-  const rats = rule.thresholds[3]
   const rising = rule.direction === 'higher is harder'
-  // Rats runs to the point of refusal when there is one, so nothing falls
-  // between the two.
   const stop = hardStop(rule)
   const last: BandRange = {
     band: 'no go',
-    from: rising ? (stop ?? rats) : null,
-    to: rising ? null : (stop ?? rats),
-    reachable: stop !== null,
+    from: rising ? stop : null,
+    to: rising ? null : stop,
+    reachable: true,
   }
 
   const bounded = (band: Band, lower: number | null, upper: number | null): BandRange =>
@@ -520,8 +529,7 @@ export const bandRanges = (rule: ThresholdRule): Array<BandRange> => {
     bounded('easy', null, easy),
     bounded('alright', easy, alright),
     bounded('meh', alright, meh),
-    // Rats runs to the point of refusal, and without one it runs off the end:
-    // everything past the last threshold is rats.
+    // Rats runs from the meh limit to its own, which is where a refusal begins.
     bounded('rats', meh, stop),
     last,
   ]

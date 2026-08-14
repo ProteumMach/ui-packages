@@ -180,7 +180,9 @@ test('shows the limits it judges by, and what they made of a feature', async ({ 
   // Engine never reported.
   await expect(page.getByText('partZMax − zMin ÷ facts.diameter')).toBeVisible()
   await expect(page.getByText('6.35 mm', { exact: true }).last()).toBeVisible()
-  await expect(page.getByText('8.0 – ∞').first()).toBeVisible()
+  // The fourth box bounds rats, and is where a refusal starts when a rule
+  // names none of its own.
+  await expect(page.getByText('8.0 – 12.0').first()).toBeVisible()
   // A rule that agreed and a rule that never ran read identically on a feature
   // that scored well, so the silent ones are counted rather than dropped.
   await expect(page.getByText(/rules? said nothing/)).toBeVisible()
@@ -236,7 +238,8 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
     .getByRole('button', { name: /hole-1/ })
     .first()
     .click()
-  await expect(page.getByText('rats', { exact: true }).first()).toBeVisible()
+  // Past the rats limit, which is where this rule now refuses.
+  await expect(page.getByText('no go', { exact: true }).first()).toBeVisible()
 
   // A rule switched off stops judging without being deleted.
   await page.getByRole('tab', { name: 'Rules' }).click()
