@@ -21,11 +21,15 @@ Status: **not started.** This document is the proposal.
 | `rules/presets.ts`          | 523 LOC           | Verbatim — 15 shipped rules, and the numbers are the product     |
 | `rules/saved-rules.ts`      | 125 LOC           | Verbatim, minus the key name                                     |
 | `rules/band-display.ts`     | 283 LOC           | Colours and formatting; our units module already does half       |
-| `rules/expression.ts`       | 329 LOC           | **Not in this plan** — see §3                                    |
-| `rules/direction-scores.ts` | 109 LOC           | **Not in this plan** — see §3                                    |
-| Rules page + editor         | ~2,500 LOC of TSX | **Not in this plan** — see §3                                    |
+| `rules/expression.ts`       | 329 LOC           | Verbatim — the editor needs it                                   |
+| `rules/direction-scores.ts` | 109 LOC           | **Not in this plan** — wants setups                              |
+| Rules page + editor         | ~2,500 LOC of TSX | Ported, as PRs 7–9 — the largest single piece                    |
 
-The engine half is the part worth having and the part that ports cleanly. It is
+The editor is the largest single piece here — roughly half the total — and it
+earns that by being the only part that lets a shop disagree with a number, which
+is what a rule set is for.
+
+The engine half ports cleanly for one reason: it is
 pure arithmetic over the Engine's datasheet: `readMetrics(feature, partContext)`
 touches `feature.datasheet` and `feature.machiningDirection`, both of which our
 `PartFeature` already carries in the same shape. There is no geometry in it, no
@@ -44,11 +48,13 @@ is the bulk of the port and none of it is clever.
 
 - **`app/shared/measurements.ts`** reads the same datasheet for the detail panel
   — reach, feature depth, min radius, L/D, area, diameter. This overlaps
-  `metrics.ts` head-on. **Decision: `metrics.ts` becomes the one reader, and
-  `measurements.ts` is rewritten on top of it** (PR 1). Two modules reading
-  `facts.cd.ignore.min` and disagreeing by a factor of two is exactly the bug
-  this avoids, and the picker's own note about a card reading 8.28 mm beside
-  0.326 in is the same lesson.
+  `metrics.ts` head-on. **Decision: they land side by side, pinned to each other
+  by a differential test, and only then does one of them go** (PR 1). A
+  big-bang rewrite would ask a reviewer to check a hundred numbers by eye; the
+  test checks them against the fixtures, and where the two disagree the
+  disagreement is itself the finding — one of them is wrong about the Engine.
+  The picker's own note about a card reading 8.28 mm beside 0.326 in is what
+  happens without that.
 - **`app/shared/units.ts`** already converts and rounds. `band-display.ts`'s
   formatting half collapses into it.
 - **`paintWash` / `PaintMode`** already paints the part per feature from a
@@ -56,24 +62,25 @@ is the bulk of the port and none of it is clever.
 - **The selection blue.** Already moved off orange for exactly this: the bands
   are a warm ramp and a selection cannot sit over them in orange.
 
-## 3. What this plan deliberately leaves out
+## 3. What this plan leaves out
 
-- **The rules editor and the Rules page** (~2,500 LOC). Live-editing thresholds
-  is the thing that makes rules arguable, and it is also most of the work. The
-  shipped set is a real answer on its own, and a set nobody can edit is still a
-  set that colours the part. Editing is a follow-on, and §7 sizes it.
-- **Custom expressions** (`expression.ts`). Nothing in the shipped set uses one:
-  of 15 rules, 9 are thresholds, 4 are matches, 1 is a flag and 1 a baseline,
-  and the only `against:` is the number `0`. Expressions exist for rules a shop
-  writes, which is the editor, which is out.
-- **The range shape.** No shipped rule uses it. The type comes across with the
-  others so a stored set from the picker still parses, but nothing constructs
-  one until the editor does.
 - **Direction scores** (§5 of the spec). "Which way up scored best" is a setups
   question, and this app has no setups yet.
 - **Machine envelope rules** (`partOverMachine`, `part-size`). They need the
   part's bounding box and a machine on the rule set; both are reachable, neither
   is on the critical path. The metrics come across and simply read `null`.
+
+Everything else in the picker's rules subsystem is in scope, **including the
+editor** — which changes two things that would otherwise have been trimmed:
+
+- **Expressions are in** (`expression.ts`, ~330 LOC). No shipped rule uses one,
+  but a rule somebody writes usually is one — depth over cutter, area over
+  depth — and adding a metric to the app for every idea is a release for every
+  idea. Editor in means expressions in.
+- **The `range` shape is fully implemented**, not carried as a type. Nothing
+  ships as a range, but the editor can convert any rule into one, and a shape
+  that evaluates to nothing once converted is worse than one that was never
+  offered.
 
 ## 4. PR breakdown
 
@@ -87,19 +94,55 @@ and the `Reading` provenance each metric carries.
 
 Ported name for name: a rule set written against the picker mentions
 `millingLD` and `requiredCutter`, and renaming those orphans every rule that
-does. Then `measurements.ts` is rewritten to read from it, keeping its current
-rows and their `from` strings identical — the existing tests are the check that
-it did.
+does.
+
+**`measurements.ts` is not rewritten here.** The two modules land side by side,
+and what goes between them is a **differential test**: for every feature in the
+report fixtures, each row `measurements()` produces must equal the metric that
+answers the same question —
+
+| Row             | Metric                     |
+| --------------- | -------------------------- |
+| `depthBelowTop` | `depthBelowPartTop`        |
+| `featureDepth`  | `depth`                    |
+| `minRadius`     | `minRadius`                |
+| `ld`            | `drillingLD` / `millingLD` |
+| `area`          | `surfaceArea`              |
+| `walls`         | `wallArea`                 |
+| `floors`        | `floorArea`                |
+| `diameter`      | `holeDiameter`             |
+| `floorFillet`   | `floorFilletRadius`        |
+| `bevelAngle`    | `chamferAngle`             |
+
+`faces` has no metric — it counts region shape kinds rather than reading the
+datasheet — and keeps its own reader, stated rather than quietly special-cased.
+
+That test is what makes the swap safe, and it is worth more than the swap: two
+readers of `facts.cd.ignore.min` disagreeing by a factor of two is a bug neither
+module's own tests can see, and a review cannot catch it by reading either file.
+Where they disagree, **the disagreement is the finding** — one of the two is
+wrong about the Engine, and which one is worth knowing before either is deleted.
+
+Only once it is green does `measurements()` become a presentation layer over
+`readMetrics` — labels, order, and provenance strings taken from the metric's
+own `Reading`. By then that change is a deletion rather than a rewrite, and its
+existing tests still pin every row.
 
 ~1,500 LOC, mostly declarative. Tests: every metric against a datasheet fixture,
-plus the `angleRad` → `angleDeg` kernel change, where reading the wrong one is
-an error of 57×.
+the differential pass above, and the `angleRad` → `angleDeg` kernel change,
+where reading the wrong one is an error of 57×.
 
 ### PR 2 — the rule shapes, and what they make of a feature
 
-`app/shared/rules.ts` — `Band`, `worstBand`, the four shapes in the shipped set
-(threshold, match, flag, baseline) plus `range` as a type only, `evaluateRule`,
-`evaluateFeature`, `scoreFeature`, `scorePart`, and the four silences.
+`app/shared/rules.ts` — `Band`, `worstBand`, all five shapes (threshold, range,
+match, flag, baseline), `evaluateRule`, `evaluateFeature`, `scoreFeature`,
+`scorePart`, the four silences, and `asType` for changing a rule's shape without
+losing the rule. Plus `app/shared/expression.ts`, the custom-arithmetic field.
+
+All five and both extras because the editor is in: a shop that wants "corner
+radius" as a list of the tools it holds rather than as a sliding scale is not
+writing a new rule, and a conversion that lands on a shape which evaluates to
+nothing is worse than one that was never offered.
 
 The scoring subtleties are the tests, and they are the reason this is its own
 PR: a band is the worst rule's band, but a score interpolates _within_ a band,
@@ -109,7 +152,7 @@ score rather than folded into it; and **a rule that did not apply is never
 scored as easy** — with a sparse datasheet that single rule is the difference
 between a real score and a part that reads `easy` throughout.
 
-~700 LOC. Tests are the bulk of the work and the point of it.
+~1,050 LOC. Tests are the bulk of the work and the point of it.
 
 ### PR 3 — the shipped rules, and keeping a shop's own
 
@@ -152,15 +195,69 @@ followed back into the list is one to be taken on trust.
 
 ~400 LOC.
 
+### PR 7 — a rule set you can hold and change
+
+`app/shared/use-rules.ts` — the working copy. Which set is in force, the edits
+made to it that are not yet saved, saving as a new set, and re-judging on every
+change. The state layer the editor needs, with no editor on it yet.
+
+Re-judging is pure arithmetic over numbers already in hand, which is what lets
+every keystroke recolour the part. Nothing here calls the Engine, ever.
+
+~450 LOC.
+
+### PR 8 — one rule, with every part of it editable
+
+The rule editor: what the rule reads, which feature types it judges, the shape
+of the scale, where every band ends, the refusal, the weight, and whether it
+applies at all.
+
+Every part of it, because a panel that only moved four threshold numbers makes
+the other shapes read as decoration — a range with no visible spans and a match
+with no visible sizes look like rules nobody finished writing. The range draws
+as nine segments, refused through the wanted band and out again, so read left to
+right it is the shape of the rule.
+
+Numbers are shown in whichever unit the header is set to and stored in
+millimetres. That is what lets an inch shop and a metric shop trade a set.
+
+~900 LOC.
+
+### PR 9 — arguing with a rule where its consequences are
+
+The rules page: the summary on the left — the score, the band counts, how many
+rules spoke, which set is in force — and on the right the impact, every limit
+with the features it actually bit on and their datasheets underneath.
+
+Band chips and a type filter, because "what is making this part hard" and "what
+do the rules say about my pockets" are the two questions anybody arrives with,
+and neither is answerable across twenty rules and two hundred readings. With a
+filter on, a rule that caught nothing drops out — a filter is a question about
+what it selects.
+
+Pressing a rule's name opens its numbers in place and every keystroke re-judges,
+so the features underneath re-sort as the limit moves past their measurements.
+Only the numbers are editable there; names, audiences and expressions stay on
+the rules page, because this is for "that limit is wrong".
+
+It sat in the feature panel first there, which put a limit applying to a hundred
+features beside one feature's verdict. It should not go there again.
+
+~950 LOC.
+
 ## 5. Sequencing
 
-PRs 1–3 are logic and can land in any order after 1. PR 4 needs 3. PRs 5 and 6
-need 4 only for the colours to agree. The natural stopping points:
+PRs 1–3 are logic and land in order. PR 4 needs 3. PRs 5 and 6 need 4 only for
+the colours to agree. PRs 7–9 are the editor and need 6.
+
+The honest stopping points, if this has to stop:
 
 - **After PR 4** the part is coloured by difficulty and nothing explains it.
   Useful, and honest only because the colours are named bands.
-- **After PR 6** the feature is complete as a _read-only_ judgement, which is
-  the whole of this plan.
+- **After PR 6** the judgement is complete and read-only: a shop can see what
+  the rules make of a part and follow every number back to a datasheet field,
+  but cannot disagree with one.
+- **After PR 9** a shop can disagree, which is the point of rules.
 
 ## 6. Risks and the things I expect to get wrong
 
@@ -182,10 +279,18 @@ need 4 only for the colours to agree. The natural stopping points:
 
 ## 7. What comes after, sized
 
-- **Live rule editing** (~2,500 LOC): the rules page, the impact list, and
-  editing a limit against the features it bit on, re-judging on every keystroke.
-  This is what turns "the app says rats" into an argument a shop can win.
-- **Expressions** (~330 LOC): needed the moment somebody writes their own rule.
 - **Direction scores** (~110 LOC): "the easiest way up to open on", which wants
   setups to be worth anything.
-- **Machine envelope**: the part's bounding box and a machine on the rule set.
+- **Machine envelope**: the part's bounding box and a machine on the rule set,
+  which is what `partOverMachine` and the shipped `part-size` rule need.
+- **Rule sets are per browser.** A shop cannot share, publish or inherit a set —
+  a set is copied, and then it drifts. The picker's own docs list this first
+  among the things a team will ask for.
+- **No provenance on a number.** Nothing records who set 5:1 or why, which is
+  the most-requested thing when a shop disagrees with a score.
+
+## 8. Bumping the shipped version
+
+When a shipped rule's numbers change, `SHIPPED_VERSION` goes up with it — or
+every existing session keeps its stale copy and the fix looks like it never
+landed. Worth stating because it is invisible in review and obvious only once.
