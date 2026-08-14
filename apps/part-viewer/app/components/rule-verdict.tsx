@@ -209,7 +209,7 @@ export const RuleVerdict = ({
                 >
                   <button
                     aria-label={`How ${result.rule.name} is worked out`}
-                    className="shrink-0 text-zinc-600 hover:text-zinc-200"
+                    className="shrink-0 text-zinc-500 hover:text-zinc-200"
                     type="button"
                   >
                     <InfoIcon className="size-3" />

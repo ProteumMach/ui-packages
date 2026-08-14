@@ -278,7 +278,7 @@ export const PartInspector = ({
 
   const tabPanel =
     tab === 'inspector' ? (
-      <aside className="flex size-full min-h-0 flex-col overflow-y-auto bg-zinc-900/40">
+      <aside className="flex size-full min-h-0 flex-col overflow-y-auto bg-zinc-950">
         <PartSummary
           report={report}
           features={features}
@@ -310,7 +310,7 @@ export const PartInspector = ({
         unit={unit}
       />
     ) : (
-      <aside className="size-full overflow-y-auto bg-zinc-900/40 p-4">
+      <aside className="size-full overflow-y-auto bg-zinc-950 p-4">
         <p className="text-xs font-bold uppercase tracking-wide text-info">Directions</p>
         <h2 className="mt-1 font-display text-2xl font-bold">Machining directions</h2>
         <p className="mt-3 text-sm leading-6 text-zinc-400">
@@ -368,7 +368,7 @@ export const PartInspector = ({
               <p className="font-mono">{report.partId}</p>
             </div>
             <Link
-              className="rounded-md border border-zinc-700 px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:bg-zinc-800"
+              className="rounded border border-zinc-700 bg-transparent px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:bg-zinc-900"
               to="/"
             >
               Upload another part

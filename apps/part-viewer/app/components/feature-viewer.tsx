@@ -214,7 +214,7 @@ export const FeatureViewer = ({
             first thing anybody changes, and a switch that hides the other mode
             makes you press it to find out what it was. */}
           <span
-            className="flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-900/80 p-1"
+            className="flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-950/85 p-1"
             role="group"
             aria-label="Colour the part by"
           >
@@ -227,7 +227,7 @@ export const FeatureViewer = ({
                 className={`rounded px-2 py-1 text-xs font-medium transition ${
                   paintMode === mode
                     ? 'bg-info/20 text-info'
-                    : 'text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100'
+                    : 'text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100'
                 } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/75`}
               >
                 {label}
@@ -248,7 +248,7 @@ export const FeatureViewer = ({
               className={`ml-0.5 grid size-6 place-items-center rounded border-l border-zinc-800 pl-1 transition ${
                 arrows === 'all'
                   ? 'bg-info/20 text-info'
-                  : 'text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100'
+                  : 'text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100'
               } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/75`}
             >
               <ArrowGlyph />
@@ -287,7 +287,7 @@ export const FeatureViewer = ({
                 </span>
               ) : null}
               {plane && depthRange ? (
-                <label className="flex h-8 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900/85 px-3 text-xs text-zinc-300">
+                <label className="flex h-8 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-950/85 px-3 text-xs text-zinc-300">
                   <span className="sr-only">Cut depth</span>
                   <input
                     type="range"

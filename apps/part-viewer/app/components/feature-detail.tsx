@@ -85,7 +85,7 @@ export const FeatureDetail = ({
   /** The context the verdict was judged with, so the working shows the same numbers. */
   part: PartContext
 }) => (
-  <aside className="flex size-full min-h-0 flex-col overflow-y-auto bg-zinc-900/40">
+  <aside className="flex size-full min-h-0 flex-col overflow-y-auto bg-zinc-950">
     {/* The readings a click could have meant, above the one being read: the
         click asked about a face, and which of its readings is on screen is the
         question still open. */}
@@ -113,10 +113,10 @@ export const FeatureDetail = ({
                   aria-pressed={chosen}
                   onClick={() => onChoose(candidate.featureTag)}
                   className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs transition ${
-                    chosen ? 'bg-info/15 text-info' : 'text-zinc-300 hover:bg-zinc-800/60'
+                    chosen ? 'bg-info/15 text-info' : 'text-zinc-300 hover:bg-zinc-900'
                   }`}
                 >
-                  <span className="w-3 tabular-nums text-zinc-600">{at + 1}</span>
+                  <span className="w-3 tabular-nums text-zinc-500">{at + 1}</span>
                   <span className="text-zinc-400">
                     <KindIcon featureType={candidate.featureType} kind={kindOf(candidate)} />
                   </span>
@@ -211,7 +211,7 @@ export const FeatureDetail = ({
                     <MeasurementIcon measurement={row.key} />
                   </span>
                   <span>
-                    {row.label} <span className="text-zinc-600">ⓘ</span>
+                    {row.label} <span className="text-zinc-500">ⓘ</span>
                   </span>
                 </dt>
                 <dd className="text-right font-medium tabular-nums text-zinc-200">{row.value}</dd>
@@ -238,7 +238,7 @@ export const FeatureDetail = ({
           <summary className="cursor-pointer text-2xs font-bold uppercase tracking-wider text-zinc-500">
             Raw API record
           </summary>
-          <pre className="mt-2 max-h-80 overflow-auto rounded bg-zinc-950/60 p-2 text-2xs leading-5 text-zinc-400">
+          <pre className="mt-2 max-h-80 overflow-auto rounded bg-transparent p-2 text-2xs leading-5 text-zinc-400">
             {rawDatasheet(feature)}
           </pre>
         </details>

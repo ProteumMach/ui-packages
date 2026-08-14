@@ -72,7 +72,7 @@ export const PartSummary = ({
           aria-label={`Units: ${unit}. Switch to ${unit === 'mm' ? 'in' : 'mm'}`}
           title={`Reading in ${unit} — click for ${unit === 'mm' ? 'in' : 'mm'}`}
           onClick={() => onUnit(unit === 'mm' ? 'in' : 'mm')}
-          className="rounded border border-zinc-700 px-2 py-0.5 text-2xs font-medium text-zinc-300 transition hover:bg-zinc-800 hover:text-zinc-100"
+          className="rounded border border-zinc-700 bg-transparent px-2 py-0.5 text-2xs font-medium text-zinc-400 transition hover:bg-zinc-900 hover:text-zinc-100"
         >
           {unit}
         </button>
@@ -118,7 +118,7 @@ export const PartSummary = ({
         value={query}
         onChange={(event) => onQuery(event.target.value)}
         placeholder="Search type, direction, or tag"
-        className="mb-1 w-full rounded border border-zinc-800 bg-zinc-950/60 px-2 py-1 text-2xs outline-none focus-visible:ring-2 focus-visible:ring-info/75"
+        className="mb-1 w-full rounded border border-zinc-700 bg-transparent px-2 py-1 text-2xs text-zinc-200 outline-none placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-info"
       />
       <ul
         data-keynav="types"
@@ -145,10 +145,10 @@ export const PartSummary = ({
                 aria-expanded={open}
                 onClick={() => onExpandType(open ? null : entry.type)}
                 className={`flex w-full items-baseline gap-2 rounded px-1 py-1 text-left transition ${
-                  open ? 'bg-zinc-800/70 text-zinc-100' : 'text-zinc-300 hover:bg-zinc-800/60'
+                  open ? 'bg-zinc-900 text-zinc-100' : 'text-zinc-300 hover:bg-zinc-900'
                 }`}
               >
-                <span aria-hidden="true" className="w-2 text-zinc-600">
+                <span aria-hidden="true" className="w-2 text-zinc-500">
                   {open ? '▾' : '▸'}
                 </span>
                 <span className="text-zinc-500">
@@ -166,7 +166,7 @@ export const PartSummary = ({
               {open ? (
                 <ul className="mb-1 ml-3 border-l border-zinc-800">
                   {ofType.length === 0 ? (
-                    <li className="px-2 py-1 text-2xs text-zinc-600">
+                    <li className="px-2 py-1 text-2xs text-zinc-500">
                       None match the current search.
                     </li>
                   ) : (
@@ -188,7 +188,7 @@ export const PartSummary = ({
                                 ? 'bg-info/15 text-info'
                                 : candidateTags.includes(feature.featureTag)
                                   ? 'bg-warning/10 text-zinc-200'
-                                  : 'text-zinc-400 hover:bg-zinc-800/60'
+                                  : 'text-zinc-400 hover:bg-zinc-900'
                             }`}
                           >
                             <span className="flex-1 truncate font-mono">

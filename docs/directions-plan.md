@@ -4,6 +4,12 @@
 left — the page a part opens on in the feature picker, rebuilt here in stages
 where every stage is a usable app.
 
+The behaviour this app has today is written down in
+[`apps/part-viewer/docs/interactions.md`](../apps/part-viewer/docs/interactions.md)
+and [`highlighting.md`](../apps/part-viewer/docs/highlighting.md) — read those
+to know what is already here, including the five places it knowingly differs
+from the picker.
+
 Ported from `tp-ui@pc-feature-picker`, whose
 `apps/feature-picker/docs/build/directions.md` is the written spec for this
 page: the layout, the thirteen pieces of state, what a click on the part means

@@ -266,6 +266,8 @@ feature list.
 4. **Provenance** — `tp-ui`'s viewer is `private: true`; this one is MIT and
    published. Same org, so a formality, but worth signing off before PR 1 rather
    than after PR 10.
-5. **Docs** — `highlighting.md` and `interactions.md` are the specification for
-   Phase C and should come across (adapted) rather than stay in the other repo.
-   Recommend a docs PR alongside PR 4.
+5. **Docs** — ~~`highlighting.md` and `interactions.md` are the specification
+   for Phase C and should come across (adapted) rather than stay in the other
+   repo.~~ **Done:** `apps/part-viewer/docs/` now carries both, adapted —
+   written about this app, with a section in each naming where it knowingly
+   differs from the picker and what that difference cost there.

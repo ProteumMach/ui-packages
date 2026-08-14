@@ -33,7 +33,7 @@ import { decimalsFor } from '../shared/units'
  */
 
 const SELECT =
-  'h-7 rounded border border-zinc-700 bg-zinc-900 px-1.5 text-2xs text-zinc-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-info'
+  'h-7 rounded border border-zinc-700 bg-transparent px-1.5 text-2xs text-zinc-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-info'
 
 /**
  * A number being typed, which is not the same thing as a number.
@@ -157,7 +157,7 @@ const BandDots = ({ rule, unit }: { rule: Rule; unit: Unit }) => {
       {limits.map((limit) => (
         <li
           key={limit.band}
-          className="flex shrink-0 items-center gap-1 rounded bg-zinc-800/70 px-1.5 py-0.5 text-2xs tabular-nums text-zinc-300"
+          className="flex shrink-0 items-center gap-1 rounded bg-zinc-900 px-1.5 py-0.5 text-2xs tabular-nums text-zinc-300"
           title={`${limit.name} ${limit.range}`}
         >
           <span
@@ -841,7 +841,7 @@ export const RuleCard = ({
             for. A rule with nothing to say says so, rather than showing a zero
             that reads like a verdict. */}
         {hits.length === 0 ? (
-          <span className="shrink-0 text-2xs italic text-zinc-600">nothing to measure</span>
+          <span className="shrink-0 text-2xs italic text-zinc-500">nothing to measure</span>
         ) : (
           <>
             <span
@@ -899,7 +899,7 @@ export const RuleCard = ({
               unit={unit}
             />
           ) : (
-            <div className="ml-4 mt-1 rounded border border-zinc-800 bg-zinc-900/50 p-2">
+            <div className="ml-4 mt-1 rounded border border-zinc-800 bg-transparent p-2">
               <Limits onChange={onChange} rule={rule} unit={unit} />
             </div>
           )}
@@ -914,7 +914,7 @@ export const RuleCard = ({
                     className={`flex w-full items-center gap-2 rounded py-0.5 pl-4 pr-1 text-left text-2xs ${
                       hit.tag === focusedTag
                         ? 'bg-info/15 text-info'
-                        : 'text-zinc-400 hover:bg-zinc-800/60'
+                        : 'text-zinc-400 hover:bg-zinc-900'
                     }`}
                     data-row={hit.tag}
                     onClick={() => onChoose(hit.tag)}

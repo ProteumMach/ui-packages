@@ -46,7 +46,7 @@ export const RulesSummaryPanel = ({
           <button
             aria-pressed={band === each}
             className={`flex w-full items-center gap-2 rounded px-1 py-0.5 text-left transition ${
-              band === each ? 'bg-info/15' : 'hover:bg-zinc-800/60'
+              band === each ? 'bg-info/15' : 'hover:bg-zinc-900'
             } ${summary.counts[each] === 0 ? 'opacity-40' : ''}`}
             // A count nobody can act on is a fact printed at somebody.
             onClick={() => onPickBand(band === each ? null : each)}
@@ -99,7 +99,7 @@ const WorstRow = ({
   onHover: (tags: string[]) => void
 }) => (
   <button
-    className="flex w-full items-center gap-2 rounded px-1 py-0.5 text-left text-2xs text-zinc-300 hover:bg-zinc-800/60"
+    className="flex w-full items-center gap-2 rounded px-1 py-0.5 text-left text-2xs text-zinc-300 hover:bg-zinc-900"
     data-row={reading.tag}
     onClick={() => onChoose(reading.tag)}
     onFocus={() => onChoose(reading.tag)}
