@@ -13,7 +13,11 @@ permissions:
   id-token: write
 
 jobs:
+  quality:
+    uses: ./.github/workflows/_quality.yml
+
   build:
+    needs: quality
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.git_sha.outputs.short_sha }}
