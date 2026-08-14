@@ -17,8 +17,7 @@ import {
 } from '../shared/selection'
 import { directionLabel, featureFromTags, filterFeatures, tagsOfType } from '../shared/report'
 import { listHighlight } from '../shared/highlighting'
-import { DEFAULT_RULE_SET } from '../shared/rule-presets'
-import { evaluatePart } from '../shared/rules'
+import { useRules } from '../shared/use-rules'
 import { partContext } from '../shared/metrics'
 import { escapeStep } from '../shared/escape'
 import { AppHeader } from './app-header'
@@ -127,10 +126,14 @@ export const PartInspector = ({
    * somebody looks at it.
    */
   const rulesContext = useMemo(() => partContext(report.features), [report.features])
-  const verdicts = useMemo(
-    () => evaluatePart(DEFAULT_RULE_SET.rules, report.features),
-    [report.features],
-  )
+  /**
+   * The set in force, and what it makes of every feature.
+   *
+   * Judging is arithmetic over numbers already in hand — no Engine call, no
+   * geometry — which is what lets a threshold moved in the Rules tab recolour
+   * the part as it is typed.
+   */
+  const rules = useRules(report.features)
 
   const [expandedType, setExpandedType] = useState<string | null>(null)
   /**
@@ -281,7 +284,7 @@ export const PartInspector = ({
         />
       </aside>
     ) : tab === 'rules' ? (
-      <RulesPanel set={DEFAULT_RULE_SET} unit={unit} />
+      <RulesPanel rules={rules} unit={unit} />
     ) : (
       <aside className="size-full overflow-y-auto bg-zinc-900/40 p-4">
         <p className="text-xs font-bold uppercase tracking-wide text-info">Directions</p>
@@ -376,7 +379,7 @@ export const PartInspector = ({
             onArrows={setArrows}
             arrowsVisible={arrowsVisible(arrows, arrowContext)}
             paintMode={paintMode}
-            verdicts={verdicts}
+            verdicts={rules.verdicts}
             onPaintMode={choosePaintMode}
             focusFeature={focusFeature}
             onPick={pickFromPart}
@@ -394,9 +397,9 @@ export const PartInspector = ({
             onZoom={zoomToFeature}
             onClose={() => setSelection(NOTHING_SELECTED)}
             unit={unit}
-            rules={DEFAULT_RULE_SET.rules}
+            rules={rules.ruleSet.rules}
             part={rulesContext}
-            verdict={verdicts.find((each) => each.tag === focusedTag) ?? null}
+            verdict={rules.verdicts.find((each) => each.tag === focusedTag) ?? null}
           />
         </Panels.Panel>
       </Panels.Group>

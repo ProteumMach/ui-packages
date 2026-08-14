@@ -156,7 +156,7 @@ test('shows the limits it judges by, and what they made of a feature', async ({ 
   await openInspector(page)
 
   await page.getByRole('tab', { name: 'Rules' }).click()
-  await expect(page.getByRole('heading', { name: 'Toolpath defaults' })).toBeVisible()
+  await expect(page.getByLabel('Rule set')).toHaveValue('default')
   await expect(page.getByText('Drilling L/D ratio')).toBeVisible()
   // The bands a measurement is judged against, in the same words the part uses.
   await expect(page.getByText('0.00:1 – 3.00:1').first()).toBeVisible()
@@ -184,4 +184,57 @@ test('shows the limits it judges by, and what they made of a feature', async ({ 
   // A rule that agreed and a rule that never ran read identically on a feature
   // that scored well, so the silent ones are counted rather than dropped.
   await expect(page.getByText(/rules? said nothing/)).toBeVisible()
+})
+
+/**
+ * The point of a rule set is that a shop can disagree with it.
+ *
+ * Judging is arithmetic over numbers already in hand, so a limit moved here
+ * re-judges the part without going near the Engine — which is what makes the
+ * edit worth putting a keystroke away.
+ */
+test('lets a limit be moved, and re-judges the part as it moves', async ({ page }) => {
+  await openInspector(page)
+  await page.getByRole('tab', { name: 'Rules' }).click()
+
+  // The hole is 4:1, which the shipped set calls `alright`.
+  const drillingRule = page.getByRole('button', { name: 'Drilling L/D ratio', exact: true })
+  await drillingRule.click()
+  await expect(page.getByLabel('easy up to')).toHaveValue('3.00')
+
+  // Tighten the whole scale under it. Tightened rather than loosened
+  // deliberately: a feature's band is the *worst* rule's, so widening one limit
+  // proves nothing while another rule still speaks.
+  for (const [band, limit] of [
+    ['easy', '0.5'],
+    ['alright', '1'],
+    ['meh', '1.5'],
+    ['rats', '2'],
+  ] as const) {
+    await page.getByLabel(`${band} up to`).fill(limit)
+  }
+  await expect(page.getByText('Changed, and not saved to a set.')).toBeVisible()
+
+  await page.getByRole('tab', { name: 'Inspector' }).click()
+  await page.getByRole('button', { name: /Blind hole/ }).click()
+  await page
+    .getByRole('button', { name: /hole-1/ })
+    .first()
+    .click()
+  await expect(page.getByText('rats', { exact: true }).first()).toBeVisible()
+
+  // And a refusal past 3:1 takes the same hole out of the shop's work
+  // altogether. It sits above the rats limit rather than replacing it, which is
+  // why the scale had to move first.
+  await page.getByRole('tab', { name: 'Rules' }).click()
+  await drillingRule.click()
+  await page.getByLabel('refuse past').fill('3')
+  await page.getByRole('tab', { name: 'Inspector' }).click()
+  await expect(page.getByText('no go', { exact: true }).first()).toBeVisible()
+
+  // Putting it back is one press, and a shipped set is never written over:
+  // published guidelines stay as published.
+  await page.getByRole('tab', { name: 'Rules' }).click()
+  await page.getByRole('button', { name: 'Put back' }).click()
+  await expect(page.getByText('Changed, and not saved to a set.')).toBeHidden()
 })

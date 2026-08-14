@@ -1,5 +1,13 @@
 import { describe, expect, test } from 'vitest'
-import { formatMetric, ruleAudience, ruleLimits, ruleReads } from './rule-text'
+import {
+  formatMetric,
+  fromDisplay,
+  ruleAudience,
+  ruleLimits,
+  ruleReads,
+  toDisplay,
+  unitSuffix,
+} from './rule-text'
 import type { ThresholdRule } from './rules'
 
 const drilling: ThresholdRule = {
@@ -88,5 +96,29 @@ describe('what a rule says about itself', () => {
   test('names what it reads', () => {
     expect(ruleReads(drilling)).toBe('Drilling L/D')
     expect(ruleReads({ ...drilling, type: 'baseline', bands: {} } as never)).toContain('kind of')
+  })
+})
+
+describe('typing a threshold', () => {
+  test('reads and writes back the same number', () => {
+    // Rules are stored in millimetres whatever the shop that wrote them was
+    // thinking. Getting this pair out of step is how an inch shop's 0.125
+    // quietly becomes 0.125 mm.
+    const shown = toDisplay(3.175, 'minRadius', 'in')
+
+    expect(shown).toBeCloseTo(0.125, 6)
+    expect(fromDisplay(shown, 'minRadius', 'in')).toBeCloseTo(3.175, 6)
+  })
+
+  test('leaves alone the quantities that do not convert', () => {
+    // A 5:1 pocket is 5:1 in any shop, and a chamfer is 45° in both.
+    expect(toDisplay(5, 'drillingLD', 'in')).toBe(5)
+    expect(toDisplay(45, 'chamferAngle', 'in')).toBe(45)
+  })
+
+  test('says what a box is measured in', () => {
+    expect(unitSuffix('minRadius', 'in')).toBe('in')
+    expect(unitSuffix('drillingLD', 'in')).toBe(':1')
+    expect(unitSuffix('chamferAngle', 'mm')).toBe('°')
   })
 })

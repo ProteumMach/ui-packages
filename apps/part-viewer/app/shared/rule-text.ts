@@ -1,7 +1,7 @@
 import { METRICS, type MetricId, metricQuantity } from './metrics'
 import type { Band, Rule } from './rules'
 import { bandName, bandRanges, rangeSpectrum } from './rules'
-import { type Unit, convertArea, convertLength, decimalsFor } from './units'
+import { MODEL_UNIT, type Unit, convertArea, convertLength, decimalsFor } from './units'
 
 /**
  * Rule verdicts, in words.
@@ -94,4 +94,49 @@ export function ruleReads(rule: Rule): string {
   if (rule.type === 'baseline') return 'the kind of feature it is'
 
   return METRICS.find((metric) => metric.id === rule.metric)?.label ?? rule.metric ?? ''
+}
+
+/**
+ * A stored number as it is typed and read.
+ *
+ * Rules are stored in millimetres whatever the shop that wrote them was
+ * thinking, so this pair is the only place a threshold becomes inches and the
+ * only place a typed number becomes millimetres again. Getting them out of step
+ * is how an inch shop's 0.125 quietly becomes 0.125 mm.
+ *
+ * Ratios, counts and angles convert to nothing: a 5:1 pocket is 5:1 in any
+ * shop, and a chamfer is 45° in both.
+ */
+export function toDisplay(value: number, metric: MetricId | undefined, unit: Unit): number {
+  const quantity = metricQuantity(metric)
+
+  if (quantity === 'length') return convertLength(value, MODEL_UNIT, unit)
+  if (quantity === 'area') return convertArea(value, MODEL_UNIT, unit)
+
+  return value
+}
+
+export function fromDisplay(value: number, metric: MetricId | undefined, unit: Unit): number {
+  const quantity = metricQuantity(metric)
+
+  if (quantity === 'length') return convertLength(value, unit, MODEL_UNIT)
+  if (quantity === 'area') return convertArea(value, unit, MODEL_UNIT)
+
+  return value
+}
+
+/** What to write after a threshold box, or nothing where the number is bare. */
+export function unitSuffix(metric: MetricId | undefined, unit: Unit): string {
+  switch (metricQuantity(metric)) {
+    case 'length':
+      return unit
+    case 'area':
+      return `${unit}²`
+    case 'angle':
+      return '°'
+    case 'ratio':
+      return ':1'
+    default:
+      return ''
+  }
 }
