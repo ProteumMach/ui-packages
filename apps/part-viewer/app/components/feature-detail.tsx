@@ -85,7 +85,7 @@ export const FeatureDetail = ({
   /** The context the verdict was judged with, so the working shows the same numbers. */
   part: PartContext
 }) => (
-  <aside className="flex size-full min-h-0 flex-col overflow-y-auto bg-zinc-950">
+  <aside className="flex size-full min-h-0 flex-col overflow-y-auto bg-zinc-900">
     {/* The readings a click could have meant, above the one being read: the
         click asked about a face, and which of its readings is on screen is the
         question still open. */}

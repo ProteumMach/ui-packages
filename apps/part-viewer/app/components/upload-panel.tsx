@@ -45,7 +45,7 @@ export const UploadPanel = ({
             required
             accept={CAD_EXTENSIONS.join(',')}
             onChange={(event) => setFile(event.currentTarget.files?.item(0) ?? null)}
-            className="mt-2 block w-full cursor-pointer rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-3 text-sm text-zinc-300 file:mr-4 file:rounded file:border-0 file:bg-zinc-800 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-zinc-100 hover:file:bg-zinc-700"
+            className="mt-2 block w-full cursor-pointer rounded-lg border border-zinc-700 bg-transparent px-3 py-3 text-sm text-zinc-300 file:mr-4 file:rounded file:border-0 file:bg-zinc-900 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-zinc-100 hover:file:bg-zinc-800"
           />
         </label>
         <p className="text-xs text-zinc-500">
