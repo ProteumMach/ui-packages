@@ -318,3 +318,50 @@ test('scores every feature where it is named', async ({ page }) => {
   const badge = drilling.getByTitle(/scores \d+ across the rules that applied/).first()
   await expect(badge).toBeVisible()
 })
+
+/**
+ * A box has to hold what is being typed into it, not what has been parsed out
+ * of it — the two are different for as long as a number is half-written.
+ */
+test('takes a number a digit at a time, leading zero and all', async ({ page }) => {
+  await openInspector(page)
+  await page.getByRole('tab', { name: 'Rules' }).click()
+
+  const smallest = page.getByRole('listitem').filter({ hasText: 'Smallest drilled hole' }).first()
+  const easy = smallest.getByLabel('easy to')
+
+  await easy.fill('')
+  await easy.pressSequentially('0.156')
+
+  // `0.` parses to 0, and a box that re-rendered the parsed value would have
+  // eaten the point and everything after it.
+  await expect(easy).toHaveValue('0.156')
+
+  // And it survives the round trip through storage, which is in millimetres
+  // whatever is being typed.
+  await easy.blur()
+  await expect(easy).toHaveValue('0.156')
+})
+
+/** One window: the panels scroll, the page does not. */
+test('fills the window rather than growing past it', async ({ page }) => {
+  await openInspector(page)
+  await page.getByRole('tab', { name: 'Rules' }).click()
+  await expect(page.getByRole('button', { name: 'Add rule' })).toBeVisible()
+
+  // Asked of the window rather than of `scrollHeight`, which reports the full
+  // height of content inside a scrolling panel and so says a page scrolls when
+  // it does not.
+  await page.mouse.move(200, 400)
+  await page.mouse.wheel(0, 1200)
+
+  // A page taller than the window scrolls the viewer off the bottom, and the
+  // viewer is the one thing that cannot follow.
+  expect(await page.evaluate(() => window.scrollY)).toBe(0)
+
+  // The panel itself still scrolls, or the rules past the fold are unreachable.
+  const panel = page.locator('aside').first()
+  await expect(panel).toHaveJSProperty('scrollTop', 0)
+  await panel.evaluate((el) => el.scrollBy(0, 400))
+  expect(await panel.evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
+})

@@ -33,6 +33,19 @@ import { decimalsFor } from '../shared/units'
 const SELECT =
   'h-7 rounded border border-zinc-700 bg-zinc-900 px-1.5 text-2xs text-zinc-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-info'
 
+/**
+ * A number being typed, which is not the same thing as a number.
+ *
+ * A controlled box that re-renders the parsed value cannot hold what somebody
+ * is halfway through typing: `0.` parses to 0 and comes back as "0", taking the
+ * point with it, so `0.156` is unreachable — the box eats the keystroke that
+ * would have got there. And rounding the value for display fights the same
+ * fight, turning `0.156` into `0.2` between one digit and the next.
+ *
+ * So while a box has focus it shows exactly what was typed, and only the parsed
+ * value leaves. On blur the draft is dropped and the stored number comes back
+ * formatted, which is where rounding belongs.
+ */
 const NumberBox = ({
   id,
   label,
@@ -47,7 +60,6 @@ const NumberBox = ({
 }: {
   id: string
   label: string
-  /** The band this number closes, shown as its colour beside the caption. */
   band?: Band | undefined
   /** What an empty box says, where empty is a real answer. */
   placeholder?: string | undefined
@@ -58,60 +70,61 @@ const NumberBox = ({
   raw?: boolean
   width?: string
   onChange: (value: number | undefined) => void
-}) => (
-  <div className="flex min-w-0 flex-col gap-0.5">
-    {/* A div rather than a label: the caption names a control that labels
-        itself, and two labels on one box is one too many for a screen reader. */}
-    <span className="flex items-center gap-1 truncate text-2xs text-zinc-400">
-      {band ? (
-        <span
-          aria-hidden="true"
-          className="size-1.5 shrink-0 rounded-full"
-          style={{ background: bandCss(band) }}
-        />
-      ) : null}
-      {label}
-    </span>
-    <Input
-      aria-label={label}
-      className={`${width} tabular-nums`}
-      id={id}
-      inputMode="decimal"
-      name={id}
-      placeholder={placeholder}
-      size="md"
-      suffix={raw ? undefined : unitSuffix(metric, unit)}
-      type="number"
-      // Trailing zeros stripped, which is not cosmetic: rendered as `3.00`, a box
-      // rewrites itself between keystrokes — type `1` and it becomes `1.00` with
-      // the caret after the zeros, so `12` arrives as `1.002`.
-      value={
-        value === undefined
-          ? ''
-          : String(
-              Number(
-                toDisplay(value, raw ? undefined : metric, unit).toFixed(
-                  raw ? 0 : displayDecimals(metric, unit),
-                ),
-              ),
-            )
-      }
-      onChange={(event) => {
-        const typed = event.target.value.trim()
+}) => {
+  const [draft, setDraft] = useState<string | null>(null)
+  const shown = raw ? undefined : metric
 
-        // An emptied box is "not set", not zero — which would refuse everything
-        // the moment somebody cleared the field to retype it.
-        if (typed === '') {
-          onChange(undefined)
-          return
-        }
+  // Four decimals, trailing zeros stripped: enough for a thousandth of an inch
+  // with room under it, and never more digits than the number has.
+  const settled =
+    value === undefined ? '' : String(Number(toDisplay(value, shown, unit).toFixed(raw ? 0 : 4)))
 
-        const next = Number(typed)
-        if (Number.isFinite(next)) onChange(fromDisplay(next, raw ? undefined : metric, unit))
-      }}
-    />
-  </div>
-)
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      {/* A div rather than a label: the caption names a control that labels
+          itself, and two labels on one box is one too many for a screen reader. */}
+      <span className="flex items-center gap-1 truncate text-2xs text-zinc-400">
+        {band ? (
+          <span
+            aria-hidden="true"
+            className="size-1.5 shrink-0 rounded-full"
+            style={{ background: bandCss(band) }}
+          />
+        ) : null}
+        {label}
+      </span>
+      <Input
+        aria-label={label}
+        className={`${width} tabular-nums`}
+        id={id}
+        inputMode="decimal"
+        name={id}
+        placeholder={placeholder}
+        size="md"
+        suffix={raw ? undefined : unitSuffix(metric, unit)}
+        type="text"
+        value={draft ?? settled}
+        onBlur={() => setDraft(null)}
+        onChange={(event) => {
+          const typed = event.target.value
+          setDraft(typed)
+
+          if (typed.trim() === '') {
+            // An emptied box is "not set", not zero — which would refuse
+            // everything the moment somebody cleared the field to retype it.
+            onChange(undefined)
+            return
+          }
+
+          const next = Number(typed)
+          // A half-typed number — "0.", "-", "1e" — is not a change of mind, so
+          // the last good value stands until the next digit lands.
+          if (Number.isFinite(next)) onChange(fromDisplay(next, shown, unit))
+        }}
+      />
+    </div>
+  )
+}
 
 /**
  * A limit and the span it makes, in one column.
@@ -125,7 +138,7 @@ const NumberBox = ({
 const ThresholdColumn = ({ range, children }: { range?: string; children: ReactNode }) => (
   <div className="flex w-24 flex-col gap-0.5">
     {children}
-    <span className="truncate text-3xs italic tabular-nums text-zinc-500" title={range}>
+    <span className="truncate text-2xs italic tabular-nums text-zinc-500" title={range}>
       {range}
     </span>
   </div>
@@ -142,7 +155,7 @@ const BandDots = ({ rule, unit }: { rule: Rule; unit: Unit }) => {
       {limits.map((limit) => (
         <li
           key={limit.band}
-          className="flex shrink-0 items-center gap-1 rounded bg-zinc-800/70 px-1.5 py-0.5 text-3xs tabular-nums text-zinc-300"
+          className="flex shrink-0 items-center gap-1 rounded bg-zinc-800/70 px-1.5 py-0.5 text-2xs tabular-nums text-zinc-300"
           title={`${limit.name} ${limit.range}`}
         >
           <span
@@ -699,7 +712,7 @@ const Settings = ({
             <button
               key={type}
               aria-pressed={chosen.has(type)}
-              className={`rounded px-1.5 py-0.5 text-3xs ${
+              className={`rounded px-1.5 py-0.5 text-2xs ${
                 chosen.has(type) ? 'bg-info/25 text-info' : 'bg-zinc-800 text-zinc-400'
               }`}
               onClick={() =>
@@ -717,7 +730,7 @@ const Settings = ({
           ))}
           <button
             aria-pressed={chosen.size === 0}
-            className={`rounded px-1.5 py-0.5 text-3xs ${
+            className={`rounded px-1.5 py-0.5 text-2xs ${
               chosen.size === 0 ? 'bg-info/25 text-info' : 'bg-zinc-800 text-zinc-400'
             }`}
             onClick={() => onChange({ ...rule, featureTypes: [] })}
@@ -816,7 +829,7 @@ export const RuleCard = ({
         </button>
 
         <span
-          className={`min-w-0 flex-1 truncate text-xs ${
+          className={`min-w-0 flex-1 truncate text-sm ${
             rule.enabled ? 'text-zinc-200' : 'text-zinc-500'
           }`}
         >
@@ -824,7 +837,7 @@ export const RuleCard = ({
         </span>
 
         {hits.length > 0 ? (
-          <span className="shrink-0 text-3xs tabular-nums text-zinc-500" title="Readings it caught">
+          <span className="shrink-0 text-2xs tabular-nums text-zinc-500" title="Readings it caught">
             {hits.length}
           </span>
         ) : null}
@@ -876,7 +889,7 @@ export const RuleCard = ({
               {shown.map((hit) => (
                 <li key={hit.tag}>
                   <button
-                    className={`flex w-full items-center gap-2 rounded py-0.5 pl-4 pr-1 text-left text-2xs ${
+                    className={`flex w-full items-center gap-2 rounded py-0.5 pl-4 pr-1 text-left text-xs ${
                       hit.tag === focusedTag
                         ? 'bg-info/15 text-info'
                         : 'text-zinc-400 hover:bg-zinc-800/60'
@@ -909,7 +922,7 @@ export const RuleCard = ({
               {hits.length > 4 ? (
                 <li>
                   <button
-                    className="pl-4 text-3xs text-zinc-500 underline decoration-dotted"
+                    className="pl-4 text-2xs text-zinc-500 underline decoration-dotted"
                     onClick={() => setShowAll((all) => !all)}
                     type="button"
                   >

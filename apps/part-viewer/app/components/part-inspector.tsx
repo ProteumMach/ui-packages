@@ -375,11 +375,11 @@ export const PartInspector = ({
       </AppHeader>
 
       <Panels.Group className="min-h-0 flex-1" orientation="horizontal">
-        <Panels.Panel defaultSize={460} minSize={260}>
+        <Panels.Panel className="min-h-0 overflow-hidden" defaultSize={460} minSize={260}>
           {tabPanel}
         </Panels.Panel>
         <Panels.Separator className={leftSeparatorClassName} />
-        <Panels.Panel minSize={400}>
+        <Panels.Panel className="min-h-0 overflow-hidden" minSize={400}>
           <FeatureViewer
             activeDirection={activeDirection}
             onPickDirection={(index) => holdDirection(index)}
@@ -406,7 +406,7 @@ export const PartInspector = ({
           />
         </Panels.Panel>
         <Panels.Separator className={rightSeparatorClassName} />
-        <Panels.Panel defaultSize={460} minSize={320}>
+        <Panels.Panel className="min-h-0 overflow-hidden" defaultSize={460} minSize={320}>
           <FeatureDetail
             feature={focused}
             report={report}

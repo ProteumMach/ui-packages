@@ -62,7 +62,7 @@ export const RulesPanel = ({
             is in force is a choice rather than a setting made once. */}
         <select
           aria-label="Rule set"
-          className="h-8 min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-100"
+          className="h-8 min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-2 text-sm text-zinc-100"
           onChange={(event) => rules.loadPreset(event.target.value)}
           value={sets.some((each) => each.id === set.id) ? set.id : ''}
         >
@@ -91,7 +91,7 @@ export const RulesPanel = ({
       {rules.dirty ? (
         // A shipped preset is somebody's published guidelines, so a change to
         // one is kept as a copy rather than written back over it.
-        <div className="mt-1.5 flex items-center gap-2 text-2xs text-warning">
+        <div className="mt-1.5 flex items-center gap-2 text-xs text-warning">
           <span className="flex-1">Changed, not saved</span>
           <button className="underline" onClick={rules.resetRules} type="button">
             Put back
