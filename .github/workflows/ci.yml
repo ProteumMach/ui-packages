@@ -27,3 +27,12 @@ jobs:
       - run: >-
           pnpm --filter @toolpath/example-react-viewer exec playwright install --with-deps chromium
       - run: pnpm check
+      # The app's own browser tests, which `pnpm check` does not reach: its
+      # `test` script is vitest alone. They cover what only a browser can say —
+      # that the viewport receives a pointer at its own edges, and that the
+      # paint mode holds across a reload — and until this step existed they ran
+      # nowhere but on somebody's laptop.
+      - run: pnpm --filter @toolpath/part-viewer exec playwright install --with-deps chromium
+      - run: pnpm --filter @toolpath/part-viewer test:e2e
+        env:
+          APP_SESSION_SECRET: part-viewer-ci-secret

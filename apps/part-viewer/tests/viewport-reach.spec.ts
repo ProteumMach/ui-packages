@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { type Page, expect, test } from '@playwright/test'
 
 const readyEvent = {
   status: 'ready',
@@ -40,7 +40,8 @@ const readyEvent = {
  * the primary one — so the edges and corners of the viewport were dead, and
  * nothing on screen said why.
  */
-test('takes a pointer at its own edges and corners', async ({ page }) => {
+/** Connects, uploads and lands on the inspector with a report the server mocked. */
+const openInspector = async (page: Page) => {
   let connected = false
   await page.route('**/api/**', async (route) => {
     const request = route.request()
@@ -83,6 +84,10 @@ test('takes a pointer at its own edges and corners', async ({ page }) => {
   await analyze.click()
   await expect(page).toHaveURL(/\/parts\/part-1/)
   await expect(page.getByRole('button', { name: 'Section' })).toBeVisible()
+}
+
+test('takes a pointer at its own edges and corners', async ({ page }) => {
+  await openInspector(page)
 
   // Whatever the browser would hand a pointerdown to, at each edge and corner
   // of the viewer panel. Three pixels in: closer than anybody aims, and inside
@@ -110,4 +115,27 @@ test('takes a pointer at its own edges and corners', async ({ page }) => {
   })
 
   expect(Object.entries(owners).filter(([, mine]) => !mine)).toEqual([])
+})
+
+/**
+ * The first thing the rules put on screen.
+ *
+ * The engine underneath it is tested in node; what this covers is that the
+ * mode is reachable, that it holds, and that it is remembered — a preference
+ * that resets on every part is a chore rather than a preference.
+ */
+test('paints the part by difficulty, and remembers that it was asked to', async ({ page }) => {
+  await openInspector(page)
+
+  const difficulty = page.getByRole('button', { name: 'Difficulty' })
+  await expect(difficulty).toHaveAttribute('aria-pressed', 'false')
+
+  await difficulty.click()
+  await expect(difficulty).toHaveAttribute('aria-pressed', 'true')
+
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Difficulty' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
 })

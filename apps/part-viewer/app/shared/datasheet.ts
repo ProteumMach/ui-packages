@@ -1,8 +1,6 @@
 import type { KnownFeatureType } from '@toolpath/viewer'
-import type { components } from '@toolpath/api'
+import type { Vec3 } from '@toolpath/api'
 import type { PartFeature } from './contracts'
-
-type Vec3 = components['schemas']['Vec3']
 
 /**
  * The Engine's datasheet, as a shape rather than as a bag.

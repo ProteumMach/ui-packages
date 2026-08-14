@@ -17,6 +17,7 @@ import { READING_COLORS } from '../shared/selection-colors'
 import { loadShowAids, saveShowAids } from '../shared/scene-aids'
 import { directionLabel } from '../shared/report'
 import { PAINT_MODE_LABELS, type PaintMode, paintWash } from '../shared/paint'
+import type { Band } from '../shared/rules'
 import { Button } from '@toolpath/ui'
 import { ToolButton } from './tool-button'
 import type { PartReport, PublicInspectionReport } from '../shared/contracts'
@@ -93,6 +94,7 @@ export const FeatureViewer = ({
   arrowsVisible,
   paintMode,
   onPaintMode,
+  verdicts,
   focusFeature,
   onPickDirection,
   onPick,
@@ -128,6 +130,8 @@ export const FeatureViewer = ({
   /** The standing wash: what the part is coloured by while nothing is selected. */
   paintMode: PaintMode
   onPaintMode: (mode: PaintMode) => void
+  /** What the rules made of each feature, for the difficulty wash. */
+  verdicts: readonly { tag: string; band: Band | null }[]
   /** A feature to zoom to. Framed when it changes. */
   focusFeature: string | null
   onPickDirection: (index: number) => void
@@ -159,8 +163,8 @@ export const FeatureViewer = ({
   }
 
   const wash = useMemo(
-    () => paintWash(paintMode, report.features, report.candidateDirections),
-    [paintMode, report.candidateDirections, report.features],
+    () => paintWash(paintMode, report.features, report.candidateDirections, verdicts),
+    [paintMode, report.candidateDirections, report.features, verdicts],
   )
 
   const pickInViewport = (pick: PartPick) => {

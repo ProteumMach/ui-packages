@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { EMPTY, RULES_VERSION, copyAs, migrateRules, sameRules } from './saved-rules'
 import { DEFAULT_RULE_SET } from './rule-presets'
-import type { RuleSet } from './rules'
+import type { Rule, RuleSet } from './rules'
 
 /**
  * A shop's thresholds are an afternoon's work to arrive at, so the reading is
@@ -67,8 +67,11 @@ describe('sameRules', () => {
 
   test('notices a threshold somebody moved', () => {
     const moved = set({
-      rules: DEFAULT_RULE_SET.rules.map((rule, at) =>
-        at === 0 && rule.type === 'threshold' ? { ...rule, thresholds: [1, 2, 3, 4] } : rule,
+      rules: DEFAULT_RULE_SET.rules.map(
+        (rule, at): Rule =>
+          at === 0 && rule.type === 'threshold'
+            ? { ...rule, thresholds: [1, 2, 3, 4] as [number, number, number, number] }
+            : rule,
       ),
     })
 

@@ -17,6 +17,8 @@ import {
 } from '../shared/selection'
 import { directionLabel, featureFromTags, filterFeatures, tagsOfType } from '../shared/report'
 import { listHighlight } from '../shared/highlighting'
+import { DEFAULT_RULE_SET } from '../shared/rule-presets'
+import { evaluatePart } from '../shared/rules'
 import { escapeStep } from '../shared/escape'
 import { AppHeader } from './app-header'
 import { FeatureDetail } from './feature-detail'
@@ -114,6 +116,19 @@ export const PartInspector = ({
     () => report.features.find((feature) => feature.featureTag === focusedTag) ?? null,
     [focusedTag, report.features],
   )
+  /**
+   * What the shipped rules make of every feature.
+   *
+   * Judged once for the part rather than per paint: this is arithmetic over
+   * numbers already in hand — no Engine call, no geometry — but it is arithmetic
+   * over every feature times every rule, and the part does not change while
+   * somebody looks at it.
+   */
+  const verdicts = useMemo(
+    () => evaluatePart(DEFAULT_RULE_SET.rules, report.features),
+    [report.features],
+  )
+
   const [expandedType, setExpandedType] = useState<string | null>(null)
   /**
    * Whether the open type is still the question being asked.
@@ -355,6 +370,7 @@ export const PartInspector = ({
             onArrows={setArrows}
             arrowsVisible={arrowsVisible(arrows, arrowContext)}
             paintMode={paintMode}
+            verdicts={verdicts}
             onPaintMode={choosePaintMode}
             focusFeature={focusFeature}
             onPick={pickFromPart}

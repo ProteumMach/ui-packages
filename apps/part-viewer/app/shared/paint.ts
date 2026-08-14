@@ -1,5 +1,7 @@
 import { directionColor, directionIndexOf } from '@toolpath/viewer'
 import type { PartFeature } from './report'
+import { bandHex, paintOrder } from './bands'
+import type { Band } from './rules'
 
 /**
  * What the part is coloured by while nothing is selected.
@@ -9,21 +11,20 @@ import type { PartFeature } from './report'
  * changes is whether the part carries an answer to a question nobody has asked
  * yet.
  */
-export type PaintMode = 'plain' | 'directions'
+export type PaintMode = 'plain' | 'directions' | 'difficulty'
 
-export const PAINT_MODES: readonly PaintMode[] = ['plain', 'directions']
+export const PAINT_MODES: readonly PaintMode[] = ['plain', 'directions', 'difficulty']
 
 /**
  * The modes, in the order they are offered.
  *
  * Words rather than icons, unlike the rest of the toolbar: these are the
  * question the part is answering, and "no standing opinion" has no picture.
- * The feature picker offers a third, Difficulty, which needs rules this app
- * does not have.
  */
 export const PAINT_MODE_LABELS: readonly (readonly [PaintMode, string])[] = [
   ['plain', 'Plain'],
   ['directions', 'Directions'],
+  ['difficulty', 'Difficulty'],
 ]
 
 /** How strongly the standing wash covers the part, under everything else. */
@@ -38,7 +39,7 @@ const STORAGE_KEY = 'part-viewer.paint'
  */
 export function loadPaintMode(storage: Pick<Storage, 'getItem'> | null): PaintMode {
   const stored = storage?.getItem(STORAGE_KEY)
-  return stored === 'directions' ? 'directions' : 'plain'
+  return PAINT_MODES.find((mode) => mode === stored) ?? 'plain'
 }
 
 export function savePaintMode(storage: Pick<Storage, 'setItem'> | null, mode: PaintMode): void {
@@ -67,7 +68,10 @@ export function paintWash(
   mode: PaintMode,
   features: readonly PartFeature[],
   candidateDirections: readonly { x: number; y: number; z: number }[],
+  /** What the rules made of each feature, for `difficulty`. */
+  verdicts: readonly { tag: string; band: Band | null }[] = [],
 ): FeatureWash[] {
+  if (mode === 'difficulty') return difficultyWash(verdicts)
   if (mode !== 'directions') return []
 
   const washes: FeatureWash[] = []
@@ -77,4 +81,23 @@ export function paintWash(
     washes.push({ tag: feature.featureTag, color: directionColor(index), weight: PAINT_WEIGHT })
   }
   return washes
+}
+
+/**
+ * The part by how hard each feature is, in the five band colours.
+ *
+ * Painted easiest last, so where two features share a surface the gentler
+ * reading is the one on screen: a face nobody has placed is shown at its best,
+ * which is the best a shop could do if it held the part that way. Unjudged
+ * paints first and loses to everything, since "nobody looked" should not cover
+ * a colour that means something.
+ */
+function difficultyWash(verdicts: readonly { tag: string; band: Band | null }[]): FeatureWash[] {
+  return [...verdicts]
+    .sort((a, b) => paintOrder(b.band) - paintOrder(a.band))
+    .map((verdict) => ({
+      tag: verdict.tag,
+      color: bandHex(verdict.band),
+      weight: PAINT_WEIGHT,
+    }))
 }
