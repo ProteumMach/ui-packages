@@ -1,6 +1,8 @@
 import type { PartFeature, PublicInspectionReport } from '../shared/contracts'
+import { KindIcon } from './feature-icons'
 import { duration, partSummary } from '../shared/part-summary'
 import { directionLabel } from '../shared/report'
+import { directionCss } from '../shared/direction-colors'
 import { moveThroughList } from '../shared/list-keys'
 import type { Unit } from '../shared/units'
 
@@ -98,7 +100,7 @@ export const PartSummary = ({
             <span
               aria-hidden="true"
               className="size-1.5 rounded-full"
-              style={{ background: DIRECTION_DOTS[direction.index % DIRECTION_DOTS.length] }}
+              style={{ background: directionCss(direction.index) }}
             />
             {direction.label}
             <span className="tabular-nums text-zinc-500">{direction.features}</span>
@@ -148,6 +150,9 @@ export const PartSummary = ({
               >
                 <span aria-hidden="true" className="w-2 text-zinc-600">
                   {open ? '▾' : '▸'}
+                </span>
+                <span className="text-zinc-500">
+                  <KindIcon featureType={entry.type} kind="Other" />
                 </span>
                 <span className="flex-1">{entry.label}</span>
                 {entry.inDirection === null ? null : (
@@ -211,22 +216,3 @@ export const PartSummary = ({
     </div>
   )
 }
-
-/**
- * The direction cycle, as CSS.
- *
- * The same nine the viewer paints a direction with, so a chip here and an arrow
- * on the part are the same colour — the palette is an identity, and it stops
- * being one the moment two places disagree about it.
- */
-const DIRECTION_DOTS = [
-  '#3b82f6',
-  '#14b8a6',
-  '#d946ef',
-  '#06b6d4',
-  '#65a30d',
-  '#ec4899',
-  '#64748b',
-  '#10b981',
-  '#6366f1',
-]

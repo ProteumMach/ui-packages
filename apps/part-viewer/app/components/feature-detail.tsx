@@ -1,9 +1,26 @@
 import { Badge, Button } from '@toolpath/ui'
 import type { PartFeature, PublicInspectionReport } from '../shared/contracts'
+import { directionCss } from '../shared/direction-colors'
 import { moveThroughList } from '../shared/list-keys'
 import { measurements, stripMeasurements, STRIP_LABELS } from '../shared/measurements'
 import { asRecord, directionLabel, facts, featureSummary, rawDatasheet } from '../shared/report'
 import type { Unit } from '../shared/units'
+import { KindIcon } from './feature-icons'
+
+/** The Engine's own family for a feature, for the drawing that stands for it. */
+const kindOf = (feature: PartFeature): string => {
+  const kind = facts(feature).kind
+  return typeof kind === 'string' ? kind : 'Other'
+}
+
+/** Which way up it is cut from, as a position in the part's own list. */
+const directionOf = (report: PublicInspectionReport, feature: PartFeature): number =>
+  report.candidateDirections.findIndex(
+    (direction) =>
+      direction.x === feature.machiningDirection.x &&
+      direction.y === feature.machiningDirection.y &&
+      direction.z === feature.machiningDirection.z,
+  )
 
 /** The last six of the tag: enough to tell two features apart, at a glance. */
 const shortTag = (tag: string): string => tag.slice(-6)
@@ -84,8 +101,16 @@ export const FeatureDetail = ({
                   }`}
                 >
                   <span className="w-3 tabular-nums text-zinc-600">{at + 1}</span>
+                  <span className="text-zinc-400">
+                    <KindIcon featureType={candidate.featureType} kind={kindOf(candidate)} />
+                  </span>
                   <span className="flex-1 truncate">{summary.type}</span>
                   <span className="text-2xs text-zinc-500">{summary.regionCount}f</span>
+                  <span
+                    aria-hidden="true"
+                    className="size-1.5 shrink-0 rounded-full"
+                    style={{ background: directionCss(directionOf(report, candidate)) }}
+                  />
                   <Badge variant="secondary">{summary.direction}</Badge>
                 </button>
               </li>
@@ -99,12 +124,18 @@ export const FeatureDetail = ({
       <div className="p-3">
         <header className="flex flex-col gap-1.5">
           <div className="flex items-start justify-between gap-2">
-            <h2 className="font-display text-lg font-bold leading-tight">
+            <h2 className="flex items-center gap-2 font-display text-lg font-bold leading-tight">
+              <KindIcon featureType={feature.featureType} kind={kindOf(feature)} />
               {featureSummary(feature).type}
             </h2>
-            <Button size="sm" variant="secondary" onClick={onClose}>
-              Close
-            </Button>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Button size="sm" variant="secondary" onClick={() => onZoom(feature.featureTag)}>
+                Zoom
+              </Button>
+              <Button size="sm" variant="secondary" onClick={onClose}>
+                Close
+              </Button>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {typeof facts(feature).kind === 'string' ? (
@@ -154,11 +185,6 @@ export const FeatureDetail = ({
               </div>
             ))}
           </dl>
-          <div className="mt-2">
-            <Button size="sm" variant="secondary" onClick={() => onZoom(feature.featureTag)}>
-              Zoom to feature
-            </Button>
-          </div>
         </Section>
 
         <details className="mt-5 border-t border-zinc-800 pt-3">
