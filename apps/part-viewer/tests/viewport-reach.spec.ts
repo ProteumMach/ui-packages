@@ -200,7 +200,7 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
   // The hole is 4:1, which the shipped set calls `alright`.
   const drillingRule = page.getByRole('button', { name: 'Drilling L/D ratio', exact: true })
   await drillingRule.click()
-  await expect(page.getByLabel('easy up to')).toHaveValue('3.00')
+  await expect(page.getByLabel('easy to')).toHaveValue('3.00')
 
   // Tighten the whole scale under it. Tightened rather than loosened
   // deliberately: a feature's band is the *worst* rule's, so widening one limit
@@ -211,7 +211,7 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
     ['meh', '1.5'],
     ['rats', '2'],
   ] as const) {
-    await page.getByLabel(`${band} up to`).fill(limit)
+    await page.getByLabel(`${band} to`).fill(limit)
   }
   await expect(page.getByText('Changed, and not saved to a set.')).toBeVisible()
 
@@ -228,7 +228,7 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
   // why the scale had to move first.
   await page.getByRole('tab', { name: 'Rules' }).click()
   await drillingRule.click()
-  await page.getByLabel('refuse past').fill('3')
+  await page.getByLabel('no go past').fill('3')
   await page.getByRole('tab', { name: 'Inspector' }).click()
   await expect(page.getByText('no go', { exact: true }).first()).toBeVisible()
 

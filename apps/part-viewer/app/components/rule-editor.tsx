@@ -1,4 +1,4 @@
-import { Input } from '@toolpath/ui'
+import { Button, Input } from '@toolpath/ui'
 import { bandCss } from '../shared/bands'
 import { fromDisplay, ruleLimits, toDisplay, unitSuffix } from '../shared/rule-text'
 import type { Band, Rule, ThresholdRule } from '../shared/rules'
@@ -32,16 +32,16 @@ const NumberBox = ({
   unit: Unit
   onChange: (value: number | undefined) => void
 }) => (
-  <label className="flex items-center gap-1.5 text-2xs">
-    <span className="w-16 shrink-0 text-zinc-400">{label}</span>
+  <label className="flex min-w-0 flex-1 flex-col gap-1">
+    <span className="truncate text-2xs text-zinc-400">{label}</span>
     <Input
       aria-label={label}
-      className="h-6 w-20 px-1.5 text-2xs tabular-nums"
+      className="h-7 w-full px-2 text-xs tabular-nums"
       id={id}
-      name={id}
       inputMode="decimal"
-      type="number"
+      name={id}
       step="any"
+      type="number"
       value={value === undefined ? '' : toDisplay(value, metric, unit).toFixed(decimalsFor(unit))}
       onChange={(event) => {
         const typed = event.target.value.trim()
@@ -50,10 +50,18 @@ const NumberBox = ({
         onChange(typed === '' ? undefined : fromDisplay(Number(typed), metric, unit))
       }}
     />
-    <span className="w-6 shrink-0 text-zinc-600">{unitSuffix(metric, unit)}</span>
   </label>
 )
 
+/**
+ * The four limits and the refusal, in a row, each labelled by the band it
+ * closes — then the spans they add up to, in the band colours.
+ *
+ * Read left to right the row is the scale itself, which is what a shop is
+ * arguing with. The chips underneath are the same numbers as ranges: typing a
+ * limit changes two spans at once, and without them the effect of a keystroke
+ * is two boxes away from the number being typed.
+ */
 const Thresholds = ({
   rule,
   unit,
@@ -63,20 +71,16 @@ const Thresholds = ({
   unit: Unit
   onChange: (rule: Rule) => void
 }) => {
-  const limits = ruleLimits(rule, unit)
+  const names = rule.bandNames
 
   return (
-    <div className="flex flex-col gap-1">
-      {rule.thresholds.map((threshold, at) => (
-        <div key={BANDS[at]} className="flex items-center gap-1.5">
-          <span
-            aria-hidden="true"
-            className="size-1.5 shrink-0 rounded-full"
-            style={{ background: bandCss(BANDS[at] ?? null) }}
-          />
+    <div className="flex flex-col gap-2">
+      <div className="flex items-end gap-2">
+        {rule.thresholds.map((threshold, at) => (
           <NumberBox
+            key={BANDS[at]}
             id={`${rule.id}-band-${at}`}
-            label={`${bandName(BANDS[at] as Band, undefined, rule.bandNames)} up to`}
+            label={`${bandName(BANDS[at] as Band, undefined, names)} to`}
             metric={rule.metric}
             onChange={(value) => {
               if (value === undefined) return
@@ -87,19 +91,11 @@ const Thresholds = ({
             unit={unit}
             value={threshold}
           />
-          <span className="text-3xs tabular-nums text-zinc-600">{limits[at]?.range}</span>
-        </div>
-      ))}
+        ))}
 
-      <div className="flex items-center gap-1.5">
-        <span
-          aria-hidden="true"
-          className="size-1.5 shrink-0 rounded-full"
-          style={{ background: bandCss('no go') }}
-        />
         <NumberBox
           id={`${rule.id}-no-go`}
-          label="refuse past"
+          label={`${bandName('no go', undefined, names)} past`}
           metric={rule.metric}
           onChange={(value) => {
             // A refusal is optional: without one the scale simply keeps going,
@@ -112,6 +108,22 @@ const Thresholds = ({
           value={rule.noGo}
         />
       </div>
+
+      <ul className="flex flex-wrap gap-1">
+        {ruleLimits(rule, unit).map((limit) => (
+          <li
+            key={limit.band}
+            className="flex items-center gap-1 rounded bg-zinc-800/70 px-1.5 py-0.5 text-3xs text-zinc-300"
+          >
+            <span
+              aria-hidden="true"
+              className="size-1.5 shrink-0 rounded-full"
+              style={{ background: bandCss(limit.band) }}
+            />
+            <span className="tabular-nums">{limit.range}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
@@ -126,6 +138,21 @@ export const RuleNumbers = ({
   onChange: (rule: Rule) => void
 }) => (
   <div className="mt-1.5 flex flex-col gap-2 rounded border border-zinc-800 bg-zinc-900/60 p-2">
+    {/* The name is a shop's own word for the limit, so it is editable where the
+        limit is. Renaming one is how "Milling L/D ratio" becomes "how far the
+        cutter hangs out", which is what the people reading it call it. */}
+    <label className="flex flex-col gap-1">
+      <span className="text-2xs text-zinc-400">what to call it</span>
+      <Input
+        aria-label={`What to call ${rule.name}`}
+        className="h-7 w-full px-2 text-xs"
+        id={`${rule.id}-name`}
+        name={`${rule.id}-name`}
+        value={rule.name}
+        onChange={(event) => onChange({ ...rule, name: event.target.value })}
+      />
+    </label>
+
     {rule.type === 'threshold' ? <Thresholds onChange={onChange} rule={rule} unit={unit} /> : null}
 
     {rule.type === 'match' ? (
