@@ -137,7 +137,6 @@ export const FeatureViewer = ({
   // The cut is a mode: its handle stands over the part's centre, which is also
   // where an orbit starts, so leaving it on would swallow the gesture.
   const [sectioning, setSectioning] = useState(false)
-  const [cut, setCut] = useState(0.35)
   // A cut keyed off a face, rather than swept along an axis. `armed` is the
   // moment between asking for one and clicking the face it starts from.
   const [armed, setArmed] = useState(false)
@@ -166,6 +165,12 @@ export const FeatureViewer = ({
       return
     }
     onPick(pick)
+  }
+
+  const startSectioning = () => {
+    setSectioning(true)
+    setArmed(true)
+    setPlane(null)
   }
 
   const stopSectioning = () => {
@@ -234,52 +239,42 @@ export const FeatureViewer = ({
           <ToolButton
             label={sectioning ? 'Section (on)' : 'Section'}
             pressed={sectioning}
-            onClick={() => (sectioning ? stopSectioning() : setSectioning(true))}
+            onClick={() => (sectioning ? stopSectioning() : startSectioning())}
           >
             <SquareHalfIcon />
           </ToolButton>
           {sectioning ? (
             <>
               <ToolButton
-                label={armed ? 'Now click a face' : 'Cut from a face'}
+                label={armed ? 'Now click a face' : 'Cut from another face'}
                 pressed={armed}
                 onClick={() => {
-                  setArmed((on) => !on)
+                  setArmed(true)
                   setPlane(null)
                 }}
               >
                 <CrosshairSimpleIcon />
               </ToolButton>
-              <label className="flex h-8 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900/80 px-3 text-xs text-zinc-300">
-                <span className="sr-only">Cut depth</span>
-                {plane && depthRange ? (
-                  <>
-                    <input
-                      type="range"
-                      min={Math.max(0, depthRange.min)}
-                      max={depthRange.max}
-                      step={0.1}
-                      value={depth}
-                      onChange={(event) => setDepth(Number(event.target.value))}
-                      className="w-32 accent-info"
-                    />
-                    <span className="w-14 text-right font-mono">{depth.toFixed(1)} mm</span>
-                  </>
-                ) : (
-                  <>
-                    <input
-                      type="range"
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      value={cut}
-                      onChange={(event) => setCut(Number(event.target.value))}
-                      className="w-32 accent-info"
-                    />
-                    <span className="w-14 text-right font-mono">{Math.round(cut * 100)}%</span>
-                  </>
-                )}
-              </label>
+              {plane === null ? (
+                <span className="flex h-8 items-center rounded-md border border-info/40 bg-info/10 px-3 text-xs text-info">
+                  Click a face to cut from
+                </span>
+              ) : null}
+              {plane && depthRange ? (
+                <label className="flex h-8 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900/85 px-3 text-xs text-zinc-300">
+                  <span className="sr-only">Cut depth</span>
+                  <input
+                    type="range"
+                    min={Math.max(0, depthRange.min)}
+                    max={depthRange.max}
+                    step={0.1}
+                    value={depth}
+                    onChange={(event) => setDepth(Number(event.target.value))}
+                    className="w-32 accent-info"
+                  />
+                  <span className="w-16 text-right font-mono">{depth.toFixed(1)} mm</span>
+                </label>
+              ) : null}
             </>
           ) : null}
         </div>
@@ -316,18 +311,14 @@ export const FeatureViewer = ({
                 focusFeature={focusFeature}
                 onPick={pickInViewport}
                 activeDirection={activeDirection}
-                section={{
-                  enabled: sectioning,
-                  normal: { x: 0, y: 0, z: -1 },
-                  offset: cut,
-                  plane,
-                  depth,
-                }}
+                // No plane, no cut. A section that starts by lopping off an
+                // arbitrary half of the part hides the face you were about to
+                // pick it from.
+                section={{ enabled: sectioning && plane !== null, plane, depth }}
                 onSectionChange={(state) => {
                   // The handle reports its drag through the same path the
-                  // sliders write to, so the two never disagree.
+                  // slider writes to, so the two never disagree.
                   if (state.plane && state.depth !== null) setDepth(state.depth)
-                  else setCut(state.offset)
                   setDepthRange(state.depthRange)
                 }}
               />
