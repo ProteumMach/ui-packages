@@ -38,6 +38,13 @@ const readyEvent = {
   },
 }
 
+/** The rules fold up, so reading one starts by opening it. */
+export const openRule = async (page: Page, name: string) => {
+  const rule = page.getByRole('listitem').filter({ hasText: name }).first()
+  await rule.getByRole('button', { name: /limits and what it caught/ }).click()
+  return rule
+}
+
 /**
  * The viewport has to receive a drag that starts at its own edge.
  *
@@ -158,6 +165,8 @@ test('shows the limits it judges by, and what they made of a feature', async ({ 
   await page.getByRole('tab', { name: 'Rules' }).click()
   await expect(page.getByLabel('Rule set')).toHaveValue('default')
   await expect(page.getByText('Drilling L/D ratio').first()).toBeVisible()
+
+  await openRule(page, 'Drilling L/D ratio')
   // The bands a measurement is judged against, in the same words the part uses.
   await expect(page.getByText('∞ – 3.0').first()).toBeVisible()
 
@@ -201,9 +210,9 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
 
   // Scoped to one rule's row: every rule has an `easy to`, and reaching for the
   // first one on the page edits whichever rule happens to be at the top.
-  const drilling = page.getByRole('listitem').filter({ hasText: 'Drilling L/D ratio' }).first()
+  const drilling = await openRule(page, 'Drilling L/D ratio')
 
-  // The limits are on the row, not behind a press: moving one is what somebody
+  // The limits are on the row once it is open: moving one is what somebody
   // opened this tab to do. Trailing zeros are stripped so a box does not
   // rewrite itself between keystrokes.
   await expect(drilling.getByLabel('easy to')).toHaveValue('3')
@@ -238,19 +247,35 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
     .getByRole('button', { name: /hole-1/ })
     .first()
     .click()
-  // Past the rats limit, which is where this rule now refuses.
+  // Past every limit, which is `rats` — a shop that names no refusal is saying
+  // "hard, but bought", and only a rule with one can say a thing cannot be made.
+  await expect(page.getByText('rats', { exact: true }).first()).toBeVisible()
+
+  // Name a refusal and the same hole stops being work this shop takes.
+  await page.getByRole('tab', { name: 'Rules' }).click()
+  const refusing = await openRule(page, 'Drilling L/D ratio')
+  await refusing.getByLabel('no go past').fill('3')
+  await page.getByRole('tab', { name: 'Inspector' }).click()
   await expect(page.getByText('no go', { exact: true }).first()).toBeVisible()
 
   // A rule switched off stops judging without being deleted.
   await page.getByRole('tab', { name: 'Rules' }).click()
-  const applies = drilling.getByRole('checkbox')
+  const applies = page
+    .getByRole('listitem')
+    .filter({ hasText: 'Drilling L/D ratio' })
+    .first()
+    .getByRole('checkbox')
   await applies.uncheck()
   await expect(applies).not.toBeChecked()
 
   // And putting it back is one press: a shipped set is never written over.
   await page.getByRole('button', { name: 'Put back' }).click()
   await expect(page.getByText('Changed, not saved')).toBeHidden()
-  await expect(drilling.getByLabel('easy to')).toHaveValue('3')
+
+  // Reopened, because leaving the tab folds the rules again — the panel is
+  // unmounted, and what was open with it.
+  const reopened = await openRule(page, 'Drilling L/D ratio')
+  await expect(reopened.getByLabel('easy to')).toHaveValue('3')
 })
 
 /**
@@ -261,7 +286,7 @@ test('lists the features each rule bit on, and opens one', async ({ page }) => {
   await openInspector(page)
   await page.getByRole('tab', { name: 'Rules' }).click()
 
-  const drilling = page.getByRole('listitem').filter({ hasText: 'Drilling L/D ratio' }).first()
+  const drilling = await openRule(page, 'Drilling L/D ratio')
 
   // The hole this rule judged, under the rule that judged it.
   const hit = drilling.getByRole('button', { name: /Blind Hole/ })
@@ -295,6 +320,7 @@ test('walks the rules and their features with the keyboard', async ({ page }) =>
   // through features rather than moving a highlight somebody must then press.
   // Reached directly: the rules above it in this fixture caught nothing, and
   // walking past them would be testing the fixture rather than the keyboard.
+  await openRule(page, 'Drilling L/D ratio')
   await page.locator('[data-row="hole-1"]').first().focus()
   await page.getByRole('tab', { name: 'Inspector' }).click()
   await expect(page.getByRole('heading', { name: 'Blind Hole' })).toBeVisible()
@@ -314,7 +340,7 @@ test('scores every feature where it is named', async ({ page }) => {
 
   // And under the rule that judged it, with the band's own colour.
   await page.getByRole('tab', { name: 'Rules' }).click()
-  const drilling = page.getByRole('listitem').filter({ hasText: 'Drilling L/D ratio' }).first()
+  const drilling = await openRule(page, 'Drilling L/D ratio')
   const badge = drilling.getByTitle(/scores \d+ across the rules that applied/).first()
   await expect(badge).toBeVisible()
 })
@@ -327,7 +353,7 @@ test('takes a number a digit at a time, leading zero and all', async ({ page }) 
   await openInspector(page)
   await page.getByRole('tab', { name: 'Rules' }).click()
 
-  const smallest = page.getByRole('listitem').filter({ hasText: 'Smallest drilled hole' }).first()
+  const smallest = await openRule(page, 'Smallest drilled hole')
   const easy = smallest.getByLabel('easy to')
 
   await easy.fill('')
@@ -359,9 +385,10 @@ test('fills the window rather than growing past it', async ({ page }) => {
   // viewer is the one thing that cannot follow.
   expect(await page.evaluate(() => window.scrollY)).toBe(0)
 
-  // The panel itself still scrolls, or the rules past the fold are unreachable.
+  // The panel itself takes the overflow, or the rules past the fold would be
+  // unreachable. Measured after opening one, since folded rules may well fit.
+  await openRule(page, 'Milling L/D ratio')
   const panel = page.locator('aside').first()
-  await expect(panel).toHaveJSProperty('scrollTop', 0)
   await panel.evaluate((el) => el.scrollBy(0, 400))
   expect(await panel.evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
 })

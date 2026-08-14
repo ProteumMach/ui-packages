@@ -492,9 +492,9 @@ export interface BandRange {
  * in: "rats up to 12" is what a hard job looks like and "no go past 15" is
  * where it stops being a job, and anything between the two is still rats.
  */
-export const hardStop = (rule: ThresholdRule): number =>
+export const hardStop = (rule: ThresholdRule): number | null =>
   rule.noGo === undefined
-    ? rule.thresholds[3]
+    ? null
     : rule.direction === 'higher is harder'
       ? Math.max(rule.noGo, rule.thresholds[3])
       : Math.min(rule.noGo, rule.thresholds[3])
@@ -512,12 +512,13 @@ export const hardStop = (rule: ThresholdRule): number =>
 export const bandRanges = (rule: ThresholdRule): Array<BandRange> => {
   const [easy, alright, meh] = rule.thresholds
   const rising = rule.direction === 'higher is harder'
+  const rats = rule.thresholds[3]
   const stop = hardStop(rule)
   const last: BandRange = {
     band: 'no go',
-    from: rising ? stop : null,
-    to: rising ? null : stop,
-    reachable: true,
+    from: rising ? (stop ?? rats) : null,
+    to: rising ? null : (stop ?? rats),
+    reachable: stop !== null,
   }
 
   const bounded = (band: Band, lower: number | null, upper: number | null): BandRange =>
@@ -529,8 +530,9 @@ export const bandRanges = (rule: ThresholdRule): Array<BandRange> => {
     bounded('easy', null, easy),
     bounded('alright', easy, alright),
     bounded('meh', alright, meh),
-    // Rats runs from the meh limit to its own, which is where a refusal begins.
-    bounded('rats', meh, stop),
+    // Rats runs from the meh limit to its own, and on to the refusal where
+    // there is one: a shop that refuses past 15 still buys the work at 13.
+    bounded('rats', meh, stop ?? rats),
     last,
   ]
 }

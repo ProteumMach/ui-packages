@@ -209,3 +209,23 @@ describe('band names', () => {
     expect(scoreFeature(renamed)).toBe(scoreFeature(named))
   })
 })
+
+describe('a refusal is optional', () => {
+  const bare = drillingLD({ thresholds: [3, 5, 8, 12] })
+
+  test('leaves the worst band unreachable when no rule names one', () => {
+    // Without a refusal a shop is saying "hard, but bought" — only a rule that
+    // names one can say a thing cannot be made.
+    const verdict = evaluateFeature([bare], hole({}, { zMin: -200 }))
+
+    expect(verdict.band).toBe('rats')
+    expect(scorePart([verdict]).pastHardLimit).toBe(0)
+  })
+
+  test('refuses only past the refusal, once there is one', () => {
+    const refused = evaluateFeature([drillingLD({ noGo: 20 })], hole({}, { zMin: -200 }))
+
+    // 200 in a 6.35 bore is past 20:1.
+    expect(refused.band).toBe('no go')
+  })
+})

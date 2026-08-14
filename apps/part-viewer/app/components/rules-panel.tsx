@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@toolpath/ui'
 import { RuleCard } from './rule-editor'
+import { Heading } from './heading'
 import type { RulesState } from '../shared/use-rules'
 import type { Unit } from '../shared/units'
 import type { PartFeature } from '../shared/contracts'
@@ -37,9 +38,10 @@ export const RulesPanel = ({
   onHover: (tags: string[]) => void
 }) => {
   const hits = useMemo(() => ruleHits(rules.verdicts, features), [features, rules.verdicts])
-  // Open by default: a panel of collapsed names says nothing about the part,
-  // and the limits are what somebody came here to read.
-  const [closed, setClosed] = useState<ReadonlySet<string>>(new Set())
+  // Folded by default. Fifteen rules with their limits and what each caught is
+  // several screens of panel, and the question somebody arrives with is which
+  // rule to look at — which is answerable from the names and the counts alone.
+  const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
   const [editing, setEditing] = useState<string | null>(null)
   const set = rules.ruleSet
   const sets = [...rules.presets, ...rules.savedSets]
@@ -51,18 +53,23 @@ export const RulesPanel = ({
   useEffect(() => {
     if (!pending) return
     const written = set.rules.at(-1)
-    if (written) setEditing(written.id)
+    if (written) {
+      setEditing(written.id)
+      setOpen((shown) => new Set([...shown, written.id]))
+    }
     setPending(false)
   }, [pending, set.rules])
 
   return (
-    <aside className="size-full overflow-y-auto bg-zinc-900/40 p-3">
+    <aside className="size-full overflow-y-auto bg-zinc-900/40 p-3 text-xs">
+      <Heading>Rule set</Heading>
+
       <div className="flex items-center gap-1.5">
         {/* A shop's thresholds belong to a material and a machine, so which set
             is in force is a choice rather than a setting made once. */}
         <select
           aria-label="Rule set"
-          className="h-8 min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-2 text-sm text-zinc-100"
+          className="h-8 min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-100"
           onChange={(event) => rules.loadPreset(event.target.value)}
           value={sets.some((each) => each.id === set.id) ? set.id : ''}
         >
@@ -112,18 +119,15 @@ export const RulesPanel = ({
       {/* One list for the whole panel, so the arrows walk from a rule into the
           features under it and on into the next rule — which is the order it
           reads in, and the order somebody expects to travel. */}
+      <Heading>Limits</Heading>
+
       <ul
-        className="mt-2"
+        className="mt-1"
         data-keynav="rules"
         onKeyDown={(event) =>
           moveThroughList(event, {
-            onOpen: (value) =>
-              setClosed((shut) => {
-                const next = new Set(shut)
-                next.delete(value)
-                return next
-              }),
-            onClose: () => setClosed((shut) => new Set([...shut, ...set.rules.map((r) => r.id)])),
+            onOpen: (value) => setOpen((shown) => new Set([...shown, value])),
+            onClose: () => setOpen(new Set()),
           })
         }
       >
@@ -139,15 +143,15 @@ export const RulesPanel = ({
             editing={editing === rule.id}
             onEdit={() => setEditing((open) => (open === rule.id ? null : rule.id))}
             onOpen={() =>
-              setClosed((shut) => {
-                const next = new Set(shut)
+              setOpen((shown) => {
+                const next = new Set(shown)
                 if (next.has(rule.id)) next.delete(rule.id)
                 else next.add(rule.id)
                 return next
               })
             }
             onRemove={() => rules.removeRule(rule.id)}
-            open={!closed.has(rule.id)}
+            open={open.has(rule.id)}
             rule={rule}
             types={types}
             unit={unit}

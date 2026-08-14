@@ -164,6 +164,8 @@ export interface RuleHit {
   readonly tag: string
   readonly band: Band
   readonly label: string
+  /** The kernel's own name for the type, which is what picks its drawing. */
+  readonly featureType: string
   readonly direction: string
   readonly regions: number
 }
@@ -195,6 +197,7 @@ export function ruleHits(
         tag: verdict.tag,
         band: result.band,
         label: featureSummary(feature).type,
+        featureType: feature.featureType,
         direction: directionLabel(feature.machiningDirection),
         regions: feature.regionIdxs.length,
       })

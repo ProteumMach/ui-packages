@@ -4,6 +4,7 @@ import { duration, partSummary } from '../shared/part-summary'
 import { directionLabel } from '../shared/report'
 import { directionCss } from '../shared/direction-colors'
 import { moveThroughList } from '../shared/list-keys'
+import { Heading } from './heading'
 import type { FeatureScore } from '../shared/feature-score'
 import { ScoreBadge } from './score-badge'
 import type { Unit } from '../shared/units'
@@ -13,12 +14,6 @@ const Count = ({ label, value }: { label: string; value: string | number }) => (
     <span className="text-zinc-400">{label}</span>
     <span className="font-medium tabular-nums text-zinc-100">{value}</span>
   </div>
-)
-
-const Heading = ({ children }: { children: string }) => (
-  <h3 className="mb-1 mt-5 text-2xs font-bold uppercase tracking-wider text-zinc-500 first:mt-0">
-    {children}
-  </h3>
 )
 
 /**

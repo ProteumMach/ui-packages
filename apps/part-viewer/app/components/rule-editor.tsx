@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { CaretDownIcon, PencilSimpleIcon } from '@phosphor-icons/react'
 import { Button, Input } from '@toolpath/ui'
 import { bandCss } from '../shared/bands'
+import { KindIcon } from './feature-icons'
 import { METRICS } from '../shared/metrics'
 import type { RuleHit } from '../shared/rule-text'
 import type { FeatureScore } from '../shared/feature-score'
@@ -16,7 +17,7 @@ import {
   unitSuffix,
 } from '../shared/rule-text'
 import type { Band, FlagRule, Rule, RuleType, ThresholdRule } from '../shared/rules'
-import { BANDS, FLAG_TESTS, RULE_TYPES, asType, bandName, hardStop } from '../shared/rules'
+import { BANDS, FLAG_TESTS, RULE_TYPES, asType, bandName } from '../shared/rules'
 import type { Unit } from '../shared/units'
 import { decimalsFor } from '../shared/units'
 
@@ -215,7 +216,7 @@ const Limits = ({
               const { noGo: _dropped, ...rest } = rule
               onChange(value === undefined ? rest : { ...rule, noGo: value })
             }}
-            placeholder={formatMetric(hardStop(rule), rule.metric, unit)}
+            placeholder="none"
             unit={unit}
             value={rule.noGo}
           />
@@ -829,15 +830,16 @@ export const RuleCard = ({
         </button>
 
         <span
-          className={`min-w-0 flex-1 truncate text-sm ${
-            rule.enabled ? 'text-zinc-200' : 'text-zinc-500'
-          }`}
+          className={`min-w-0 flex-1 truncate ${rule.enabled ? 'text-zinc-200' : 'text-zinc-500'}`}
         >
           {rule.name}
         </span>
 
         {hits.length > 0 ? (
-          <span className="shrink-0 text-2xs tabular-nums text-zinc-500" title="Readings it caught">
+          <span
+            className="shrink-0 font-medium tabular-nums text-zinc-400"
+            title="Readings it caught"
+          >
             {hits.length}
           </span>
         ) : null}
@@ -889,7 +891,7 @@ export const RuleCard = ({
               {shown.map((hit) => (
                 <li key={hit.tag}>
                   <button
-                    className={`flex w-full items-center gap-2 rounded py-0.5 pl-4 pr-1 text-left text-xs ${
+                    className={`flex w-full items-center gap-2 rounded py-0.5 pl-4 pr-1 text-left text-2xs ${
                       hit.tag === focusedTag
                         ? 'bg-info/15 text-info'
                         : 'text-zinc-400 hover:bg-zinc-800/60'
@@ -903,11 +905,12 @@ export const RuleCard = ({
                     onMouseEnter={() => onHover([hit.tag])}
                     type="button"
                   >
-                    <span
-                      aria-hidden="true"
-                      className="size-1.5 shrink-0 rounded-full"
-                      style={{ background: bandCss(hit.band) }}
-                    />
+                    {/* The drawing of the type, as every other list of
+                        features in the app shows it — the band is already on
+                        the score at the other end of the row. */}
+                    <span className="shrink-0 text-zinc-500">
+                      <KindIcon featureType={hit.featureType} kind="Other" />
+                    </span>
                     <span className="min-w-0 flex-1 truncate">{hit.label}</span>
                     <span className="shrink-0 text-zinc-500">{hit.direction}</span>
                     <span className="shrink-0 tabular-nums text-zinc-500">{hit.regions}f</span>
@@ -922,7 +925,7 @@ export const RuleCard = ({
               {hits.length > 4 ? (
                 <li>
                   <button
-                    className="pl-4 text-2xs text-zinc-500 underline decoration-dotted"
+                    className="pl-4 text-3xs text-zinc-500 underline decoration-dotted"
                     onClick={() => setShowAll((all) => !all)}
                     type="button"
                   >
