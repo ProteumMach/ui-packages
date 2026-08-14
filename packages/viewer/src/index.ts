@@ -104,6 +104,7 @@ export type { ViewerControls, ViewerHandle, ViewerView } from './types.js'
 export type {
   FeatureTag,
   FeatureType,
+  KnownFeatureType,
   PartMeshRefs,
   PartModel,
   PartModelFeature,
