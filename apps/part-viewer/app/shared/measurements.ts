@@ -1,5 +1,6 @@
 import type { PartFeature } from './contracts'
 import { asNumber, asRecord, facts } from './report'
+import { formatArea, formatLength, type Unit } from './units'
 
 /**
  * What a feature amounts to, in the order somebody asks it.
@@ -25,11 +26,6 @@ export interface Measurement {
   /** Longer than a label, where the field needs a sentence. */
   readonly note?: string
 }
-
-const MM = 'mm'
-
-const length = (value: number): string => `${value.toFixed(2)} ${MM}`
-const area = (value: number): string => `${value.toFixed(2)} ${MM}²`
 
 /**
  * The top of the part along one machining direction.
@@ -81,11 +77,16 @@ export function measurements({
   feature,
   features,
   regions,
+  unit,
 }: {
   feature: PartFeature
   features: readonly PartFeature[]
   regions: readonly { idx: number; shapeKind: string }[]
+  unit: Unit
 }): Measurement[] {
+  const length = (value: number) => formatLength(value, unit)
+  const area = (value: number) => formatArea(value, unit)
+
   const rows: Measurement[] = []
   const sheet = asRecord(feature.datasheet)
   const sheetFacts = facts(feature)

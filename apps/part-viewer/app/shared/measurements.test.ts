@@ -28,8 +28,8 @@ const regions = [
   { idx: 3, shapeKind: 'Cylinder' },
 ]
 
-const rowsFor = (subject: PartFeature, others: PartFeature[] = []) =>
-  measurements({ feature: subject, features: [subject, ...others], regions })
+const rowsFor = (subject: PartFeature, others: PartFeature[] = [], unit: 'mm' | 'in' = 'mm') =>
+  measurements({ feature: subject, features: [subject, ...others], regions, unit })
 
 const valueOf = (subject: PartFeature, key: string, others: PartFeature[] = []) =>
   rowsFor(subject, others).find((row) => row.key === key)?.value
@@ -127,6 +127,17 @@ describe('measurements', () => {
 
     // A number a shop cannot trace is one they have to take on faith.
     for (const row of rowsFor(subject)) expect(row.from).not.toBe('')
+  })
+})
+
+describe('the unit it is read in', () => {
+  it('converts every length and area, and keeps the arithmetic in millimetres', () => {
+    const subject = feature({ datasheet: { zMax: 8.89, zMin: 0, wallishArea: 806.45 } })
+    const inches = rowsFor(subject, [], 'in')
+
+    // The Engine reports millimetres; the conversion happens where it is shown.
+    expect(inches.find((row) => row.key === 'featureDepth')?.value).toBe('0.350 in')
+    expect(inches.find((row) => row.key === 'walls')?.value).toBe('1.250 in²')
   })
 })
 

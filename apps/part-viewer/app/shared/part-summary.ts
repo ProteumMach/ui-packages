@@ -19,6 +19,13 @@ export interface TypeCount {
   readonly type: string
   readonly label: string
   readonly features: number
+  /**
+   * How many of them are cut from the direction being held.
+   *
+   * `null` when none is: a count against no question is a column of numbers
+   * equal to the one beside it.
+   */
+  readonly inDirection: number | null
 }
 
 export interface PartSummary {
@@ -40,15 +47,24 @@ const labelForType = (value: string): string =>
 
 const asMs = (value: unknown): number => (typeof value === 'number' && value >= 0 ? value : 0)
 
-export function partSummary(report: PublicInspectionReport): PartSummary {
+export function partSummary(
+  report: PublicInspectionReport,
+  activeDirection: number | null = null,
+): PartSummary {
+  const held = activeDirection === null ? null : report.candidateDirections[activeDirection]
   const perDirection = new Map<string, number>()
   const perType = new Map<string, number>()
+  const perTypeHeld = new Map<string, number>()
 
   for (const feature of report.features) {
     const direction = feature.machiningDirection
     const key = `${direction.x},${direction.y},${direction.z}`
     perDirection.set(key, (perDirection.get(key) ?? 0) + 1)
     perType.set(feature.featureType, (perType.get(feature.featureType) ?? 0) + 1)
+
+    if (held && direction.x === held.x && direction.y === held.y && direction.z === held.z) {
+      perTypeHeld.set(feature.featureType, (perTypeHeld.get(feature.featureType) ?? 0) + 1)
+    }
   }
 
   return {
@@ -64,7 +80,12 @@ export function partSummary(report: PublicInspectionReport): PartSummary {
     // Commonest first: the long tail of one-off types is the part of this list
     // nobody scans, and putting it at the top buries what the part is made of.
     types: [...perType]
-      .map(([type, features]) => ({ type, label: labelForType(type), features }))
+      .map(([type, features]) => ({
+        type,
+        label: labelForType(type),
+        features,
+        inDirection: held ? (perTypeHeld.get(type) ?? 0) : null,
+      }))
       .sort((a, b) => b.features - a.features || a.label.localeCompare(b.label)),
     timing: {
       download: asMs(report.downloadMs),

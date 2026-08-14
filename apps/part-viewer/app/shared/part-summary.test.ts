@@ -40,13 +40,30 @@ describe('partSummary', () => {
     ])
   })
 
+  it('counts how many of each type come from the direction being held', () => {
+    const summary = partSummary(report, 1)
+
+    // Held against the total, so "61 walls, 20 of them from −Z" is one line
+    // rather than two lists to compare.
+    expect(summary.types.map((entry) => [entry.label, entry.features, entry.inDirection])).toEqual([
+      ['Wall', 2, 1],
+      ['Blind hole', 1, 0],
+      ['Boss', 1, 0],
+    ])
+  })
+
+  it('counts nothing against no question', () => {
+    // A column equal to the one beside it is a column nobody reads.
+    for (const entry of partSummary(report).types) expect(entry.inDirection).toBeNull()
+  })
+
   it('lists the feature types commonest first', () => {
     // The long tail of one-off types is the part nobody scans; at the top it
     // buries what the part is made of.
-    expect(partSummary(report).types.map((entry) => [entry.label, entry.features])).toEqual([
-      ['Wall', 2],
-      ['Blind hole', 1],
-      ['Boss', 1],
+    expect(partSummary(report).types.map((entry) => entry.label)).toEqual([
+      'Wall',
+      'Blind hole',
+      'Boss',
     ])
   })
 

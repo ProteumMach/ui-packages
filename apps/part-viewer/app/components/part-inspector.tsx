@@ -1,6 +1,7 @@
 import { directionIndexOf, sameDirection, type PartPick } from '@toolpath/viewer'
 import { type Arrows, arrowsVisible, shownArrow } from '../shared/arrows'
 import { type PaintMode, loadPaintMode, savePaintMode } from '../shared/paint'
+import { type Unit, loadUnit, saveUnit } from '../shared/units'
 import { Panels, Tabs } from '@toolpath/ui'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
@@ -18,7 +19,6 @@ import { directionLabel, featureFromTags, filterFeatures } from '../shared/repor
 import { AppHeader } from './app-header'
 import { FeatureDetail } from './feature-detail'
 import { PartSummary } from './part-summary'
-import { FeatureList } from './feature-list'
 import { FeatureViewer } from './feature-viewer'
 
 type ViewerTab = 'inspector' | 'directions'
@@ -92,13 +92,21 @@ export const PartInspector = ({
     () => report.features.find((feature) => feature.featureTag === focusedTag) ?? null,
     [focusedTag, report.features],
   )
-  const [typeFilter, setTypeFilter] = useState<string | null>(null)
-  const features = useMemo(() => {
-    const matching = filterFeatures(report.features, query)
-    return typeFilter === null
-      ? matching
-      : matching.filter((feature) => feature.featureType === typeFilter)
-  }, [query, report.features, typeFilter])
+  const [expandedType, setExpandedType] = useState<string | null>(null)
+  const [unit, setUnit] = useState<Unit>('mm')
+  const features = useMemo(() => filterFeatures(report.features, query), [query, report.features])
+
+  // Read after mount, like the paint mode: the server has no localStorage, and
+  // a unit that differed between the two would hydrate as a flash of the wrong
+  // numbers.
+  useEffect(() => {
+    setUnit(loadUnit(globalThis.localStorage ?? null))
+  }, [])
+
+  const chooseUnit = (next: Unit) => {
+    setUnit(next)
+    saveUnit(globalThis.localStorage ?? null, next)
+  }
   /**
    * Once a feature is being read, its own way up is the only one worth drawing.
    * An explicit direction still wins: choosing one is a question about that
@@ -175,31 +183,19 @@ export const PartInspector = ({
       <aside className="flex size-full min-h-0 flex-col overflow-y-auto bg-zinc-900/40">
         <PartSummary
           report={report}
+          features={features}
           activeDirection={activeDirection}
           onPickDirection={holdDirection}
-          typeFilter={typeFilter}
-          onTypeFilter={setTypeFilter}
-        />
-        <div className="border-y border-zinc-800 p-3">
-          <label className="sr-only" htmlFor="feature-search">
-            Search features
-          </label>
-          <input
-            id="feature-search"
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search type, direction, or tag"
-            className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-info/75"
-          />
-        </div>
-        <FeatureList
-          className="min-h-0 flex-1"
-          features={features}
+          expandedType={expandedType}
+          onExpandType={setExpandedType}
           focusedTag={focusedTag}
           candidateTags={candidateTags}
           onChoose={choose}
           onHover={setHoveredTags}
+          unit={unit}
+          onUnit={chooseUnit}
+          query={query}
+          onQuery={setQuery}
         />
       </aside>
     ) : (
@@ -306,6 +302,7 @@ export const PartInspector = ({
             onChoose={focusCandidate}
             onZoom={zoomToFeature}
             onClose={() => setSelection(NOTHING_SELECTED)}
+            unit={unit}
           />
         </Panels.Panel>
       </Panels.Group>

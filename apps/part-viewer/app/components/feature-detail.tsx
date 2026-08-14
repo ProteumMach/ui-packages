@@ -2,6 +2,7 @@ import { Badge, Button } from '@toolpath/ui'
 import type { PartFeature, PublicInspectionReport } from '../shared/contracts'
 import { measurements, stripMeasurements, STRIP_LABELS } from '../shared/measurements'
 import { asRecord, directionLabel, facts, featureSummary, rawDatasheet } from '../shared/report'
+import type { Unit } from '../shared/units'
 
 /** The last six of the tag: enough to tell two features apart, at a glance. */
 const shortTag = (tag: string): string => tag.slice(-6)
@@ -40,6 +41,7 @@ export const FeatureDetail = ({
   onChoose,
   onZoom,
   onClose,
+  unit,
 }: {
   feature: PartFeature | null
   report: PublicInspectionReport
@@ -47,6 +49,7 @@ export const FeatureDetail = ({
   onChoose: (featureTag: string) => void
   onZoom: (featureTag: string) => void
   onClose: () => void
+  unit: Unit
 }) => (
   <aside className="flex size-full min-h-0 flex-col overflow-y-auto bg-zinc-900/40">
     {/* The readings a click could have meant, above the one being read: the
@@ -114,7 +117,7 @@ export const FeatureDetail = ({
               else — a selection from the same rows, so the two cannot disagree. */}
           <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1">
             {stripMeasurements(
-              measurements({ feature, features: report.features, regions: report.regions }),
+              measurements({ feature, features: report.features, regions: report.regions, unit }),
             ).map((row) => (
               <span key={row.key} className="flex flex-col">
                 <span className="font-semibold tabular-nums text-zinc-100">{row.value}</span>
@@ -130,6 +133,7 @@ export const FeatureDetail = ({
               feature,
               features: report.features,
               regions: report.regions,
+              unit,
             }).map((row) => (
               <div key={row.key} className="flex items-baseline justify-between gap-4 py-1">
                 <dt
