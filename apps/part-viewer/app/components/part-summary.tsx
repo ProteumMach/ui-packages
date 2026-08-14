@@ -1,6 +1,7 @@
 import type { PartFeature, PublicInspectionReport } from '../shared/contracts'
 import { duration, partSummary } from '../shared/part-summary'
 import { directionLabel } from '../shared/report'
+import { moveThroughList } from '../shared/list-keys'
 import type { Unit } from '../shared/units'
 
 const Count = ({ label, value }: { label: string; value: string | number }) => (
@@ -117,7 +118,15 @@ export const PartSummary = ({
         placeholder="Search type, direction, or tag"
         className="mb-1 w-full rounded border border-zinc-800 bg-zinc-950/60 px-2 py-1 text-2xs outline-none focus-visible:ring-2 focus-visible:ring-info/75"
       />
-      <ul>
+      <ul
+        data-keynav="types"
+        onKeyDown={(event) =>
+          moveThroughList(event, {
+            onOpen: (type) => onExpandType(type),
+            onClose: () => onExpandType(null),
+          })
+        }
+      >
         {summary.types.map((entry) => {
           const open = expandedType === entry.type
           // The list of a type lives under its own count, so the count is the
@@ -130,6 +139,7 @@ export const PartSummary = ({
             <li key={entry.type}>
               <button
                 type="button"
+                data-row={entry.type}
                 aria-expanded={open}
                 onClick={() => onExpandType(open ? null : entry.type)}
                 className={`flex w-full items-baseline gap-2 rounded px-1 py-1 text-left transition ${
@@ -161,6 +171,7 @@ export const PartSummary = ({
                         <li key={feature.featureTag}>
                           <button
                             type="button"
+                            data-row={feature.featureTag}
                             aria-pressed={chosen}
                             onMouseEnter={() => onHover([feature.featureTag])}
                             onMouseLeave={() => onHover([])}

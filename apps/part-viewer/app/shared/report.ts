@@ -110,10 +110,20 @@ export const featureDetailRows = (feature: PartFeature): DetailRow[] => {
 export const rawDatasheet = (feature: PartFeature): string =>
   JSON.stringify(feature.datasheet ?? {}, null, 2)
 
+/**
+ * The named features, **in the order they were named**.
+ *
+ * Report order would be a different list: the candidates are ranked, and a list
+ * shown in one order while the keyboard walks another sends the highlight
+ * jumping around it.
+ */
 export const featureFromTags = (
   features: readonly PartFeature[],
   tags: readonly string[],
 ): PartFeature[] => {
-  const wanted = new Set(tags)
-  return features.filter((feature) => wanted.has(feature.featureTag))
+  const byTag = new Map(features.map((feature) => [feature.featureTag, feature]))
+  return tags.flatMap((tag) => {
+    const feature = byTag.get(tag)
+    return feature ? [feature] : []
+  })
 }

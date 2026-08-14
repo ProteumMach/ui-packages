@@ -1,5 +1,6 @@
 import { Badge, Button } from '@toolpath/ui'
 import type { PartFeature, PublicInspectionReport } from '../shared/contracts'
+import { moveThroughList } from '../shared/list-keys'
 import { measurements, stripMeasurements, STRIP_LABELS } from '../shared/measurements'
 import { asRecord, directionLabel, facts, featureSummary, rawDatasheet } from '../shared/report'
 import type { Unit } from '../shared/units'
@@ -63,7 +64,11 @@ export const FeatureDetail = ({
             {candidates.length} readings of this face
           </span>
         </h3>
-        <ul className="mt-2 flex flex-col gap-0.5">
+        <ul
+          className="mt-2 flex flex-col gap-0.5"
+          data-keynav="candidates"
+          onKeyDown={(event) => moveThroughList(event)}
+        >
           {candidates.map((candidate, at) => {
             const summary = featureSummary(candidate)
             const chosen = candidate.featureTag === feature?.featureTag
@@ -71,6 +76,7 @@ export const FeatureDetail = ({
               <li key={candidate.featureTag}>
                 <button
                   type="button"
+                  data-row={candidate.featureTag}
                   aria-pressed={chosen}
                   onClick={() => onChoose(candidate.featureTag)}
                   className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs transition ${

@@ -158,6 +158,9 @@ export const PartInspector = ({
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return
+      // A list under the pointer walks itself; this is the shortcut for when
+      // focus is still on the canvas that produced the candidates.
+      if (target?.closest('[data-keynav]')) return
 
       // Escape works outward: the selection first, then the direction being
       // worked in. Clearing both at once throws away a scope somebody set
@@ -269,7 +272,7 @@ export const PartInspector = ({
       </AppHeader>
 
       <Panels.Group className="min-h-0 flex-1" orientation="horizontal">
-        <Panels.Panel defaultSize={300} minSize={220}>
+        <Panels.Panel defaultSize={460} minSize={260}>
           {tabPanel}
         </Panels.Panel>
         <Panels.Separator className={separatorClassName} />
@@ -294,7 +297,7 @@ export const PartInspector = ({
           />
         </Panels.Panel>
         <Panels.Separator className={separatorClassName} />
-        <Panels.Panel defaultSize={360} minSize={280}>
+        <Panels.Panel defaultSize={460} minSize={320}>
           <FeatureDetail
             feature={focused}
             report={report}
