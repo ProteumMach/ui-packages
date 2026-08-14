@@ -289,7 +289,15 @@ export const PartInspector = ({
         />
       </aside>
     ) : tab === 'rules' ? (
-      <RulesPanel rules={rules} types={featureTypes} unit={unit} />
+      <RulesPanel
+        features={report.features}
+        focusedTag={focusedTag}
+        onChoose={choose}
+        onHover={setHoveredTags}
+        rules={rules}
+        types={featureTypes}
+        unit={unit}
+      />
     ) : (
       <aside className="size-full overflow-y-auto bg-zinc-900/40 p-4">
         <p className="text-xs font-bold uppercase tracking-wide text-info">Directions</p>

@@ -1,6 +1,8 @@
 import { METRICS, type MetricId, metricQuantity } from './metrics'
-import type { Band, Rule } from './rules'
-import { bandName, bandRanges, rangeSpectrum } from './rules'
+import type { Band, FeatureVerdict, Rule } from './rules'
+import { bandName, bandRank, bandRanges, rangeSpectrum } from './rules'
+import type { PartFeature } from './contracts'
+import { directionLabel, featureSummary } from './report'
 import { MODEL_UNIT, type Unit, convertArea, convertLength, decimalsFor } from './units'
 
 /**
@@ -157,4 +159,54 @@ export function displayDecimals(metric: MetricId | undefined, unit: Unit): numbe
     default:
       return 1
   }
+}
+
+/** One feature a rule bit on, as its row reads. */
+export interface RuleHit {
+  readonly tag: string
+  readonly band: Band
+  readonly label: string
+  readonly direction: string
+  readonly regions: number
+}
+
+/**
+ * Which features each rule bit on, worst first.
+ *
+ * The question a shop asks of a limit is not "what does it say" but "what did
+ * it cost me", and that is answerable only against the part in front of them.
+ * Sorted by band and then by weight of the reading, so the top of each list is
+ * the feature that limit is worst about.
+ */
+export function ruleHits(
+  verdicts: readonly FeatureVerdict[],
+  features: readonly PartFeature[],
+): Map<string, RuleHit[]> {
+  const byTag = new Map(features.map((feature) => [feature.featureTag, feature]))
+  const hits = new Map<string, RuleHit[]>()
+
+  for (const verdict of verdicts) {
+    const feature = byTag.get(verdict.tag)
+
+    if (!feature) continue
+
+    for (const result of verdict.results) {
+      const found = hits.get(result.rule.id) ?? []
+
+      found.push({
+        tag: verdict.tag,
+        band: result.band,
+        label: featureSummary(feature).type,
+        direction: directionLabel(feature.machiningDirection),
+        regions: feature.regionIdxs.length,
+      })
+      hits.set(result.rule.id, found)
+    }
+  }
+
+  for (const found of hits.values()) {
+    found.sort((a, b) => bandRank(b.band) - bandRank(a.band))
+  }
+
+  return hits
 }

@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Button } from '@toolpath/ui'
 import { RuleCard } from './rule-editor'
 import type { RulesState } from '../shared/use-rules'
 import type { Unit } from '../shared/units'
+import type { PartFeature } from '../shared/contracts'
+import { ruleHits } from '../shared/rule-text'
 
 /**
  * The limits the part is being judged against, and every one of them editable.
@@ -13,14 +15,23 @@ import type { Unit } from '../shared/units'
  */
 export const RulesPanel = ({
   rules,
+  features,
   types,
   unit,
+  focusedTag,
+  onChoose,
+  onHover,
 }: {
   rules: RulesState
+  features: readonly PartFeature[]
   /** The feature types this part actually has, for aiming a rule. */
   types: readonly string[]
   unit: Unit
+  focusedTag: string | null
+  onChoose: (tag: string) => void
+  onHover: (tags: string[]) => void
 }) => {
+  const hits = useMemo(() => ruleHits(rules.verdicts, features), [features, rules.verdicts])
   const [openRule, setOpenRule] = useState<string | null>(null)
   const set = rules.ruleSet
   const sets = [...rules.presets, ...rules.savedSets]
@@ -76,6 +87,10 @@ export const RulesPanel = ({
         {set.rules.map((rule) => (
           <RuleCard
             key={rule.id}
+            focusedTag={focusedTag}
+            hits={hits.get(rule.id) ?? []}
+            onChoose={onChoose}
+            onHover={onHover}
             onChange={rules.updateRule}
             onOpen={() => setOpenRule((open) => (open === rule.id ? null : rule.id))}
             onRemove={() => rules.removeRule(rule.id)}

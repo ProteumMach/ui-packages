@@ -3,6 +3,7 @@ import {
   formatMetric,
   fromDisplay,
   ruleAudience,
+  ruleHits,
   ruleLimits,
   ruleReads,
   toDisplay,
@@ -124,5 +125,54 @@ describe('typing a threshold', () => {
     expect(unitSuffix('minRadius', 'in')).toBe('in')
     expect(unitSuffix('drillingLD', 'in')).toBe('')
     expect(unitSuffix('chamferAngle', 'mm')).toBe('°')
+  })
+})
+
+describe('ruleHits', () => {
+  const verdicts = [
+    {
+      tag: 'hole-1',
+      results: [
+        { rule: { id: 'ld' }, band: 'meh' },
+        { rule: { id: 'size' }, band: 'easy' },
+      ],
+    },
+    { tag: 'hole-2', results: [{ rule: { id: 'ld' }, band: 'no go' }] },
+    { tag: 'gone', results: [{ rule: { id: 'ld' }, band: 'rats' }] },
+  ] as never
+
+  const features = [
+    {
+      featureTag: 'hole-1',
+      featureType: 'blind_hole',
+      regionIdxs: [1, 2],
+      machiningDirection: { x: 0, y: 0, z: 1 },
+    },
+    {
+      featureTag: 'hole-2',
+      featureType: 'through_hole',
+      regionIdxs: [3],
+      machiningDirection: { x: 0, y: 0, z: -1 },
+    },
+  ] as never
+
+  test('lists what each rule bit on, worst first', () => {
+    const hits = ruleHits(verdicts, features)
+
+    // The question a shop asks of a limit is what it cost, and the top of the
+    // list is the feature that limit is worst about.
+    expect(hits.get('ld')?.map((hit) => hit.tag)).toEqual(['hole-2', 'hole-1'])
+    expect(hits.get('ld')?.[0]).toMatchObject({ band: 'no go', direction: '−Z', regions: 1 })
+    expect(hits.get('size')?.map((hit) => hit.tag)).toEqual(['hole-1'])
+  })
+
+  test('drops a verdict whose feature is not in the report', () => {
+    // A stale verdict naming a feature nobody can click is a row that goes
+    // nowhere.
+    expect(
+      ruleHits(verdicts, features)
+        .get('ld')
+        ?.some((hit) => hit.tag === 'gone'),
+    ).toBe(false)
   })
 })

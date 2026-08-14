@@ -1,6 +1,9 @@
+import { useState } from 'react'
+import { CaretDownIcon } from '@phosphor-icons/react'
 import { Button, Input } from '@toolpath/ui'
 import { bandCss } from '../shared/bands'
 import { METRICS } from '../shared/metrics'
+import type { RuleHit } from '../shared/rule-text'
 import {
   displayDecimals,
   fromDisplay,
@@ -415,68 +418,135 @@ const Settings = ({
 
 export const RuleCard = ({
   rule,
+  hits,
   types,
   unit,
   open,
+  focusedTag,
   onOpen,
   onChange,
   onRemove,
+  onChoose,
+  onHover,
 }: {
   rule: Rule
+  hits: readonly RuleHit[]
   types: readonly string[]
   unit: Unit
   open: boolean
+  focusedTag: string | null
   onOpen: () => void
   onChange: (rule: Rule) => void
   onRemove: () => void
-}) => (
-  <li className="border-b border-zinc-800/60 py-2 last:border-b-0">
-    <div className="flex items-center gap-1.5">
-      <Input
-        aria-label={`Rule name`}
-        className={`min-w-0 flex-1 ${rule.enabled ? '' : 'text-zinc-500'}`}
-        id={`${rule.id}-name`}
-        name={`${rule.id}-name`}
-        size="md"
-        value={rule.name}
-        onChange={(event) => onChange({ ...rule, name: event.target.value })}
-      />
-      <NumberBox
-        id={`${rule.id}-weight`}
-        label={`${rule.name} weight`}
-        metric={undefined}
-        onChange={(value) => onChange({ ...rule, weight: value ?? 0 })}
-        raw
-        unit={unit}
-        value={rule.weight}
-        width="w-12"
-      />
-      <Button
-        onClick={() => onChange({ ...rule, enabled: !rule.enabled })}
-        size="sm"
-        title="Stop this rule judging anything, without deleting it"
-        variant={rule.enabled ? 'secondary' : 'info'}
-      >
-        {rule.enabled ? 'on' : 'off'}
-      </Button>
-      <button
-        aria-expanded={open}
-        aria-label={`What ${rule.name} reads and judges`}
-        className="shrink-0 px-1 text-2xs text-zinc-500 hover:text-zinc-200"
-        onClick={onOpen}
-        type="button"
-      >
-        {open ? 'less' : 'more'}
-      </button>
-    </div>
+  onChoose: (tag: string) => void
+  onHover: (tags: string[]) => void
+}) => {
+  const [showAll, setShowAll] = useState(false)
+  const shown = showAll ? hits : hits.slice(0, 4)
 
-    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-      <Limits onChange={onChange} rule={rule} unit={unit} />
-      <BandDots rule={rule} unit={unit} />
-    </div>
+  return (
+    <li className="border-b border-zinc-800/60 py-1.5 last:border-b-0">
+      <div className="flex items-center gap-1.5">
+        <button
+          aria-expanded={open}
+          aria-label={`What ${rule.name} reads and judges`}
+          className="shrink-0 text-zinc-500 hover:text-zinc-200"
+          onClick={onOpen}
+          type="button"
+        >
+          <CaretDownIcon className={`size-3 transition ${open ? '' : '-rotate-90'}`} />
+        </button>
 
-    {open ? (
-      <Settings onChange={onChange} onRemove={onRemove} rule={rule} types={types} unit={unit} />
-    ) : null}
-  </li>
-)
+        <span
+          className={`min-w-0 flex-1 truncate text-xs ${rule.enabled ? 'text-zinc-200' : 'text-zinc-500'}`}
+        >
+          {rule.name}
+        </span>
+
+        {hits.length > 0 ? (
+          <span className="shrink-0 text-3xs tabular-nums text-zinc-500">{hits.length}</span>
+        ) : null}
+
+        <NumberBox
+          id={`${rule.id}-weight`}
+          label={`${rule.name} weight`}
+          metric={undefined}
+          onChange={(value) => onChange({ ...rule, weight: value ?? 0 })}
+          raw
+          unit={unit}
+          value={rule.weight}
+          width="w-10"
+        />
+
+        <button
+          aria-label={`${rule.name}: ${rule.enabled ? 'on' : 'off'}`}
+          aria-pressed={rule.enabled}
+          className={`shrink-0 rounded px-1.5 py-0.5 text-3xs ${
+            rule.enabled ? 'bg-info/20 text-info' : 'bg-zinc-800 text-zinc-500'
+          }`}
+          onClick={() => onChange({ ...rule, enabled: !rule.enabled })}
+          title="Stop this rule judging anything, without deleting it"
+          type="button"
+        >
+          {rule.enabled ? 'on' : 'off'}
+        </button>
+      </div>
+
+      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 pl-4">
+        <Limits onChange={onChange} rule={rule} unit={unit} />
+        <BandDots rule={rule} unit={unit} />
+      </div>
+
+      {/* What the limit actually cost, which is what somebody looks at before
+          deciding whether the limit or the part is wrong. */}
+      {shown.length > 0 ? (
+        <ul className="mt-1" onMouseLeave={() => onHover([])}>
+          {shown.map((hit) => (
+            <li key={hit.tag}>
+              <button
+                className={`flex w-full items-center gap-2 rounded py-0.5 pl-4 pr-1 text-left text-2xs ${
+                  hit.tag === focusedTag
+                    ? 'bg-info/15 text-info'
+                    : 'text-zinc-400 hover:bg-zinc-800/60'
+                }`}
+                data-row={hit.tag}
+                onClick={() => onChoose(hit.tag)}
+                onFocus={() => onHover([hit.tag])}
+                onMouseEnter={() => onHover([hit.tag])}
+                type="button"
+              >
+                <span
+                  aria-hidden="true"
+                  className="size-1.5 shrink-0 rounded-full"
+                  style={{ background: bandCss(hit.band) }}
+                />
+                <span className="min-w-0 flex-1 truncate">{hit.label}</span>
+                <span className="shrink-0 text-zinc-500">{hit.direction}</span>
+                <span className="shrink-0 tabular-nums text-zinc-500">{hit.regions}f</span>
+              </button>
+            </li>
+          ))}
+
+          {/* The fifth feature a rule bit on is as interesting as the first to
+              somebody auditing it, and "and 20 more" with no way to see them is
+              a number to be taken on trust. */}
+          {hits.length > 4 ? (
+            <li>
+              <button
+                className="pl-4 text-3xs text-zinc-500 underline decoration-dotted"
+                onClick={() => setShowAll((all) => !all)}
+                type="button"
+              >
+                {showAll ? 'fewer' : `and ${hits.length - 4} more`}
+              </button>
+            </li>
+          ) : null}
+        </ul>
+      ) : null}
+
+      {open ? (
+        <Settings onChange={onChange} onRemove={onRemove} rule={rule} types={types} unit={unit} />
+      ) : null}
+    </li>
+  )
+}

@@ -157,7 +157,7 @@ test('shows the limits it judges by, and what they made of a feature', async ({ 
 
   await page.getByRole('tab', { name: 'Rules' }).click()
   await expect(page.getByLabel('Rule set')).toHaveValue('default')
-  await expect(page.locator('input[value="Drilling L/D ratio"]')).toHaveCount(1)
+  await expect(page.getByText('Drilling L/D ratio')).toBeVisible()
   // The bands a measurement is judged against, in the same words the part uses.
   await expect(page.getByText('0.0 – 3.0').first()).toBeVisible()
 
@@ -199,9 +199,7 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
 
   // Scoped to one rule's row: every rule has an `easy to`, and reaching for the
   // first one on the page edits whichever rule happens to be at the top.
-  const drilling = page
-    .getByRole('listitem')
-    .filter({ has: page.locator('input[value="Drilling L/D ratio"]') })
+  const drilling = page.getByRole('listitem').filter({ hasText: 'Drilling L/D ratio' }).first()
 
   // The limits are on the row, not behind a press: moving one is what somebody
   // opened this tab to do. Trailing zeros are stripped so a box does not
@@ -239,11 +237,30 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
 
   // A rule switched off stops judging without being deleted.
   await page.getByRole('tab', { name: 'Rules' }).click()
-  await drilling.getByRole('button', { name: 'on' }).click()
-  await expect(drilling.getByRole('button', { name: 'off' })).toBeVisible()
+  await drilling.getByRole('button', { name: 'Drilling L/D ratio: on' }).click()
+  await expect(drilling.getByRole('button', { name: 'Drilling L/D ratio: off' })).toBeVisible()
 
   // And putting it back is one press: a shipped set is never written over.
   await page.getByRole('button', { name: 'Put back' }).click()
   await expect(page.getByText('Changed, not saved')).toBeHidden()
   await expect(drilling.getByLabel('easy to')).toHaveValue('3')
+})
+
+/**
+ * A limit is argued with against what it cost, which is only answerable on the
+ * part in front of somebody.
+ */
+test('lists the features each rule bit on, and opens one', async ({ page }) => {
+  await openInspector(page)
+  await page.getByRole('tab', { name: 'Rules' }).click()
+
+  const drilling = page.getByRole('listitem').filter({ hasText: 'Drilling L/D ratio' }).first()
+
+  // The hole this rule judged, under the rule that judged it.
+  const hit = drilling.getByRole('button', { name: /Blind Hole/ })
+  await expect(hit).toBeVisible()
+
+  await hit.click()
+  await page.getByRole('tab', { name: 'Inspector' }).click()
+  await expect(page.getByRole('heading', { name: 'Blind Hole' })).toBeVisible()
 })
