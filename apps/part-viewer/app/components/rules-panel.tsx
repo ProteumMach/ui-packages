@@ -65,7 +65,10 @@ const RuleRow = ({
         Reads {ruleReads(rule)} · {ruleAudience(rule)}
       </p>
 
-      {limits.length > 0 ? (
+      {/* The chips are the same numbers the editor is showing, so while it is
+          open they would be on screen twice — which is what made the panel
+          unreadable rather than dense. */}
+      {limits.length > 0 && !open ? (
         <ul className="mt-1 flex flex-wrap gap-1">
           {limits.map((limit) => (
             <li

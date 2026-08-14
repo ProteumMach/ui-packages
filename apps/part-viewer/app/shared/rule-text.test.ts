@@ -28,7 +28,10 @@ describe('formatMetric', () => {
     // A 5:1 pocket is 5:1 in any shop, and a chamfer is 45° in both.
     expect(formatMetric(25.4, 'depth', 'mm')).toBe('25.40 mm')
     expect(formatMetric(25.4, 'depth', 'in')).toBe('1.000 in')
-    expect(formatMetric(4, 'drillingLD', 'in')).toBe('4.00:1')
+    // A ratio is bare and to one decimal: ":1" reads well in a sentence and
+    // badly in a box, and nobody argues about the second decimal of a 5:1
+    // pocket.
+    expect(formatMetric(4, 'drillingLD', 'in')).toBe('4.0')
     expect(formatMetric(45, 'chamferAngle', 'in')).toBe('45.0°')
   })
 
@@ -41,6 +44,7 @@ describe('formatMetric', () => {
     // a unit the Engine never reported.
     expect(formatMetric(6.35, undefined, 'mm')).toBe('6.35')
     expect(formatMetric(2, undefined, 'mm')).toBe('2')
+    expect(formatMetric(25.400000000000002, undefined, 'mm')).toBe('25.4')
   })
 })
 
@@ -49,10 +53,10 @@ describe('ruleLimits', () => {
     const limits = ruleLimits(drilling, 'mm')
 
     expect(limits.map((limit) => `${limit.name} ${limit.range}`)).toEqual([
-      'easy 0.00:1 – 3.00:1',
-      'alright 3.00:1 – 5.00:1',
-      'meh 5.00:1 – 8.00:1',
-      'rats 8.00:1 – ∞',
+      'easy 0.0 – 3.0',
+      'alright 3.0 – 5.0',
+      'meh 5.0 – 8.0',
+      'rats 8.0 – ∞',
     ])
     // The band is carried alongside its words, so a row can be marked as the
     // one a measurement landed in without matching on the text.
@@ -65,14 +69,14 @@ describe('ruleLimits', () => {
     // harder simply has its easy band at the top.
     const falling = ruleLimits({ ...drilling, direction: 'lower is harder' as const }, 'mm')
 
-    expect(falling[0]?.range).toBe('3.00:1 – ∞')
-    expect(falling.at(-1)?.range).toContain('0.00:1')
+    expect(falling[0]?.range).toBe('3.0 – ∞')
+    expect(falling.at(-1)?.range).toContain('0.0')
   })
 
   test('shows the refusal as its own step once there is one', () => {
     const refused = ruleLimits({ ...drilling, noGo: 15 }, 'mm').at(-1)
 
-    expect(refused).toMatchObject({ band: 'no go', range: '15.00:1 – ∞' })
+    expect(refused).toMatchObject({ band: 'no go', range: '15.0 – ∞' })
   })
 
   test('uses a shop’s own words for the bands', () => {
@@ -118,7 +122,7 @@ describe('typing a threshold', () => {
 
   test('says what a box is measured in', () => {
     expect(unitSuffix('minRadius', 'in')).toBe('in')
-    expect(unitSuffix('drillingLD', 'in')).toBe(':1')
+    expect(unitSuffix('drillingLD', 'in')).toBe('')
     expect(unitSuffix('chamferAngle', 'mm')).toBe('°')
   })
 })

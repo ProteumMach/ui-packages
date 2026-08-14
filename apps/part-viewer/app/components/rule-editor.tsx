@@ -161,34 +161,22 @@ export const RuleNumbers = ({
   onChange: (rule: Rule) => void
 }) => (
   <div className="mt-1.5 flex flex-col gap-2 rounded border border-info/40 bg-info/5 p-2">
-    {/* The name is a shop's own word for the limit, so it is editable where the
-        limit is. Renaming one is how "Milling L/D ratio" becomes "how far the
-        cutter hangs out", which is what the people reading it call it. */}
-    <label className="flex flex-col gap-1">
-      <span className="text-2xs text-zinc-400">what to call it</span>
-      <Input
-        aria-label={`What to call ${rule.name}`}
-        className="h-7 w-full px-2 text-xs"
-        id={`${rule.id}-name`}
-        name={`${rule.id}-name`}
-        value={rule.name}
-        onChange={(event) => onChange({ ...rule, name: event.target.value })}
-      />
-    </label>
-
     {rule.type === 'threshold' ? <Thresholds onChange={onChange} rule={rule} unit={unit} /> : null}
 
     {rule.type === 'match' ? (
-      <label className="flex flex-col gap-1 text-2xs text-zinc-400">
+      <label className="flex flex-col gap-0.5">
         {/* A list rather than a scale: 3 mm is a stock bull nose and 2.8 mm is a
             ball endmill crawling over the floor, however close the numbers look. */}
-        <span>Sizes held, in {unit}</span>
+        <span className="text-2xs text-zinc-400">sizes held, in {unit}</span>
         <Input
           aria-label="Sizes held"
-          className="h-6 px-1.5 text-2xs tabular-nums"
+          className="tabular-nums"
           id={`${rule.id}-standards`}
           name={`${rule.id}-standards`}
-          value={rule.standards.map((size) => toDisplay(size, rule.metric, unit)).join(', ')}
+          size="md"
+          value={rule.standards
+            .map((size) => Number(toDisplay(size, rule.metric, unit).toFixed(decimalsFor(unit))))
+            .join(', ')}
           onChange={(event) =>
             onChange({
               ...rule,
@@ -215,7 +203,7 @@ export const RuleNumbers = ({
       />
 
       {/* A button rather than a checkbox: it says what pressing it does, and
-          what state the rule is in now, which a box beside a word leaves you
+          which state the rule is in now, which a box beside a word leaves you
           to work out. */}
       <Button
         onClick={() => onChange({ ...rule, enabled: !rule.enabled })}
@@ -227,33 +215,36 @@ export const RuleNumbers = ({
       </Button>
     </div>
 
+    {/* Folded away: a shop's own words for the bands are set once and then left
+        alone, and five more boxes open by default is what made this a wall. */}
     <details>
-      <summary className="cursor-pointer text-3xs text-zinc-500 underline decoration-dotted">
-        What this shop calls the bands
+      <summary className="cursor-pointer text-2xs text-zinc-500 underline decoration-dotted">
+        what this shop calls the bands
       </summary>
-      <div className="mt-1 flex flex-col gap-1">
+      <div className="mt-1 flex flex-wrap gap-2">
         {BANDS.map((band) => (
-          <label key={band} className="flex items-center gap-1.5 text-2xs">
-            <span
-              aria-hidden="true"
-              className="size-1.5 shrink-0 rounded-full"
-              style={{ background: bandCss(band) }}
-            />
+          <div key={band} className="flex flex-col gap-0.5">
+            <span className="flex items-center gap-1 text-2xs text-zinc-400">
+              <span
+                aria-hidden="true"
+                className="size-1.5 rounded-full"
+                style={{ background: bandCss(band) }}
+              />
+              {band}
+            </span>
             <Input
               aria-label={`What to call ${band}`}
-              className="h-6 flex-1 px-1.5 text-2xs"
+              className="w-24"
               id={`${rule.id}-name-${band.replace(' ', '-')}`}
               name={`${rule.id}-name-${band.replace(' ', '-')}`}
               placeholder={band}
+              size="md"
               value={rule.bandNames?.[band] ?? ''}
               onChange={(event) =>
-                onChange({
-                  ...rule,
-                  bandNames: { ...rule.bandNames, [band]: event.target.value },
-                })
+                onChange({ ...rule, bandNames: { ...rule.bandNames, [band]: event.target.value } })
               }
             />
-          </label>
+          </div>
         ))}
       </div>
     </details>

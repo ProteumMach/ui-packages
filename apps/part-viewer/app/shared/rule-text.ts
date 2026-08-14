@@ -26,18 +26,16 @@ export function formatMetric(
 ): string {
   if (value === null) return '—'
 
-  switch (metricQuantity(metric)) {
-    case 'length':
-      return `${convertLength(value, 'mm', unit).toFixed(decimalsFor(unit))} ${unit}`
-    case 'area':
-      return `${convertArea(value, 'mm', unit).toFixed(decimalsFor(unit))} ${unit}²`
-    case 'angle':
-      return `${value.toFixed(1)}°`
-    case 'ratio':
-      return `${value.toFixed(2)}:1`
-    default:
-      return value.toFixed(value % 1 === 0 ? 0 : 2)
-  }
+  // A number whose metric is unknown is a raw datasheet field — the inputs to a
+  // ratio, say. Rounding one of those to a ratio's single decimal turns 6.35
+  // into 6.3 and quietly loses what the Engine actually reported, so it is
+  // shown as it stands with any float noise trimmed off the end.
+  if (metric === undefined) return String(Number(value.toFixed(3)))
+
+  const shown = toDisplay(value, metric, unit).toFixed(displayDecimals(metric, unit))
+  const suffix = unitSuffix(metric, unit)
+
+  return suffix === '°' ? `${shown}°` : suffix ? `${shown} ${suffix}` : shown
 }
 
 /** One band of a rule, and the span of measurements that lands in it. */
@@ -134,9 +132,29 @@ export function unitSuffix(metric: MetricId | undefined, unit: Unit): string {
       return `${unit}²`
     case 'angle':
       return '°'
-    case 'ratio':
-      return ':1'
+    // A ratio and a count are bare. ":1" reads well in a sentence and badly in
+    // a box, where it eats the room the number needs.
     default:
       return ''
+  }
+}
+
+/**
+ * How many decimals a measurement is worth showing at.
+ *
+ * A length gets the precision its unit deserves — three decimals in inches, two
+ * in millimetres, both about a thousandth of an inch. A ratio gets one, because
+ * nobody argues about the second decimal of a 5:1 pocket, and a count gets
+ * none.
+ */
+export function displayDecimals(metric: MetricId | undefined, unit: Unit): number {
+  switch (metricQuantity(metric)) {
+    case 'length':
+    case 'area':
+      return decimalsFor(unit)
+    case 'count':
+      return 0
+    default:
+      return 1
   }
 }
