@@ -8,12 +8,13 @@ import {
   sectionFromPick,
 } from '@toolpath/viewer'
 import { EnginePart } from '@toolpath/viewer/engine'
-import { CrosshairSimpleIcon, SquareHalfIcon } from '@phosphor-icons/react'
+import { CrosshairSimpleIcon, GridFourIcon, SquareHalfIcon } from '@phosphor-icons/react'
 import { Component, Suspense, useMemo, useRef, useState } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import type { PartPick, SectionPlacement, SectionState } from '@toolpath/viewer'
 import { type Arrows, nextArrows } from '../shared/arrows'
 import { READING_COLORS } from '../shared/selection-colors'
+import { loadShowAids, saveShowAids } from '../shared/scene-aids'
 import { directionLabel } from '../shared/report'
 import { PAINT_MODE_LABELS, type PaintMode, paintWash } from '../shared/paint'
 import { Button } from '@toolpath/ui'
@@ -143,6 +144,16 @@ export const FeatureViewer = ({
   const [plane, setPlane] = useState<SectionPlacement | null>(null)
   const [depth, setDepth] = useState(0)
   const [depthRange, setDepthRange] = useState<SectionState['depthRange']>(null)
+  const [showAids, setShowAids] = useState(() =>
+    loadShowAids(typeof window === 'undefined' ? null : window.localStorage),
+  )
+
+  const toggleAids = () => {
+    setShowAids((shown) => {
+      saveShowAids(typeof window === 'undefined' ? null : window.localStorage, !shown)
+      return !shown
+    })
+  }
 
   const wash = useMemo(
     () => paintWash(paintMode, report.features, report.candidateDirections),
@@ -237,6 +248,13 @@ export const FeatureViewer = ({
             </button>
           </span>
           <ToolButton
+            label={showAids ? 'Grid and axes (on)' : 'Grid and axes'}
+            pressed={showAids}
+            onClick={toggleAids}
+          >
+            <GridFourIcon />
+          </ToolButton>
+          <ToolButton
             label={sectioning ? 'Section (on)' : 'Section'}
             pressed={sectioning}
             onClick={() => (sectioning ? stopSectioning() : startSectioning())}
@@ -329,8 +347,12 @@ export const FeatureViewer = ({
                 visible={arrowsVisible}
                 onPickDirection={onPickDirection}
               />
-              <Grid />
-              <Axes size={35} />
+              {showAids ? (
+                <>
+                  <Grid />
+                  <Axes size={35} />
+                </>
+              ) : null}
               <ViewCube />
             </Viewer>
           </Suspense>
