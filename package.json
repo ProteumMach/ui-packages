@@ -30,12 +30,16 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release:npm": "pnpm package:typescript-sdk && pnpm build:ui && pnpm build:viewer && changeset publish",
     "release:dry-run": "pnpm check && node scripts/prepare-release.mjs",
     "release:typescript-sdk:check": "pnpm openapi:verify:typescript && pnpm package:typescript-sdk && node scripts/test-typescript-sdk-package.mjs",
     "release:typescript-sdk:dry-run": "pnpm release:typescript-sdk:check && RELEASE_PACKAGE=sdk node scripts/prepare-release.mjs",
     "openapi:verify:typescript": "VERIFY_OPENAPI_TARGET=typescript node scripts/verify-openapi.mjs"
   },
   "devDependencies": {
+    "@changesets/cli": "2.29.8",
     "@types/node": "24.10.1",
     "husky": "9.1.7",
     "lint-staged": "17.3.0",

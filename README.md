@@ -143,6 +143,12 @@ pnpm --filter @toolpath/part-viewer dev
 
 Open the local URL printed by the development server, then enter your Toolpath API key to connect.
 
+## Contributing and releases
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md) for local development, testing, and
+the Changesets workflow used to version and publish `@toolpath/ui`, `@toolpath/viewer`, and
+`@toolpath/api`.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
