@@ -11,6 +11,10 @@
       "description": "Service-discovery and health operations."
     },
     {
+      "name": "Keys",
+      "description": "API key validation operations."
+    },
+    {
       "name": "Parts",
       "description": "Part upload and analysis operations."
     },
@@ -79,28 +83,29 @@
         ],
         "additionalProperties": {}
       },
-      "CreatePartResponse": {
+      "KeyValidationResponse": {
         "type": "object",
         "properties": {
-          "partId": {
-            "type": "string"
+          "valid": {
+            "type": "boolean",
+            "description": "Whether the key is usable right now.",
+            "example": true
           },
-          "uploadUrl": {
+          "status": {
             "type": "string",
-            "format": "uri"
-          },
-          "sourceBucket": {
-            "type": "string"
-          },
-          "sourceS3Key": {
-            "type": "string"
+            "enum": [
+              "active",
+              "revoked",
+              "expired",
+              "invalid"
+            ],
+            "description": "The derived key status: active (usable), revoked (disabled), expired (past expiry), or invalid (unknown key).",
+            "example": "active"
           }
         },
         "required": [
-          "partId",
-          "uploadUrl",
-          "sourceBucket",
-          "sourceS3Key"
+          "valid",
+          "status"
         ]
       },
       "ProblemDetails": {
@@ -143,6 +148,30 @@
           "title",
           "status",
           "code"
+        ]
+      },
+      "CreatePartResponse": {
+        "type": "object",
+        "properties": {
+          "partId": {
+            "type": "string"
+          },
+          "uploadUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "sourceBucket": {
+            "type": "string"
+          },
+          "sourceS3Key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "partId",
+          "uploadUrl",
+          "sourceBucket",
+          "sourceS3Key"
         ]
       },
       "AnalyzeJobResponse": {
@@ -695,6 +724,49 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OpenApiDocument"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/keys/validate": {
+      "post": {
+        "operationId": "validateKey",
+        "tags": [
+          "Keys"
+        ],
+        "summary": "Validate an API key",
+        "description": "Reports the status of the API key supplied in the Authorization header. A usable key returns 200; a missing, revoked, expired, or unknown key returns 401 — both with the same status body (never problem+json) — so bring-your-own-key integrations can confirm a key and show why it failed.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The key is active and usable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeyValidationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The key is missing, revoked, expired, or unknown.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeyValidationResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Key validation is temporarily unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
