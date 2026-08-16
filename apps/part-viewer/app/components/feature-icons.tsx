@@ -387,7 +387,6 @@ export const MEASUREMENT_ICONS: Record<string, () => ReactElement> = {
   depthBelowTop: ReachIcon,
   featureDepth: DepthIcon,
   minRadius: RadiusIcon,
-  cornerRadius: RadiusIcon,
   ld: RatioIcon,
   diameter: DiameterIcon,
   bevelAngle: AngleIcon,

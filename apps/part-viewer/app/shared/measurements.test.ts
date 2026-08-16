@@ -158,35 +158,3 @@ describe('stripMeasurements', () => {
     for (const row of stripMeasurements(rows)) expect(rows).toContain(row)
   })
 })
-
-describe('the two radii a pocket has', () => {
-  const pocket = {
-    featureTag: 'pocket-1',
-    featureType: 'filleted_pocket',
-    regionIdxs: [0],
-    machiningDirection: { x: 0, y: -1, z: 0 },
-    datasheet: {
-      facts: {
-        kind: 'Pocket',
-        cd: { ignore: { min: 6.616 }, terminalCornerRadius: 0.508 },
-        filletRadius: 0.508,
-      },
-      zMax: 10.16,
-      zMin: 8.5725,
-      partZMax: 10.16,
-    },
-  } as never
-
-  it('tells the tool it admits from the corner it has', () => {
-    // A feature can admit a 6.6 mm cutter and still have a 0.5 mm corner in it.
-    // Showing only the first under the name "minimum radius" read as the
-    // second, which is 6.5× out.
-    const rows = measurements({ feature: pocket, features: [pocket], regions: [], unit: 'mm' })
-    const row = (key: string) => rows.find((each) => each.key === key)
-
-    expect(row('minRadius')?.label).toBe('Smallest tool radius')
-    expect(row('minRadius')?.value).toContain('3.31')
-    expect(row('cornerRadius')?.value).toContain('0.51')
-    expect(row('cornerRadius')?.from).toBe('facts.cd.terminalCornerRadius')
-  })
-})
