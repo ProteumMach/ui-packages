@@ -18,6 +18,8 @@ from .job_detail import JobDetail
 from .job_detail_status import JobDetailStatus
 from .job_summary import JobSummary
 from .job_summary_status import JobSummaryStatus
+from .key_validation_response import KeyValidationResponse
+from .key_validation_response_status import KeyValidationResponseStatus
 from .list_jobs_response import ListJobsResponse
 from .list_jobs_status import ListJobsStatus
 from .open_api_document import OpenApiDocument
@@ -50,6 +52,8 @@ __all__ = (
     "JobDetailStatus",
     "JobSummary",
     "JobSummaryStatus",
+    "KeyValidationResponse",
+    "KeyValidationResponseStatus",
     "ListJobsResponse",
     "ListJobsStatus",
     "OpenApiDocument",
