@@ -264,7 +264,11 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
   await weight.fill('')
   await weight.pressSequentially('12')
   await expect(weight).toHaveValue('12')
-  await expect(page.getByText('Changed, not saved')).toBeVisible()
+  await expect(
+    page.getByText(
+      'Rule changes are temporary and resets when you reload or choose another preset.',
+    ),
+  ).toBeVisible()
 
   await page.getByRole('tab', { name: 'Inspector' }).click()
   await page.getByRole('button', { name: /Blind hole/ }).click()
@@ -293,14 +297,57 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
   await applies.uncheck()
   await expect(applies).not.toBeChecked()
 
-  // And putting it back is one press: a shipped set is never written over.
-  await page.getByRole('button', { name: 'Put back' }).click()
-  await expect(page.getByText('Changed, not saved')).toBeHidden()
+  // Reset returns to the selected shipped preset in one press.
+  await page.getByRole('button', { name: 'Reset changes' }).click()
+  await expect(page.getByRole('button', { name: 'Reset changes' })).toHaveCount(0)
 
   // Reopened, because leaving the tab folds the rules again — the panel is
   // unmounted, and what was open with it.
   const reopened = await openRule(page, 'Drilling L/D ratio')
   await expect(reopened.getByLabel('easy to')).toHaveValue('3')
+})
+
+test('keeps rule edits only for the current session', async ({ page }) => {
+  await openInspector(page)
+  await page.getByRole('tab', { name: 'Rules' }).click()
+
+  const drilling = await openRule(page, 'Drilling L/D ratio')
+  await drilling.getByLabel('easy to').fill('0.5')
+  await expect(page.getByRole('button', { name: 'Reset changes' })).toBeVisible()
+
+  await page.reload()
+  await page.getByRole('tab', { name: 'Rules' }).click()
+
+  const reloaded = await openRule(page, 'Drilling L/D ratio')
+  await expect(reloaded.getByLabel('easy to')).toHaveValue('3')
+  await expect(page.getByRole('button', { name: 'Reset changes' })).toHaveCount(0)
+})
+
+test('switching or resetting a preset discards temporary rule edits', async ({ page }) => {
+  await openInspector(page)
+  await page.getByRole('tab', { name: 'Rules' }).click()
+
+  const ruleSet = page.getByLabel('Rule set')
+  const defaultDrilling = await openRule(page, 'Drilling L/D ratio')
+  await defaultDrilling.getByLabel('easy to').fill('0.5')
+
+  await ruleSet.selectOption('preset-sendcutsend')
+  const sendCutSendDrilling = page
+    .locator('[data-keynav="rules"] > li')
+    .filter({ hasText: 'Drilling L/D ratio' })
+    .first()
+  await expect(sendCutSendDrilling.getByLabel('easy to')).toHaveValue('2')
+
+  await sendCutSendDrilling.getByLabel('easy to').fill('1')
+  await page.getByRole('button', { name: 'Reset changes' }).click()
+  await expect(sendCutSendDrilling.getByLabel('easy to')).toHaveValue('2')
+
+  await ruleSet.selectOption('default')
+  const restoredDefault = page
+    .locator('[data-keynav="rules"] > li')
+    .filter({ hasText: 'Drilling L/D ratio' })
+    .first()
+  await expect(restoredDefault.getByLabel('easy to')).toHaveValue('3')
 })
 
 /**
