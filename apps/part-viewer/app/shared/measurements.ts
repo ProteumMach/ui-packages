@@ -137,7 +137,7 @@ export function measurements({
   if (cutter !== null && cutter > 0) {
     rows.push({
       key: 'maxTool',
-      label: 'Largest tool',
+      label: 'Largest tool diameter',
       value: length(cutter),
       from: 'facts.cd.ignore.min',
       note: 'the widest cutter that still reaches the tightest corner',
@@ -278,7 +278,7 @@ export const STRIP_LABELS: Record<string, string> = {
   depthBelowTop: 'below top',
   featureDepth: 'deep',
   diameter: 'diameter',
-  maxTool: 'largest tool',
+  maxTool: 'largest tool ⌀',
   maxEndmill: 'largest endmill',
   maxDrill: 'largest drill',
   ld: 'L/D',
