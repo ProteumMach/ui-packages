@@ -123,14 +123,72 @@ export function measurements({
     })
   }
 
-  // `facts.cd` is a cutter *diameter*, so the radius it leaves room for is half.
+  // The largest tool that still reaches everywhere in the feature.
+  //
+  // The *bottom* of the cutter band, which is the terminal tool: anything wider
+  // stops short of the tightest corner. The top of the band is the widest thing
+  // that fits somewhere, which is a different and less useful question — on the
+  // pocket that made this row, `ignore.min` of 6.616 is twice a corner Fusion
+  // measures at 3.302.
+  //
+  // Every feature with a band has one, which is why this row exists at all: the
+  // per-kind fields below are richer, and a hole is the only kind that carries
+  // them.
   if (cutter !== null && cutter > 0) {
     rows.push({
+      key: 'maxTool',
+      label: 'Largest tool diameter',
+      value: length(cutter),
+      from: 'facts.cd.ignore.min',
+      note: 'the widest cutter that still reaches the tightest corner',
+    })
+    // The same number as a radius, because that is the form a corner is drawn
+    // and argued about in — and a rule about radii has to be given a radius.
+    rows.push({
       key: 'minRadius',
-      label: 'Minimum radius',
+      label: 'Required cutter radius',
       value: length(cutter / 2),
       from: 'facts.cd.ignore.min ÷ 2',
-      note: 'the tightest internal radius this feature leaves room for',
+      note: 'half the tool above: the tightest internal radius this feature leaves room for',
+    })
+  }
+
+  // Stated per kind where the Engine states them: a hole reports the drill and
+  // the endmill it admits separately, and which of the two a shop reaches for
+  // is the difference between one plunge and a helix.
+  const endmill = asNumber(sheetFacts.maxEndmillDiameter)
+  if (endmill !== null && endmill > 0) {
+    rows.push({
+      key: 'maxEndmill',
+      label: 'Largest endmill',
+      value: length(endmill),
+      from: 'facts.maxEndmillDiameter',
+      note: 'the widest endmill the Engine says this feature admits',
+    })
+  }
+
+  const drill = asNumber(sheetFacts.maxDrillDiameter)
+  if (drill !== null && drill > 0) {
+    rows.push({
+      key: 'maxDrill',
+      label: 'Largest drill',
+      value: length(drill),
+      from: 'facts.maxDrillDiameter',
+      note: 'the widest drill the Engine says this feature admits',
+    })
+  }
+
+  // An undercut is defined by what gets in rather than by what fits once there,
+  // so the Engine states the entry separately. A T-slot cutter goes in sideways
+  // and cannot be backed out, which is why the opening is its own number.
+  const entry = asNumber(sheetFacts.maxEntryCd)
+  if (entry !== null && entry > 0) {
+    rows.push({
+      key: 'entryCutter',
+      label: 'Largest tool that gets in',
+      value: length(entry),
+      from: 'facts.maxEntryCd',
+      note: 'the widest cutter that reaches the undercut through its opening',
     })
   }
 
@@ -214,14 +272,26 @@ export function measurements({
 }
 
 /** The handful worth reading before the table: the numbers a tool is chosen with. */
-export const STRIP_KEYS = ['depthBelowTop', 'featureDepth', 'diameter', 'minRadius', 'ld', 'area']
+export const STRIP_KEYS = [
+  'depthBelowTop',
+  'featureDepth',
+  'diameter',
+  'maxEndmill',
+  'maxTool',
+  'minRadius',
+  'ld',
+  'area',
+]
 
 /** Shorter than the table's wording: these sit under a number, not beside one. */
 export const STRIP_LABELS: Record<string, string> = {
   depthBelowTop: 'below top',
   featureDepth: 'deep',
   diameter: 'diameter',
-  minRadius: 'min radius',
+  maxTool: 'largest tool ⌀',
+  minRadius: 'cutter radius',
+  maxEndmill: 'largest endmill',
+  maxDrill: 'largest drill',
   ld: 'L/D',
   area: 'surface',
 }

@@ -73,12 +73,16 @@ describe('measurements', () => {
     expect(valueOf(subject, 'featureDepth')).toBe('10.00 mm')
   })
 
-  it('halves the cutter diameter to get a radius', () => {
+  it('reads the terminal tool off the band every feature carries', () => {
+    // The bottom of the band, not the top: anything wider stops short of the
+    // tightest corner. The per-kind fields are richer, but a hole is the only
+    // kind that has them, and a pocket showing no tool at all is why this row
+    // exists.
     const subject = feature({
-      datasheet: { facts: { kind: 'Pocket', cd: { ignore: { min: 6 } } } },
+      datasheet: { facts: { kind: 'Pocket', cd: { ignore: { min: 6, max: 16 } } } },
     })
 
-    expect(valueOf(subject, 'minRadius')).toBe('3.00 mm')
+    expect(valueOf(subject, 'maxTool')).toBe('6.00 mm')
   })
 
   it('splits surface area into walls and floors, since the Engine does', () => {
@@ -156,5 +160,47 @@ describe('stripMeasurements', () => {
     const rows = rowsFor(subject)
 
     for (const row of stripMeasurements(rows)) expect(rows).toContain(row)
+  })
+})
+
+describe('the tools a feature admits', () => {
+  const feature = (facts: Record<string, unknown>) =>
+    ({
+      featureTag: 'f-1',
+      featureType: 'blind_hole',
+      regionIdxs: [0],
+      machiningDirection: { x: 0, y: 0, z: 1 },
+      datasheet: { facts: { kind: 'Hole', ...facts }, zMax: 0, zMin: -10, partZMax: 0 },
+    }) as never
+
+  const rows = (facts: Record<string, unknown>) => {
+    const one = feature(facts)
+    return measurements({ feature: one, features: [one], regions: [], unit: 'mm' })
+  }
+
+  it('states the drill and the endmill separately, as the Engine does', () => {
+    // Which of the two a shop reaches for is the difference between one plunge
+    // and a helix, so neither stands in for the other.
+    const shown = rows({ maxDrillDiameter: 6.35, maxEndmillDiameter: 10 })
+
+    expect(shown.find((row) => row.key === 'maxDrill')?.value).toContain('6.35')
+    expect(shown.find((row) => row.key === 'maxEndmill')?.value).toContain('10.00')
+  })
+
+  it('states what gets into an undercut, which is not what fits once there', () => {
+    const shown = rows({ maxEntryCd: 3.175 })
+
+    expect(shown.find((row) => row.key === 'entryCutter')?.from).toBe('facts.maxEntryCd')
+    expect(shown.find((row) => row.key === 'entryCutter')?.value).toContain('3.17')
+  })
+
+  it('leaves a row out rather than showing a tool the Engine never named', () => {
+    // A dash against a field this type never reports reads as a measurement
+    // that failed.
+    const shown = rows({})
+
+    expect(shown.some((row) => ['maxDrill', 'maxEndmill', 'entryCutter'].includes(row.key))).toBe(
+      false,
+    )
   })
 })

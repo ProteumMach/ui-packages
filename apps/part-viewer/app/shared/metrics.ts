@@ -372,6 +372,15 @@ export const sharpCorner = (datasheet: FeatureDatasheet): boolean | null =>
  * `effectiveAdaptive` — each with a `min` and a `max`. `ignore.min` is the one:
  * it is the minimum radius the panel shows for that band, doubled.
  *
+ * Confirmed against Fusion on two parts, which is worth writing down because
+ * the temptation to "correct" it comes round often. A pocket whose corner
+ * measures 3.302 mm reports `ignore.min` 6.616, and a pocket the Engine says
+ * has no blend at all — `terminalCornerRadius` and `filletRadius` both zero —
+ * reports 3.429 for a minimum radius of 1.71, which is also right. So half this
+ * band is the answer whether or not a corner is what limits the tool, and
+ * `terminalCornerRadius` is *not* the corner drawn on the part: on every part
+ * looked at so far it reports exactly `filletRadius`, the floor blend.
+ *
  * The others are fallbacks in name order, used only where `ignore.min` is
  * absent or reported as zero, and each reading says which answered. On the
  * mount sample `ignore.min` is stated on 44 features of 72.
@@ -411,25 +420,25 @@ const cutterFromBand = (
  * silent on two thirds of the part: that band is reported on fewer than a
  * third of features.
  *
- * A **sharp** corner is the exception. Twice a radius of zero is a cutter of
- * zero, which is not a tool — it is the absence of one, and feeding it to a
- * size rule turns "this corner cannot be milled" into "the cutter is very
- * small". So where the corner is sharp the adaptive band stands in, and the
- * sharp-corner rule is left to say the thing that actually matters.
+ * `terminalCornerRadius` is **not** a fallback for it, though it was one here
+ * until three parts in a row proved otherwise. On every feature looked at so
+ * far that field reports exactly `filletRadius` — the floor blend, not a corner
+ * a cutter has to fit. Doubling it said a 0.01 in floor fillet demanded a 0.02
+ * in cutter, which put a T-slot's milling L/D at 23:1 and a pocket's at
+ * whatever its floor happened to be blended to.
+ *
+ * So where no band is reported the metric is `null` and the rules that read it
+ * stand down. That is the same answer this file gives everywhere else the
+ * Engine says nothing, and it costs coverage: a rule that cannot see a tool
+ * says nothing rather than judging a feature on a number that was never about
+ * tools. The alternative is a verdict nobody can defend, which is worse than a
+ * gap somebody can see.
  */
 const requiredCutter = (datasheet: FeatureDatasheet): number | null => {
   const { cd, path } = cdAt(datasheet)
-  const band = cutterFromBand(cd, path)
 
-  if (band) {
-    return band.value
-  }
-
-  // Nothing reported a band at all. A stated corner radius is the only thing
-  // left that says what fits: twice it, which is the cutter the corner admits.
-  const corner = stated(cd?.terminalCornerRadius)
-
-  return corner !== null && corner > 0 ? corner * 2 : null
+  // The bands or nothing. There is no third thing here that says what fits.
+  return cutterFromBand(cd, path)?.value ?? null
 }
 
 const requiredCutterSources = (datasheet: FeatureDatasheet): Array<Reading> => {
@@ -450,23 +459,13 @@ const requiredCutterSources = (datasheet: FeatureDatasheet): Array<Reading> => {
     ]
   }
 
-  const corner = stated(cd?.terminalCornerRadius)
-
-  return corner !== null && corner > 0
-    ? [
-        {
-          path: `${path}.terminalCornerRadius`,
-          value: corner,
-          note: 'doubled: no band was reported, so the corner is all there is',
-        },
-      ]
-    : [
-        {
-          path: `${path}.deviate.min`,
-          value: null,
-          note: 'no cutter band and no corner radius reported',
-        },
-      ]
+  return [
+    {
+      path: `${path}.ignore.min`,
+      value: null,
+      note: 'no cutter band reported, so nothing here says what tool fits',
+    },
+  ]
 }
 
 /**

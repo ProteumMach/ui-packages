@@ -135,6 +135,7 @@ describe('the two readers of the datasheet agree', () => {
   test.each([
     ['depthBelowTop', 'depthBelowPartTop'],
     ['featureDepth', 'depth'],
+    ['maxTool', 'requiredCutter'],
     ['minRadius', 'minRadius'],
     ['diameter', 'holeDiameter'],
     ['floorFillet', 'floorFilletRadius'],
@@ -152,5 +153,57 @@ describe('the two readers of the datasheet agree', () => {
 
   test('the L/D shown is the one for a hole, which is drilled rather than milled', () => {
     expect(rowValue('ld')).toBeCloseTo(metrics.drillingLD as number, 2)
+  })
+})
+
+describe('a corner radius is not a cutter', () => {
+  const feature = (featureType: string, facts: Record<string, unknown>) =>
+    ({
+      featureTag: 'f-1',
+      featureType: 'undercut_filleted_tslot',
+      regionIdxs: [0],
+      machiningDirection: { x: 1, y: 0, z: 0 },
+      axis: { x: 1, y: 0, z: 0 },
+      datasheet: {
+        featureType,
+        facts: { kind: 'Tslot', ...facts },
+        zMax: 0,
+        zMin: -11.8,
+        partZMax: 0,
+      },
+    }) as unknown as PartFeature
+
+  test('stands the milling metrics down when no band is reported', () => {
+    // `terminalCornerRadius` reports the floor blend on every feature looked at
+    // so far, so doubling it said a 0.01 in fillet demanded a 0.02 in cutter —
+    // which put this T-slot's milling L/D at 23:1.
+    const metrics = readMetrics(
+      feature('UndercutFilletedTslot', { cd: { terminalCornerRadius: 0.254 } }),
+    )
+
+    expect(metrics.requiredCutter).toBe(null)
+    expect(metrics.minRadius).toBe(null)
+    expect(metrics.millingLD).toBe(null)
+  })
+
+  test('says so where the working is shown', () => {
+    const [reading] = metricSources(
+      'requiredCutter',
+      feature('UndercutFilletedTslot', { cd: { terminalCornerRadius: 0.254 } }),
+    )
+
+    expect(reading?.value).toBe(null)
+    expect(reading?.note).toContain('no cutter band reported')
+  })
+
+  test('reads the band wherever one is reported, whatever the type', () => {
+    const metrics = readMetrics(
+      feature('UndercutFilletedTslot', {
+        cd: { ignore: { min: 6.35 }, terminalCornerRadius: 0.254 },
+      }),
+    )
+
+    expect(metrics.requiredCutter).toBeCloseTo(6.35, 6)
+    expect(metrics.minRadius).toBeCloseTo(3.175, 6)
   })
 })

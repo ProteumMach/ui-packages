@@ -198,3 +198,71 @@ describe('applyHighlightLayers — the order is the specification', () => {
     expect(part.regionPaint(bottom.region)?.weight).toBe(0)
   })
 })
+
+describe('a split is not a hole in the highlight', () => {
+  /**
+   * The Engine divides a surface where that makes a better machining plan. One
+   * face of the cube, cut into its two triangles: still one flat face, and two
+   * regions for a feature to own separately.
+   */
+  async function splitFace() {
+    const model = cubeModel()
+    const geometry = await parsePartGeometry(loadMeshFixture('local-0.3.0-cube'), model.mesh)
+    const face = model.features.find(
+      (feature) => feature.featureType === 'face' && feature.machiningDirection.z === 1,
+    )!
+    const whole = model.regions.find(
+      (region) => region.idx === model.regionIndex.regionsForFeature(face.tag)[0],
+    )!
+    const half = {
+      ...whole,
+      idx: model.regions.length,
+      triangles: { start: whole.triangles.start + 1, end: whole.triangles.end },
+    }
+    const split: PartModel = {
+      ...model,
+      regions: [
+        ...model.regions.map((region) =>
+          region.idx === whole.idx
+            ? {
+                ...region,
+                triangles: { start: whole.triangles.start, end: whole.triangles.start + 1 },
+              }
+            : region,
+        ),
+        half,
+      ],
+    }
+
+    return {
+      model: split,
+      part: createPart(split, geometry, DEFAULT_THEME),
+      kept: whole.idx,
+      cut: half.idx,
+      tag: face.tag,
+    }
+  }
+
+  it('carries a paint across a split nobody else claims', async () => {
+    const { part, kept, cut, tag } = await splitFace()
+
+    // The feature owns only the half the region index knows about; the other
+    // half was bare, which reads as a hole in the highlight rather than a
+    // split in the plan.
+    paint(part, { selection: [tag] })
+
+    expect(part.regionPaint(kept)?.color).toBe(quantized(part, DEFAULT_THEME.highlight))
+    expect(part.regionPaint(cut)?.color).toBe(quantized(part, DEFAULT_THEME.highlight))
+  })
+
+  it('leaves a surface two paints disagree over alone', async () => {
+    const { part, kept, cut, tag } = await splitFace()
+
+    paint(part, { selection: [tag], regionHighlights: [{ region: cut, color: BAND, weight: 1 }] })
+
+    // Two claims on one surface is the reason it was split. Neither spreads
+    // over the other.
+    expect(part.regionPaint(kept)?.color).toBe(quantized(part, DEFAULT_THEME.highlight))
+    expect(part.regionPaint(cut)?.color).toBe(quantized(part, BAND))
+  })
+})
