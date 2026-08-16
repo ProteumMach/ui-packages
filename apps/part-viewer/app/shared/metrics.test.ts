@@ -154,3 +154,57 @@ describe('the two readers of the datasheet agree', () => {
     expect(rowValue('ld')).toBeCloseTo(metrics.drillingLD as number, 2)
   })
 })
+
+describe('an open pocket has no corner to fit a cutter to', () => {
+  const pocket = (featureType: string) =>
+    ({
+      featureTag: 'pocket-1',
+      featureType: 'filleted_open_pocket',
+      regionIdxs: [0],
+      machiningDirection: { x: 0, y: 0, z: 1 },
+      axis: { x: 0, y: 0, z: 1 },
+      datasheet: {
+        featureType,
+        facts: {
+          kind: 'Pocket',
+          // Every band unreported, which is the case this turns on.
+          cd: { terminalCornerRadius: 1.524 },
+          filletRadius: 1.524,
+        },
+        zMax: 66.19,
+        zMin: 50.84,
+        partZMax: 66.19,
+      },
+    }) as unknown as PartFeature
+
+  test('leaves the milling metrics quiet rather than reading its floor blend', () => {
+    // The Engine reports the floor blend as `terminalCornerRadius` on an open
+    // pocket. Taken as a corner it says a 0.06 in fillet demands a 0.12 in
+    // cutter, and the milling rules then judge a pocket by the radius of its
+    // floor.
+    const metrics = readMetrics(pocket('FilletedOpenPocket'))
+
+    expect(metrics.requiredCutter).toBe(null)
+    expect(metrics.minRadius).toBe(null)
+    expect(metrics.millingLD).toBe(null)
+  })
+
+  test('still measures the floor radius, which is what judges it', () => {
+    expect(readMetrics(pocket('FilletedOpenPocket')).floorFilletRadius).toBeCloseTo(1.524, 6)
+  })
+
+  test('keeps the corner on a closed pocket, where there is one', () => {
+    // A closed pocket whose floor blend happens to equal its corner radius has
+    // a real corner, and it has to go on constraining the cutter.
+    const metrics = readMetrics(pocket('FilletedPocket'))
+
+    expect(metrics.requiredCutter).toBeCloseTo(3.048, 6)
+    expect(metrics.minRadius).toBeCloseTo(1.524, 6)
+  })
+
+  test('says why it stood down, where the working is shown', () => {
+    const [reading] = metricSources('requiredCutter', pocket('FilletedOpenPocket'))
+
+    expect(reading?.note).toContain('no closed corner')
+  })
+})

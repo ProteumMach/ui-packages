@@ -416,6 +416,14 @@ const cutterFromBand = (
  * size rule turns "this corner cannot be milled" into "the cutter is very
  * small". So where the corner is sharp the adaptive band stands in, and the
  * sharp-corner rule is left to say the thing that actually matters.
+ *
+ * An **open pocket** is the other. It has no closed internal corner for a
+ * cutter to have to fit, and on one the Engine reports the *floor* blend as
+ * `terminalCornerRadius` — the same number it reports as `filletRadius`. Taken
+ * as a corner it says a 0.06 in floor fillet demands a 0.12 in cutter, and the
+ * milling rules then judge a pocket on the radius of its floor. That radius is
+ * a bull nose question, which is what the floor-radius rule is for, so the
+ * milling metrics stand down and let it answer.
  */
 const requiredCutter = (datasheet: FeatureDatasheet): number | null => {
   const { cd, path } = cdAt(datasheet)
@@ -425,12 +433,26 @@ const requiredCutter = (datasheet: FeatureDatasheet): number | null => {
     return band.value
   }
 
+  if (openPocket(datasheet)) {
+    return null
+  }
+
   // Nothing reported a band at all. A stated corner radius is the only thing
   // left that says what fits: twice it, which is the cutter the corner admits.
   const corner = stated(cd?.terminalCornerRadius)
 
   return corner !== null && corner > 0 ? corner * 2 : null
 }
+
+/**
+ * Whether this feature is a pocket open on a side.
+ *
+ * Read off the kernel's own `featureType` rather than inferred from the
+ * numbers: a closed pocket whose floor blend happens to equal its corner radius
+ * is a real corner and has to keep constraining the cutter.
+ */
+const openPocket = (datasheet: FeatureDatasheet): boolean =>
+  datasheet.featureType === 'OpenPocket' || datasheet.featureType === 'FilletedOpenPocket'
 
 const requiredCutterSources = (datasheet: FeatureDatasheet): Array<Reading> => {
   const { cd, path } = cdAt(datasheet)
@@ -446,6 +468,16 @@ const requiredCutterSources = (datasheet: FeatureDatasheet): Array<Reading> => {
           : stated(cd?.ignore?.min) === 0
             ? 'ignore.min is 0, which is no tool at all, so this band stands in'
             : 'ignore.min was not reported, so this band stands in',
+      },
+    ]
+  }
+
+  if (openPocket(datasheet)) {
+    return [
+      {
+        path: `${path}.terminalCornerRadius`,
+        value: stated(cd?.terminalCornerRadius),
+        note: 'an open pocket has no closed corner, so this is its floor blend — the floor-radius rule answers for it',
       },
     ]
   }
