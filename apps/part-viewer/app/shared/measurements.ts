@@ -142,6 +142,15 @@ export function measurements({
       from: 'facts.cd.ignore.min',
       note: 'the widest cutter that still reaches the tightest corner',
     })
+    // The same number as a radius, because that is the form a corner is drawn
+    // and argued about in — and a rule about radii has to be given a radius.
+    rows.push({
+      key: 'minRadius',
+      label: 'Minimum cutter radius',
+      value: length(cutter / 2),
+      from: 'facts.cd.ignore.min ÷ 2',
+      note: 'half the tool above: the tightest internal radius this feature leaves room for',
+    })
   }
 
   // Stated per kind where the Engine states them: a hole reports the drill and
@@ -269,6 +278,7 @@ export const STRIP_KEYS = [
   'diameter',
   'maxEndmill',
   'maxTool',
+  'minRadius',
   'ld',
   'area',
 ]
@@ -279,6 +289,7 @@ export const STRIP_LABELS: Record<string, string> = {
   featureDepth: 'deep',
   diameter: 'diameter',
   maxTool: 'largest tool ⌀',
+  minRadius: 'min radius',
   maxEndmill: 'largest endmill',
   maxDrill: 'largest drill',
   ld: 'L/D',
