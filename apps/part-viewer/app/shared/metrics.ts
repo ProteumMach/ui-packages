@@ -372,6 +372,15 @@ export const sharpCorner = (datasheet: FeatureDatasheet): boolean | null =>
  * `effectiveAdaptive` — each with a `min` and a `max`. `ignore.min` is the one:
  * it is the minimum radius the panel shows for that band, doubled.
  *
+ * Confirmed against Fusion on two parts, which is worth writing down because
+ * the temptation to "correct" it comes round often. A pocket whose corner
+ * measures 3.302 mm reports `ignore.min` 6.616, and a pocket the Engine says
+ * has no blend at all — `terminalCornerRadius` and `filletRadius` both zero —
+ * reports 3.429 for a minimum radius of 1.71, which is also right. So half this
+ * band is the answer whether or not a corner is what limits the tool, and
+ * `terminalCornerRadius` is *not* the corner drawn on the part: on every part
+ * looked at so far it reports exactly `filletRadius`, the floor blend.
+ *
  * The others are fallbacks in name order, used only where `ignore.min` is
  * absent or reported as zero, and each reading says which answered. On the
  * mount sample `ignore.min` is stated on 44 features of 72.
