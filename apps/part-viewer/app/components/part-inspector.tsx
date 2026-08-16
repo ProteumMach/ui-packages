@@ -18,6 +18,7 @@ import {
 import { directionLabel, featureFromTags, filterFeatures, tagsOfType } from '../shared/report'
 import { listHighlight } from '../shared/highlighting'
 import { useRules } from '../shared/use-rules'
+import { SHOWS_DIRECTIONS } from '../shared/release'
 import { featureScores } from '../shared/feature-score'
 import { rulesSummary } from '../shared/rules-summary'
 import { partContext } from '../shared/metrics'
@@ -297,7 +298,7 @@ export const PartInspector = ({
           scores={scores}
         />
       </aside>
-    ) : tab === 'rules' ? (
+    ) : tab === 'rules' || !SHOWS_DIRECTIONS ? (
       <RulesPanel
         features={report.features}
         focusedTag={focusedTag}
@@ -356,7 +357,9 @@ export const PartInspector = ({
           <Tabs value={tab} onValueChange={(value) => setTab(value as ViewerTab)}>
             <Tabs.List>
               <Tabs.Tab value="inspector">Inspector</Tabs.Tab>
-              <Tabs.Tab value="directions">Directions</Tabs.Tab>
+              {/* Hidden for the first release; the page behind it still
+                  builds and still has its tests. See `SHOWS_DIRECTIONS`. */}
+              {SHOWS_DIRECTIONS ? <Tabs.Tab value="directions">Directions</Tabs.Tab> : null}
               <Tabs.Tab value="rules">Rules</Tabs.Tab>
             </Tabs.List>
           </Tabs>

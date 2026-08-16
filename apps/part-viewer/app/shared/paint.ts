@@ -1,6 +1,7 @@
 import { directionColor, directionIndexOf } from '@toolpath/viewer'
 import type { PartFeature } from './report'
 import { bandHex, paintOrder } from './bands'
+import { SHOWS_DIRECTIONS } from './release'
 import type { Band } from './rules'
 
 /**
@@ -21,11 +22,15 @@ export const PAINT_MODES: readonly PaintMode[] = ['plain', 'directions', 'diffic
  * Words rather than icons, unlike the rest of the toolbar: these are the
  * question the part is answering, and "no standing opinion" has no picture.
  */
-export const PAINT_MODE_LABELS: readonly (readonly [PaintMode, string])[] = [
+const ALL_PAINT_MODE_LABELS: readonly (readonly [PaintMode, string])[] = [
   ['plain', 'Plain'],
   ['directions', 'Directions'],
   ['difficulty', 'Difficulty'],
 ]
+
+/** The modes this release offers. See `SHOWS_DIRECTIONS`. */
+export const PAINT_MODE_LABELS: readonly (readonly [PaintMode, string])[] =
+  ALL_PAINT_MODE_LABELS.filter(([mode]) => SHOWS_DIRECTIONS || mode !== 'directions')
 
 /** How strongly the standing wash covers the part, under everything else. */
 export const PAINT_WEIGHT = 0.7
@@ -39,7 +44,11 @@ const STORAGE_KEY = 'part-viewer.paint'
  */
 export function loadPaintMode(storage: Pick<Storage, 'getItem'> | null): PaintMode {
   const stored = storage?.getItem(STORAGE_KEY)
-  return PAINT_MODES.find((mode) => mode === stored) ?? 'plain'
+  const found = PAINT_MODES.find((mode) => mode === stored) ?? 'plain'
+
+  // A mode this release does not offer is a part coloured by something with no
+  // button to turn it off, which reads as the part being wrong.
+  return PAINT_MODE_LABELS.some(([mode]) => mode === found) ? found : 'plain'
 }
 
 export function savePaintMode(storage: Pick<Storage, 'setItem'> | null, mode: PaintMode): void {
