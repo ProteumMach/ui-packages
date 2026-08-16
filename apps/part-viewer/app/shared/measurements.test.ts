@@ -158,3 +158,45 @@ describe('stripMeasurements', () => {
     for (const row of stripMeasurements(rows)) expect(rows).toContain(row)
   })
 })
+
+describe('the tools a feature admits', () => {
+  const feature = (facts: Record<string, unknown>) =>
+    ({
+      featureTag: 'f-1',
+      featureType: 'blind_hole',
+      regionIdxs: [0],
+      machiningDirection: { x: 0, y: 0, z: 1 },
+      datasheet: { facts: { kind: 'Hole', ...facts }, zMax: 0, zMin: -10, partZMax: 0 },
+    }) as never
+
+  const rows = (facts: Record<string, unknown>) => {
+    const one = feature(facts)
+    return measurements({ feature: one, features: [one], regions: [], unit: 'mm' })
+  }
+
+  it('states the drill and the endmill separately, as the Engine does', () => {
+    // Which of the two a shop reaches for is the difference between one plunge
+    // and a helix, so neither stands in for the other.
+    const shown = rows({ maxDrillDiameter: 6.35, maxEndmillDiameter: 10 })
+
+    expect(shown.find((row) => row.key === 'maxDrill')?.value).toContain('6.35')
+    expect(shown.find((row) => row.key === 'maxEndmill')?.value).toContain('10.00')
+  })
+
+  it('states what gets into an undercut, which is not what fits once there', () => {
+    const shown = rows({ maxEntryCd: 3.175 })
+
+    expect(shown.find((row) => row.key === 'entryCutter')?.from).toBe('facts.maxEntryCd')
+    expect(shown.find((row) => row.key === 'entryCutter')?.value).toContain('3.17')
+  })
+
+  it('leaves a row out rather than showing a tool the Engine never named', () => {
+    // A dash against a field this type never reports reads as a measurement
+    // that failed.
+    const shown = rows({})
+
+    expect(shown.some((row) => ['maxDrill', 'maxEndmill', 'entryCutter'].includes(row.key))).toBe(
+      false,
+    )
+  })
+})

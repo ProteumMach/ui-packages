@@ -134,6 +134,46 @@ export function measurements({
     })
   }
 
+  // The biggest tool the Engine says fits, where it says so. Stated per kind
+  // rather than derived from the cutter bands: a hole reports the drill and the
+  // endmill it admits separately, and which of the two a shop reaches for is
+  // the difference between one plunge and a helix.
+  const endmill = asNumber(sheetFacts.maxEndmillDiameter)
+  if (endmill !== null && endmill > 0) {
+    rows.push({
+      key: 'maxEndmill',
+      label: 'Largest endmill',
+      value: length(endmill),
+      from: 'facts.maxEndmillDiameter',
+      note: 'the widest endmill the Engine says this feature admits',
+    })
+  }
+
+  const drill = asNumber(sheetFacts.maxDrillDiameter)
+  if (drill !== null && drill > 0) {
+    rows.push({
+      key: 'maxDrill',
+      label: 'Largest drill',
+      value: length(drill),
+      from: 'facts.maxDrillDiameter',
+      note: 'the widest drill the Engine says this feature admits',
+    })
+  }
+
+  // An undercut is defined by what gets in rather than by what fits once there,
+  // so the Engine states the entry separately. A T-slot cutter goes in sideways
+  // and cannot be backed out, which is why the opening is its own number.
+  const entry = asNumber(sheetFacts.maxEntryCd)
+  if (entry !== null && entry > 0) {
+    rows.push({
+      key: 'entryCutter',
+      label: 'Largest tool that gets in',
+      value: length(entry),
+      from: 'facts.maxEntryCd',
+      note: 'the widest cutter that reaches the undercut through its opening',
+    })
+  }
+
   // Reach over the widest tool the shape admits. A hole has its own, against
   // its diameter, because nothing wider than the bore goes in it.
   if (top !== null && zBottom !== null) {

@@ -355,6 +355,14 @@ const AngleIcon = () => (
   </MeasurementFrame>
 )
 
+/** Undercut: the opening, and the space that reaches in under it. */
+const UndercutIcon = () => (
+  <MeasurementFrame>
+    <path d="M2 3h12" />
+    <path d="M6.5 3v4H3v6h10V7H9.5V3" />
+  </MeasurementFrame>
+)
+
 /** A ball nose, for the shapes that are surfaced rather than milled. */
 const BallIcon = () => (
   <MeasurementFrame>
@@ -389,6 +397,9 @@ export const MEASUREMENT_ICONS: Record<string, () => ReactElement> = {
   minRadius: RadiusIcon,
   ld: RatioIcon,
   diameter: DiameterIcon,
+  maxEndmill: DiameterIcon,
+  maxDrill: DiameterIcon,
+  entryCutter: UndercutIcon,
   bevelAngle: AngleIcon,
   floorFillet: BallIcon,
   area: AreaIcon,
