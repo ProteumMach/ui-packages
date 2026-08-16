@@ -162,15 +162,40 @@ test('paints the part by difficulty, and remembers that it was asked to', async 
 test('shows the limits it judges by, and what they made of a feature', async ({ page }) => {
   await openInspector(page)
 
+  await expect(page.getByRole('tab', { name: 'Directions' })).toHaveCount(0)
   await page.getByRole('tab', { name: 'Rules' }).click()
   await expect(page.getByLabel('Rule set')).toHaveValue('default')
   await expect(page.getByText('Drilling L/D ratio').first()).toBeVisible()
+
+  const ruleSetRight = await page
+    .getByLabel('Rule set')
+    .evaluate((element) => element.getBoundingClientRect().right)
+  const addRuleLeft = await page
+    .getByRole('button', { name: 'Add rule' })
+    .evaluate((element) => element.getBoundingClientRect().left)
+  expect(addRuleLeft - ruleSetRight).toBeGreaterThanOrEqual(16)
+  const controlsBottom = await page
+    .getByLabel('Rule set')
+    .evaluate((element) => element.getBoundingClientRect().bottom)
+  const scoreTop = await page
+    .getByLabel('Rule set')
+    .locator('xpath=ancestor::aside[1]')
+    .locator('section span.font-display')
+    .evaluate((element) => element.getBoundingClientRect().top)
+  expect(scoreTop - controlsBottom).toBeGreaterThanOrEqual(16)
 
   await openRule(page, 'Drilling L/D ratio')
   // The bands a measurement is judged against, in the same words the part uses.
   await expect(page.getByText('∞ – 3.0').first()).toBeVisible()
 
   await page.getByRole('tab', { name: 'Inspector' }).click()
+  const unitBottom = await page
+    .getByRole('button', { name: /Units: mm\. Switch to in/ })
+    .evaluate((element) => element.getBoundingClientRect().bottom)
+  const featuresTop = await page
+    .getByText('Features', { exact: true })
+    .evaluate((element) => element.getBoundingClientRect().top)
+  expect(featuresTop - unitBottom).toBeGreaterThanOrEqual(12)
   await page.getByRole('button', { name: /Blind hole/ }).click()
   await page
     .getByRole('button', { name: /hole-1/ })

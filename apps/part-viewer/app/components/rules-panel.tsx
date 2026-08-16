@@ -85,7 +85,7 @@ export const RulesPanel = ({
     <aside className="size-full overflow-y-auto bg-zinc-900 p-3 text-xs">
       <Heading>Rule set</Heading>
 
-      <div className="flex items-center gap-1.5">
+      <div className="mb-2 flex items-center gap-4">
         {/* A shop's thresholds belong to a material and a machine, so which set
             is in force is a choice rather than a setting made once. */}
         <select
@@ -105,6 +105,7 @@ export const RulesPanel = ({
         </select>
 
         <Button
+          className="shrink-0"
           onClick={() => {
             rules.addRule()
             setPending(true)

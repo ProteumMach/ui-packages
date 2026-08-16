@@ -1,7 +1,6 @@
 import { directionColor, directionIndexOf } from '@toolpath/viewer'
 import type { PartFeature } from './report'
 import { bandHex, paintOrder } from './bands'
-import { SHOWS_DIRECTIONS } from './release'
 import type { Band } from './rules'
 
 /**
@@ -28,9 +27,7 @@ const ALL_PAINT_MODE_LABELS: readonly (readonly [PaintMode, string])[] = [
   ['difficulty', 'Difficulty'],
 ]
 
-/** The modes this release offers. See `SHOWS_DIRECTIONS`. */
-export const PAINT_MODE_LABELS: readonly (readonly [PaintMode, string])[] =
-  ALL_PAINT_MODE_LABELS.filter(([mode]) => SHOWS_DIRECTIONS || mode !== 'directions')
+export const PAINT_MODE_LABELS = ALL_PAINT_MODE_LABELS
 
 /** How strongly the standing wash covers the part, under everything else. */
 export const PAINT_WEIGHT = 0.7
