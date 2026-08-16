@@ -127,12 +127,16 @@ describe('how much disagreement is a split', () => {
     expect(surfaces.get(0)).not.toBe(surfaces.get(1))
   })
 
-  it('still merges the same angle on a tessellated surface', () => {
-    const surfaces = visualSurfaces(shallow(), [
+  it('draws every boundary between curved regions, split or not', () => {
+    // Nothing in the report says which surface a region was cut from, and a
+    // fillet running tangentially into a shaft looks exactly like a fillet
+    // split down the middle. Losing a line the part has is the worse mistake,
+    // so curved boundaries are all kept.
+    const surfaces = visualSurfaces(splitSquare(), [
       region(0, 0, 1, 'Cylinder'),
       region(1, 1, 2, 'Cylinder'),
     ])
 
-    expect(surfaces.get(0)).toBe(surfaces.get(1))
+    expect(surfaces.get(0)).not.toBe(surfaces.get(1))
   })
 })

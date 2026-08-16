@@ -17,32 +17,36 @@ import type { PartModelRegion } from './types.js'
  * a split is still two regions to click on and still two regions a feature can
  * own, which is the whole reason the Engine made it.
  *
- * Two regions continue each other when they meet along an edge, are the same
- * kind of surface, and the facets meeting there face nearly the same way. Same
- * kind is the conservative half: a chamfer meeting a wall tangentially is still
- * a chamfer meeting a wall, and its line stays.
+ * Two regions continue each other when they meet along an edge, are both
+ * **planes**, and are flat to within a degree of one another — which for a
+ * plane means they are the same plane.
+ *
+ * Planes only, and that is a limit of what the report says rather than caution.
+ * A region carries an `idx`, a `shapeKind`, an area and a triangle range: there
+ * is nothing in it that says which analytic surface a region was cut from. On a
+ * flat face that does not matter, because two coplanar planes meeting along an
+ * edge *are* one plane and no part has an edge there. On a curved one it
+ * matters entirely: a fillet running tangentially into a shaft and a fillet
+ * split down the middle look identical from the facets alone, and guessing
+ * between them either rubs out a line the part has or leaves one it does not.
+ * A line the part has is the worse of the two to lose, so curved boundaries are
+ * all drawn.
+ *
+ * The exact version of this wants the Engine to say which surface a region came
+ * from. Until it does, this is the half that can be proved.
  */
 
 /**
- * How far two facets may disagree across a shared edge and still be one
- * surface, by the kind of surface they are.
+ * How far two planes may disagree across a shared edge and still be one plane.
  *
- * A plane is flat, so a split in one is *exactly* coplanar and anything else is
- * an edge — including the shallow ones, which are the whole reason to be strict
- * here: two planes meeting at 15° is a chamfer somebody machined, and a window
- * wide enough to swallow it rubs out a line the part really has.
- *
- * A curved surface is tessellated, so its own facets disagree: a 32-sided bore
- * turns 11° at every one, and a split down it has exactly that much
- * disagreement across it. Nothing narrower would merge it.
+ * A degree, which is a rounding error rather than a judgement: a split is
+ * exactly coplanar, and anything a part actually turns through is a chamfer at
+ * fifteen degrees or more.
  */
 export const CONTINUES_WITHIN = Math.cos((1 * Math.PI) / 180)
 
-/** The window a tessellated surface needs, since its own facets differ. */
-export const CURVED_CONTINUES_WITHIN = Math.cos((20 * Math.PI) / 180)
-
-/** Kinds the Engine reports that are curved, and so tessellate. */
-const CURVED: ReadonlySet<string> = new Set(['Cylinder', 'Cone', 'Sphere', 'Torus', 'Bspline'])
+/** The one kind whose regions can be merged from the facets alone. */
+const MERGEABLE = 'Plane'
 
 /** Region index → the surface it belongs to, by region `idx`. */
 export type SurfaceOf = ReadonlyMap<number, number>
@@ -134,10 +138,8 @@ function computeSurfaces(geometry: BufferGeometry, regions: readonly PartModelRe
         normals[triangle * 3 + 1]! * normals[met * 3 + 1]! +
         normals[triangle * 3 + 2]! * normals[met * 3 + 2]!
 
-      const kind = kindOf.get(here) ?? ''
-      const within = CURVED.has(kind) ? CURVED_CONTINUES_WITHIN : CONTINUES_WITHIN
-
-      if (facing >= within) union(here, there)
+      if (kindOf.get(here) !== MERGEABLE) continue
+      if (facing >= CONTINUES_WITHIN) union(here, there)
     }
   }
 
