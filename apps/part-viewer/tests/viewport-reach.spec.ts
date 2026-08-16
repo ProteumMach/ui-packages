@@ -266,7 +266,7 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
   await expect(weight).toHaveValue('12')
   await expect(
     page.getByText(
-      'Rule changes are temporary and resets when you reload or choose another preset.',
+      'Rule changes are temporary and reset on reload or when choosing another preset.',
     ),
   ).toBeVisible()
 

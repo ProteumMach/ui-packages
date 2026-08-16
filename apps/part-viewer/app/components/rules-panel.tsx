@@ -115,7 +115,7 @@ export const RulesPanel = ({
 
       <div className="mt-1.5 flex items-center gap-2 text-xs text-zinc-400">
         <span className="flex-1">
-          Rule changes are temporary and resets when you reload or choose another preset.
+          Rule changes are temporary and reset on reload or when choosing another preset.
         </span>
         {rules.dirty ? (
           <button className="text-warning underline" onClick={rules.resetRules} type="button">
