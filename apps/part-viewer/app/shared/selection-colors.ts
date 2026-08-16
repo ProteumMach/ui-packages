@@ -7,22 +7,24 @@
  * or drained much further it becomes a white patch, and the thing being read
  * stops being a colour at all.
  *
- * The three read as one blue at three depths, and the depth is the claim being
- * made about the face:
+ * **A selected feature is one colour.** The face that was clicked used to wear a
+ * deeper blue than the rest of the feature it resolved to, on the reasoning that
+ * a click is a stronger claim than an inference. On a part it reads as two
+ * things selected rather than one, and the split the Engine cuts for machining
+ * makes it worse: the seam between two shades looks like a seam in the part.
+ * What somebody has selected is a feature, so the feature is what is coloured.
  *
- *   picked    the face you actually clicked — deepest, the only one you chose
- *   highlight the rest of the feature that click was read as — a step lighter,
- *             because it was inferred and inferred faces must not out-shout the
- *             one they were inferred from
- *   hover     the pointer's question — lightest, and transient
+ * The hover stays a step lighter, because it is a question rather than an
+ * answer and it has to be told apart from what is already chosen.
  *
  * The warm equivalent is kept for setups, where a plan is being laid on the
- * part rather than a feature read off it — and for difficulty, whenever that
- * arrives, since its five bands are a warm ramp and a selection sitting over
- * them cannot be warm too.
+ * part rather than a feature read off it — and for difficulty, whose five bands
+ * are a warm ramp that a selection sitting over them cannot be warm too.
  */
 export const READING_COLORS = {
-  highlight: 0x6d97dd,
-  hover: 0x93b6ea,
+  highlight: 0x3e6bcc,
+  hover: 0x6d97dd,
+  // The same blue as the rest of the feature: a face still paints when it
+  // belongs to no feature at all, which is what this layer is for now.
   picked: 0x3e6bcc,
 } as const
