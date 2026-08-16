@@ -420,48 +420,26 @@ const cutterFromBand = (
  * silent on two thirds of the part: that band is reported on fewer than a
  * third of features.
  *
- * A **sharp** corner is the exception. Twice a radius of zero is a cutter of
- * zero, which is not a tool — it is the absence of one, and feeding it to a
- * size rule turns "this corner cannot be milled" into "the cutter is very
- * small". So where the corner is sharp the adaptive band stands in, and the
- * sharp-corner rule is left to say the thing that actually matters.
+ * `terminalCornerRadius` is **not** a fallback for it, though it was one here
+ * until three parts in a row proved otherwise. On every feature looked at so
+ * far that field reports exactly `filletRadius` — the floor blend, not a corner
+ * a cutter has to fit. Doubling it said a 0.01 in floor fillet demanded a 0.02
+ * in cutter, which put a T-slot's milling L/D at 23:1 and a pocket's at
+ * whatever its floor happened to be blended to.
  *
- * An **open pocket** is the other. It has no closed internal corner for a
- * cutter to have to fit, and on one the Engine reports the *floor* blend as
- * `terminalCornerRadius` — the same number it reports as `filletRadius`. Taken
- * as a corner it says a 0.06 in floor fillet demands a 0.12 in cutter, and the
- * milling rules then judge a pocket on the radius of its floor. That radius is
- * a bull nose question, which is what the floor-radius rule is for, so the
- * milling metrics stand down and let it answer.
+ * So where no band is reported the metric is `null` and the rules that read it
+ * stand down. That is the same answer this file gives everywhere else the
+ * Engine says nothing, and it costs coverage: a rule that cannot see a tool
+ * says nothing rather than judging a feature on a number that was never about
+ * tools. The alternative is a verdict nobody can defend, which is worse than a
+ * gap somebody can see.
  */
 const requiredCutter = (datasheet: FeatureDatasheet): number | null => {
   const { cd, path } = cdAt(datasheet)
-  const band = cutterFromBand(cd, path)
 
-  if (band) {
-    return band.value
-  }
-
-  if (openPocket(datasheet)) {
-    return null
-  }
-
-  // Nothing reported a band at all. A stated corner radius is the only thing
-  // left that says what fits: twice it, which is the cutter the corner admits.
-  const corner = stated(cd?.terminalCornerRadius)
-
-  return corner !== null && corner > 0 ? corner * 2 : null
+  // The bands or nothing. There is no third thing here that says what fits.
+  return cutterFromBand(cd, path)?.value ?? null
 }
-
-/**
- * Whether this feature is a pocket open on a side.
- *
- * Read off the kernel's own `featureType` rather than inferred from the
- * numbers: a closed pocket whose floor blend happens to equal its corner radius
- * is a real corner and has to keep constraining the cutter.
- */
-const openPocket = (datasheet: FeatureDatasheet): boolean =>
-  datasheet.featureType === 'OpenPocket' || datasheet.featureType === 'FilletedOpenPocket'
 
 const requiredCutterSources = (datasheet: FeatureDatasheet): Array<Reading> => {
   const { cd, path } = cdAt(datasheet)
@@ -481,33 +459,13 @@ const requiredCutterSources = (datasheet: FeatureDatasheet): Array<Reading> => {
     ]
   }
 
-  if (openPocket(datasheet)) {
-    return [
-      {
-        path: `${path}.terminalCornerRadius`,
-        value: stated(cd?.terminalCornerRadius),
-        note: 'an open pocket has no closed corner, so this is its floor blend — the floor-radius rule answers for it',
-      },
-    ]
-  }
-
-  const corner = stated(cd?.terminalCornerRadius)
-
-  return corner !== null && corner > 0
-    ? [
-        {
-          path: `${path}.terminalCornerRadius`,
-          value: corner,
-          note: 'doubled: no band was reported, so the corner is all there is',
-        },
-      ]
-    : [
-        {
-          path: `${path}.deviate.min`,
-          value: null,
-          note: 'no cutter band and no corner radius reported',
-        },
-      ]
+  return [
+    {
+      path: `${path}.ignore.min`,
+      value: null,
+      note: 'no cutter band reported, so nothing here says what tool fits',
+    },
+  ]
 }
 
 /**

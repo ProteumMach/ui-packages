@@ -156,56 +156,54 @@ describe('the two readers of the datasheet agree', () => {
   })
 })
 
-describe('an open pocket has no corner to fit a cutter to', () => {
-  const pocket = (featureType: string) =>
+describe('a corner radius is not a cutter', () => {
+  const feature = (featureType: string, facts: Record<string, unknown>) =>
     ({
-      featureTag: 'pocket-1',
-      featureType: 'filleted_open_pocket',
+      featureTag: 'f-1',
+      featureType: 'undercut_filleted_tslot',
       regionIdxs: [0],
-      machiningDirection: { x: 0, y: 0, z: 1 },
-      axis: { x: 0, y: 0, z: 1 },
+      machiningDirection: { x: 1, y: 0, z: 0 },
+      axis: { x: 1, y: 0, z: 0 },
       datasheet: {
         featureType,
-        facts: {
-          kind: 'Pocket',
-          // Every band unreported, which is the case this turns on.
-          cd: { terminalCornerRadius: 1.524 },
-          filletRadius: 1.524,
-        },
-        zMax: 66.19,
-        zMin: 50.84,
-        partZMax: 66.19,
+        facts: { kind: 'Tslot', ...facts },
+        zMax: 0,
+        zMin: -11.8,
+        partZMax: 0,
       },
     }) as unknown as PartFeature
 
-  test('leaves the milling metrics quiet rather than reading its floor blend', () => {
-    // The Engine reports the floor blend as `terminalCornerRadius` on an open
-    // pocket. Taken as a corner it says a 0.06 in fillet demands a 0.12 in
-    // cutter, and the milling rules then judge a pocket by the radius of its
-    // floor.
-    const metrics = readMetrics(pocket('FilletedOpenPocket'))
+  test('stands the milling metrics down when no band is reported', () => {
+    // `terminalCornerRadius` reports the floor blend on every feature looked at
+    // so far, so doubling it said a 0.01 in fillet demanded a 0.02 in cutter —
+    // which put this T-slot's milling L/D at 23:1.
+    const metrics = readMetrics(
+      feature('UndercutFilletedTslot', { cd: { terminalCornerRadius: 0.254 } }),
+    )
 
     expect(metrics.requiredCutter).toBe(null)
     expect(metrics.minRadius).toBe(null)
     expect(metrics.millingLD).toBe(null)
   })
 
-  test('still measures the floor radius, which is what judges it', () => {
-    expect(readMetrics(pocket('FilletedOpenPocket')).floorFilletRadius).toBeCloseTo(1.524, 6)
+  test('says so where the working is shown', () => {
+    const [reading] = metricSources(
+      'requiredCutter',
+      feature('UndercutFilletedTslot', { cd: { terminalCornerRadius: 0.254 } }),
+    )
+
+    expect(reading?.value).toBe(null)
+    expect(reading?.note).toContain('no cutter band reported')
   })
 
-  test('keeps the corner on a closed pocket, where there is one', () => {
-    // A closed pocket whose floor blend happens to equal its corner radius has
-    // a real corner, and it has to go on constraining the cutter.
-    const metrics = readMetrics(pocket('FilletedPocket'))
+  test('reads the band wherever one is reported, whatever the type', () => {
+    const metrics = readMetrics(
+      feature('UndercutFilletedTslot', {
+        cd: { ignore: { min: 6.35 }, terminalCornerRadius: 0.254 },
+      }),
+    )
 
-    expect(metrics.requiredCutter).toBeCloseTo(3.048, 6)
-    expect(metrics.minRadius).toBeCloseTo(1.524, 6)
-  })
-
-  test('says why it stood down, where the working is shown', () => {
-    const [reading] = metricSources('requiredCutter', pocket('FilletedOpenPocket'))
-
-    expect(reading?.note).toContain('no closed corner')
+    expect(metrics.requiredCutter).toBeCloseTo(6.35, 6)
+    expect(metrics.minRadius).toBeCloseTo(3.175, 6)
   })
 })
