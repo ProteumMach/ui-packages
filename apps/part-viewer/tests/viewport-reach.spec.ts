@@ -264,11 +264,11 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
   await weight.fill('')
   await weight.pressSequentially('12')
   await expect(weight).toHaveValue('12')
-  await expect(
-    page.getByText(
-      'Rule changes are temporary and reset on reload or when choosing another preset.',
-    ),
-  ).toBeVisible()
+  const temporaryRulesNotice = page.getByText(
+    'Rule changes are temporary and reset on reload or when choosing another preset.',
+  )
+  await temporaryRulesNotice.scrollIntoViewIfNeeded()
+  await expect(temporaryRulesNotice).toBeVisible()
 
   await page.getByRole('tab', { name: 'Inspector' }).click()
   await page.getByRole('button', { name: /Blind hole/ }).click()

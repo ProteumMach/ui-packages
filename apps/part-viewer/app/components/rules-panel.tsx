@@ -113,28 +113,19 @@ export const RulesPanel = ({
         </Button>
       </div>
 
-      <div className="mt-1.5 flex items-center gap-2 text-xs text-zinc-400">
-        <span className="flex-1">
-          Rule changes are temporary and reset on reload or when choosing another preset.
-        </span>
-        {rules.dirty ? (
-          <button className="text-warning underline" onClick={rules.resetRules} type="button">
-            Reset changes
-          </button>
-        ) : null}
-      </div>
-
       {/* One list for the whole panel, so the arrows walk from a rule into the
           features under it and on into the next rule — which is the order it
           reads in, and the order somebody expects to travel. */}
-      <RulesSummaryPanel
-        band={band}
-        onChoose={onChoose}
-        onHover={onHover}
-        onPickBand={setBand}
-        summary={summary}
-        unit={unit}
-      />
+      <div className="pt-2">
+        <RulesSummaryPanel
+          band={band}
+          onChoose={onChoose}
+          onHover={onHover}
+          onPickBand={setBand}
+          summary={summary}
+          unit={unit}
+        />
+      </div>
 
       <div className="mt-4 flex items-baseline gap-2">
         <Heading>What it cost</Heading>
@@ -198,6 +189,17 @@ export const RulesPanel = ({
             />
           ))}
       </ul>
+
+      <div className="mt-4 flex items-center gap-2 border-t border-zinc-800 pt-3 text-xs text-zinc-400">
+        <span className="flex-1">
+          Rule changes are temporary and reset on reload or when choosing another preset.
+        </span>
+        {rules.dirty ? (
+          <button className="text-warning underline" onClick={rules.resetRules} type="button">
+            Reset changes
+          </button>
+        ) : null}
+      </div>
     </aside>
   )
 }
