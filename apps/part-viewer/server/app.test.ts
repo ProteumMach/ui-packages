@@ -1,17 +1,22 @@
 // @vitest-environment node
 import { afterEach, describe, expect, test, vi } from 'vitest'
+import { Hono } from 'hono'
 import type { JobDetail } from '@toolpath/api'
 import { readAnalysis } from './routes/analysis'
 import { createApp } from './app'
+import { setConnection } from './connection'
+import type { AppEnv } from './types'
 
 const sameOrigin = { 'Content-Type': 'application/json', 'Sec-Fetch-Site': 'same-origin' }
 
+/** Creates a pre-existing session for tests that are unrelated to the connection flow. */
 const cookieFor = async () => {
-  const response = await createApp().request('/api/session', {
-    method: 'POST',
-    headers: sameOrigin,
-    body: JSON.stringify({ apiKey: 'tp_secret_key' }),
+  const app = new Hono<AppEnv>()
+  app.get('/', async (c) => {
+    await setConnection(c, 'tp_secret_key')
+    return c.body(null)
   })
+  const response = await app.request('/')
   return response.headers.getSetCookie()[0].split(';')[0]
 }
 
@@ -60,7 +65,14 @@ afterEach(() => {
 })
 
 describe('Part Viewer Hono API', () => {
-  test('seals the BYOK key, reports connection state, and clears the session', async () => {
+  test('validates and seals the BYOK key, reports connection state, and clears the session', async () => {
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = new Request(input, init)
+      expect(request.method).toBe('POST')
+      expect(new URL(request.url).pathname).toBe('/v1/keys/validate')
+      expect(request.headers.get('Authorization')).toBe('Bearer tp_secret_key')
+      return Response.json({ valid: true, status: 'active' })
+    })
     const app = createApp()
     const connected = await app.request('/api/session', {
       method: 'POST',
@@ -83,6 +95,25 @@ describe('Part Viewer Hono API', () => {
     })
     expect(cleared.status).toBe(204)
     expect(cleared.headers.getSetCookie()[0]).toContain('Max-Age=0')
+  })
+
+  test('rejects an invalid API key without creating a session', async () => {
+    vi.stubGlobal('fetch', async () =>
+      Response.json({ valid: false, status: 'revoked' }, { status: 401 }),
+    )
+
+    const response = await createApp().request('/api/session', {
+      method: 'POST',
+      headers: sameOrigin,
+      body: JSON.stringify({ apiKey: 'tp_revoked_key' }),
+    })
+
+    expect(response.status).toBe(401)
+    await expect(response.json()).resolves.toEqual({
+      error: 'invalid_api_key',
+      message: 'This API key has been revoked. Create a new key and try again.',
+    })
+    expect(response.headers.getSetCookie()).toEqual([])
   })
 
   test('clears a malformed connection cookie without logging an error', async () => {
