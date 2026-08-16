@@ -146,7 +146,7 @@ export function measurements({
     // and argued about in — and a rule about radii has to be given a radius.
     rows.push({
       key: 'minRadius',
-      label: 'Minimum cutter radius',
+      label: 'Required cutter radius',
       value: length(cutter / 2),
       from: 'facts.cd.ignore.min ÷ 2',
       note: 'half the tool above: the tightest internal radius this feature leaves room for',
@@ -289,7 +289,7 @@ export const STRIP_LABELS: Record<string, string> = {
   featureDepth: 'deep',
   diameter: 'diameter',
   maxTool: 'largest tool ⌀',
-  minRadius: 'min radius',
+  minRadius: 'cutter radius',
   maxEndmill: 'largest endmill',
   maxDrill: 'largest drill',
   ld: 'L/D',
