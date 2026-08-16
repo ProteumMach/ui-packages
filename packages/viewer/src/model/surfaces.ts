@@ -25,22 +25,52 @@ import type { PartModelRegion } from './types.js'
 
 /**
  * How far two facets may disagree across a shared edge and still be one
- * surface.
+ * surface, by the kind of surface they are.
  *
- * Wider than it sounds, because a curved surface is tessellated: a 32-sided
- * bore turns 11° at every facet, and a split down one has exactly that much
- * disagreement across it. Narrower than the angle a real feature turns
- * through, which on a machined part is a chamfer at 30° or more.
+ * A plane is flat, so a split in one is *exactly* coplanar and anything else is
+ * an edge — including the shallow ones, which are the whole reason to be strict
+ * here: two planes meeting at 15° is a chamfer somebody machined, and a window
+ * wide enough to swallow it rubs out a line the part really has.
+ *
+ * A curved surface is tessellated, so its own facets disagree: a 32-sided bore
+ * turns 11° at every one, and a split down it has exactly that much
+ * disagreement across it. Nothing narrower would merge it.
  */
-export const CONTINUES_WITHIN = Math.cos((20 * Math.PI) / 180)
+export const CONTINUES_WITHIN = Math.cos((1 * Math.PI) / 180)
+
+/** The window a tessellated surface needs, since its own facets differ. */
+export const CURVED_CONTINUES_WITHIN = Math.cos((20 * Math.PI) / 180)
+
+/** Kinds the Engine reports that are curved, and so tessellate. */
+const CURVED: ReadonlySet<string> = new Set(['Cylinder', 'Cone', 'Sphere', 'Torus', 'Bspline'])
 
 /** Region index → the surface it belongs to, by region `idx`. */
 export type SurfaceOf = ReadonlyMap<number, number>
+
+/**
+ * Worked out once per mesh.
+ *
+ * Three things ask for this — the edges, the shading and the paint — and it is
+ * a pass over every facet, which on a real part is 90 000 of them. Keyed on the
+ * geometry and checked against the regions it was built from, so a different
+ * model on the same buffer recomputes rather than answering for the wrong part.
+ */
+const worked = new WeakMap<BufferGeometry, { regions: readonly PartModelRegion[]; of: SurfaceOf }>()
 
 export function visualSurfaces(
   geometry: BufferGeometry,
   regions: readonly PartModelRegion[],
 ): SurfaceOf {
+  const already = worked.get(geometry)
+  if (already && already.regions === regions) return already.of
+
+  const found = computeSurfaces(geometry, regions)
+  worked.set(geometry, { regions, of: found })
+
+  return found
+}
+
+function computeSurfaces(geometry: BufferGeometry, regions: readonly PartModelRegion[]): SurfaceOf {
   const position = geometry.getAttribute('position')
   const surfaces = new Map<number, number>()
 
@@ -104,7 +134,10 @@ export function visualSurfaces(
         normals[triangle * 3 + 1]! * normals[met * 3 + 1]! +
         normals[triangle * 3 + 2]! * normals[met * 3 + 2]!
 
-      if (facing >= CONTINUES_WITHIN) union(here, there)
+      const kind = kindOf.get(here) ?? ''
+      const within = CURVED.has(kind) ? CURVED_CONTINUES_WITHIN : CONTINUES_WITHIN
+
+      if (facing >= within) union(here, there)
     }
   }
 

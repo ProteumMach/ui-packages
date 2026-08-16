@@ -1,6 +1,7 @@
 import { directionIndexOf } from '../model/directions.js'
 import type { FeatureTag } from '../model/types.js'
 import type { PartObject } from './part.js'
+import { visualSurfaces } from '../model/surfaces.js'
 import { type ViewerTheme, directionColor } from './theme.js'
 
 /**
@@ -140,5 +141,49 @@ export function applyHighlightLayers(
 
   if (layers.hoverRegion != null && !selectedRegions(part, layers).has(layers.hoverRegion)) {
     part.paintRegion(layers.hoverRegion, theme.hover, HOVER_WEIGHT)
+  }
+
+  spreadAcrossSurfaces(part)
+}
+
+/**
+ * Carries a paint across the splits the Engine cut for machining.
+ *
+ * A face divided so its halves can be reached from different directions is
+ * still one face to look at, and painting a feature that owns one half left a
+ * sliver of bare surface beside it looking like a hole in the highlight.
+ *
+ * Only where there is nothing to argue with. A surface whose regions carry two
+ * different paints has two owners — which is the reason it was split — and
+ * spreading either over the other would draw a claim nobody made. Those stay as
+ * they are.
+ */
+function spreadAcrossSurfaces(part: PartObject): void {
+  const surfaces = visualSurfaces(part.mesh.geometry, part.model.regions)
+  const claims = new Map<number, { color: number; weight: number } | 'contested'>()
+
+  for (const region of part.model.regions) {
+    const paint = part.regionPaint(region.idx)
+    if (!paint || paint.weight === 0) continue
+
+    const surface = surfaces.get(region.idx) ?? region.idx
+    const claim = claims.get(surface)
+
+    if (!claim) {
+      claims.set(surface, { color: paint.color, weight: paint.weight })
+      continue
+    }
+    if (claim === 'contested') continue
+    if (claim.color !== paint.color || claim.weight !== paint.weight) {
+      claims.set(surface, 'contested')
+    }
+  }
+
+  for (const region of part.model.regions) {
+    const paint = part.regionPaint(region.idx)
+    if (paint && paint.weight > 0) continue
+
+    const claim = claims.get(surfaces.get(region.idx) ?? region.idx)
+    if (claim && claim !== 'contested') part.paintRegion(region.idx, claim.color, claim.weight)
   }
 }

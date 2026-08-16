@@ -105,3 +105,34 @@ describe('what the split stops costing', () => {
     }
   })
 })
+
+describe('how much disagreement is a split', () => {
+  /** Two planes meeting at a shallow angle — a chamfer, not a split. */
+  function shallow(): BufferGeometry {
+    const geometry = new BufferGeometry()
+    // The second triangle rises 0.15 over 1, which is about 8°.
+    geometry.setAttribute(
+      'position',
+      new Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0.15, 0, 1, 0], 3),
+    )
+    return geometry
+  }
+
+  it('keeps two planes apart at an angle a chamfer could be', () => {
+    // The window that lets a tessellated bore merge would swallow this, which
+    // is why a plane gets a tighter one: a plane is flat, so a split in one is
+    // exactly coplanar and anything else is an edge.
+    const surfaces = visualSurfaces(shallow(), [region(0, 0, 1), region(1, 1, 2)])
+
+    expect(surfaces.get(0)).not.toBe(surfaces.get(1))
+  })
+
+  it('still merges the same angle on a tessellated surface', () => {
+    const surfaces = visualSurfaces(shallow(), [
+      region(0, 0, 1, 'Cylinder'),
+      region(1, 1, 2, 'Cylinder'),
+    ])
+
+    expect(surfaces.get(0)).toBe(surfaces.get(1))
+  })
+})
