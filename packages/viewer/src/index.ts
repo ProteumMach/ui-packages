@@ -42,6 +42,7 @@ export {
 } from './render/view-cube.js'
 export { gridGeometry, gridSpec } from './render/grid.js'
 export { regionEdgesGeometry } from './render/edges.js'
+export { CONTINUES_WITHIN, visualSurfaces } from './model/surfaces.js'
 export { CadCameraControls } from './camera.js'
 export {
   CAD_CAMERA_UP,
@@ -114,6 +115,7 @@ export type {
   Vec3,
 } from './model/types.js'
 export type { DirectionGroup } from './model/directions.js'
+export type { SurfaceOf } from './model/surfaces.js'
 export type { RankingContext } from './render/selection.js'
 export type { PartObject, RegionPaint } from './render/part.js'
 export type { FeatureHighlight, HighlightLayers, RegionHighlight } from './render/paint.js'

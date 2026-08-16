@@ -1,5 +1,6 @@
 import { Float32BufferAttribute, type BufferGeometry } from 'three'
 import type { PartModelRegion } from '../model/types.js'
+import { visualSurfaces } from '../model/surfaces.js'
 
 /**
  * Shades each region smoothly and every boundary between them hard.
@@ -32,13 +33,19 @@ export function smoothRegionNormals(
   const vertexCount = position.count
   const triangleCount = Math.floor(vertexCount / 3)
 
-  // Triangle → region, so the accumulation below is a lookup rather than a
-  // search through the region table for every one of a part's 90 000 facets.
+  // Triangle → the surface it is part of, so the accumulation below is a lookup
+  // rather than a search through the region table for every one of a part's
+  // 90 000 facets.
+  //
+  // Surfaces rather than regions, because the Engine splits a surface where
+  // that makes a better machining plan and shading each half separately creases
+  // a floor that is flat. See `visualSurfaces` — features still see the split.
+  const surfaces = visualSurfaces(geometry, regions)
   const regionOf = new Int32Array(triangleCount).fill(-1)
   for (const region of regions) {
     const end = Math.min(region.triangles.end, triangleCount)
     for (let triangle = region.triangles.start; triangle < end; triangle += 1) {
-      regionOf[triangle] = region.idx
+      regionOf[triangle] = surfaces.get(region.idx) ?? region.idx
     }
   }
 

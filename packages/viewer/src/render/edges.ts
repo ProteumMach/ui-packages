@@ -1,5 +1,6 @@
 import { type BufferGeometry, BufferGeometry as Buffer, Float32BufferAttribute } from 'three'
 import type { PartModel } from '../model/types.js'
+import { visualSurfaces } from '../model/surfaces.js'
 
 /**
  * The lines between regions, and nothing else.
@@ -14,6 +15,13 @@ import type { PartModel } from '../model/types.js'
  * one is tessellation and an edge between two is a real boundary — the same
  * fact that makes region-aware shading possible, used for the other half of
  * what makes a part read as a part.
+ *
+ * With one qualification. The Engine splits a surface where that makes a better
+ * machining plan, and those splits are boundaries between regions without being
+ * edges of the part: a floor cut in two to be reached from two directions is
+ * still one flat floor. So the walk is over *visual surfaces* — regions grouped
+ * where they continue each other — and a split leaves no line. See
+ * `visualSurfaces`; nothing about picking or features goes through it.
  *
  * The mesh must be non-indexed, which `parsePartGeometry` guarantees.
  */
@@ -30,13 +38,14 @@ export function regionEdgesGeometry(
 
   const triangleCount = Math.floor(position.count / 3)
 
-  // Triangle → region, so the walk below is a lookup rather than a search
-  // through the region table for every facet.
+  // Triangle → the surface it is part of, so the walk below is a lookup rather
+  // than a search through the region table for every facet.
+  const surfaces = visualSurfaces(geometry, model.regions)
   const regionOf = new Int32Array(triangleCount).fill(-1)
   for (const region of model.regions) {
     const end = Math.min(region.triangles.end, triangleCount)
     for (let triangle = region.triangles.start; triangle < end; triangle += 1) {
-      regionOf[triangle] = region.idx
+      regionOf[triangle] = surfaces.get(region.idx) ?? region.idx
     }
   }
 
@@ -68,8 +77,8 @@ export function regionEdgesGeometry(
         seen.set(id, { region, a, b, shared: false })
         continue
       }
-      // Met from both sides. Inside one region it is tessellation; between two
-      // it is a boundary, and it stays.
+      // Met from both sides. Inside one surface it is tessellation or a split;
+      // between two it is a boundary, and it stays.
       found.shared = found.region === region
     }
   }
