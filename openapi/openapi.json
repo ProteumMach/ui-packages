@@ -739,7 +739,6 @@
         ],
         "summary": "Validate an API key",
         "description": "Reports the status of the API key supplied in the Authorization header. A usable key returns 200; a missing, revoked, expired, or unknown key returns 401 — both with the same status body (never problem+json) — so bring-your-own-key integrations can confirm a key and show why it failed.",
-        "security": [],
         "responses": {
           "200": {
             "description": "The key is active and usable.",
