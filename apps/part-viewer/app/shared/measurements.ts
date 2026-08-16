@@ -127,10 +127,25 @@ export function measurements({
   if (cutter !== null && cutter > 0) {
     rows.push({
       key: 'minRadius',
-      label: 'Minimum radius',
+      label: 'Smallest tool radius',
       value: length(cutter / 2),
       from: 'facts.cd.ignore.min ÷ 2',
-      note: 'the tightest internal radius this feature leaves room for',
+      note: 'half the smallest cutter this feature admits — a tool answer, not the radius drawn on the part',
+    })
+  }
+
+  // The number people mean by "minimum radius", which is not the one above: a
+  // feature can admit a 6 mm cutter and still have a 0.5 mm corner in it, and
+  // showing only the tool answer under that name invited exactly that
+  // confusion.
+  const corner = asNumber(asRecord(sheetFacts.cd)?.terminalCornerRadius)
+  if (corner !== null && corner > 0) {
+    rows.push({
+      key: 'cornerRadius',
+      label: 'Corner radius',
+      value: length(corner),
+      from: 'facts.cd.terminalCornerRadius',
+      note: 'the tightest internal corner the Engine reports for this feature',
     })
   }
 
@@ -214,14 +229,23 @@ export function measurements({
 }
 
 /** The handful worth reading before the table: the numbers a tool is chosen with. */
-export const STRIP_KEYS = ['depthBelowTop', 'featureDepth', 'diameter', 'minRadius', 'ld', 'area']
+export const STRIP_KEYS = [
+  'depthBelowTop',
+  'featureDepth',
+  'diameter',
+  'cornerRadius',
+  'minRadius',
+  'ld',
+  'area',
+]
 
 /** Shorter than the table's wording: these sit under a number, not beside one. */
 export const STRIP_LABELS: Record<string, string> = {
   depthBelowTop: 'below top',
   featureDepth: 'deep',
   diameter: 'diameter',
-  minRadius: 'min radius',
+  minRadius: 'tool radius',
+  cornerRadius: 'corner radius',
   ld: 'L/D',
   area: 'surface',
 }
