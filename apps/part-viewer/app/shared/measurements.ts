@@ -123,21 +123,30 @@ export function measurements({
     })
   }
 
-  // `facts.cd` is a cutter *diameter*, so the radius it leaves room for is half.
+  // The largest tool that still reaches everywhere in the feature.
+  //
+  // The *bottom* of the cutter band, which is the terminal tool: anything wider
+  // stops short of the tightest corner. The top of the band is the widest thing
+  // that fits somewhere, which is a different and less useful question — on the
+  // pocket that made this row, `ignore.min` of 6.616 is twice a corner Fusion
+  // measures at 3.302.
+  //
+  // Every feature with a band has one, which is why this row exists at all: the
+  // per-kind fields below are richer, and a hole is the only kind that carries
+  // them.
   if (cutter !== null && cutter > 0) {
     rows.push({
-      key: 'minRadius',
-      label: 'Minimum radius',
-      value: length(cutter / 2),
-      from: 'facts.cd.ignore.min ÷ 2',
-      note: 'the tightest internal radius this feature leaves room for',
+      key: 'maxTool',
+      label: 'Largest tool',
+      value: length(cutter),
+      from: 'facts.cd.ignore.min',
+      note: 'the widest cutter that still reaches the tightest corner',
     })
   }
 
-  // The biggest tool the Engine says fits, where it says so. Stated per kind
-  // rather than derived from the cutter bands: a hole reports the drill and the
-  // endmill it admits separately, and which of the two a shop reaches for is
-  // the difference between one plunge and a helix.
+  // Stated per kind where the Engine states them: a hole reports the drill and
+  // the endmill it admits separately, and which of the two a shop reaches for
+  // is the difference between one plunge and a helix.
   const endmill = asNumber(sheetFacts.maxEndmillDiameter)
   if (endmill !== null && endmill > 0) {
     rows.push({
@@ -254,14 +263,24 @@ export function measurements({
 }
 
 /** The handful worth reading before the table: the numbers a tool is chosen with. */
-export const STRIP_KEYS = ['depthBelowTop', 'featureDepth', 'diameter', 'minRadius', 'ld', 'area']
+export const STRIP_KEYS = [
+  'depthBelowTop',
+  'featureDepth',
+  'diameter',
+  'maxEndmill',
+  'maxTool',
+  'ld',
+  'area',
+]
 
 /** Shorter than the table's wording: these sit under a number, not beside one. */
 export const STRIP_LABELS: Record<string, string> = {
   depthBelowTop: 'below top',
   featureDepth: 'deep',
   diameter: 'diameter',
-  minRadius: 'min radius',
+  maxTool: 'largest tool',
+  maxEndmill: 'largest endmill',
+  maxDrill: 'largest drill',
   ld: 'L/D',
   area: 'surface',
 }

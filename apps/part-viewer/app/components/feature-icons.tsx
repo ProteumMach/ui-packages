@@ -397,6 +397,7 @@ export const MEASUREMENT_ICONS: Record<string, () => ReactElement> = {
   minRadius: RadiusIcon,
   ld: RatioIcon,
   diameter: DiameterIcon,
+  maxTool: DiameterIcon,
   maxEndmill: DiameterIcon,
   maxDrill: DiameterIcon,
   entryCutter: UndercutIcon,

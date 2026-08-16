@@ -73,12 +73,16 @@ describe('measurements', () => {
     expect(valueOf(subject, 'featureDepth')).toBe('10.00 mm')
   })
 
-  it('halves the cutter diameter to get a radius', () => {
+  it('reads the terminal tool off the band every feature carries', () => {
+    // The bottom of the band, not the top: anything wider stops short of the
+    // tightest corner. The per-kind fields are richer, but a hole is the only
+    // kind that has them, and a pocket showing no tool at all is why this row
+    // exists.
     const subject = feature({
-      datasheet: { facts: { kind: 'Pocket', cd: { ignore: { min: 6 } } } },
+      datasheet: { facts: { kind: 'Pocket', cd: { ignore: { min: 6, max: 16 } } } },
     })
 
-    expect(valueOf(subject, 'minRadius')).toBe('3.00 mm')
+    expect(valueOf(subject, 'maxTool')).toBe('6.00 mm')
   })
 
   it('splits surface area into walls and floors, since the Engine does', () => {

@@ -135,7 +135,7 @@ describe('the two readers of the datasheet agree', () => {
   test.each([
     ['depthBelowTop', 'depthBelowPartTop'],
     ['featureDepth', 'depth'],
-    ['minRadius', 'minRadius'],
+    ['maxTool', 'requiredCutter'],
     ['diameter', 'holeDiameter'],
     ['floorFillet', 'floorFilletRadius'],
     ['area', 'surfaceArea'],
