@@ -19,6 +19,7 @@ examples/react/dist/
 examples/react-viewer/dist/
 examples/react-viewer/test-results/
 examples/react-viewer/playwright-report/
+
 # Never commit environment files. Keep documented templates trackable.
 **/*.env*
 !**/.env.example
@@ -28,3 +29,5 @@ apps/part-viewer/test-results/
 apps/part-viewer/playwright-report/
 apps/part-viewer-old/build/
 apps/part-viewer-old/.react-router/
+
+*.DS_Store
