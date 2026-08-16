@@ -309,7 +309,7 @@ export const PartInspector = ({
         types={featureTypes}
         unit={unit}
       />
-    ) : null
+    )
 
   return (
     <main className="flex h-screen min-h-0 flex-col overflow-hidden bg-zinc-950 text-zinc-100">

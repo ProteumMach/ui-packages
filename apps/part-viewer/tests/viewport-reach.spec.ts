@@ -492,19 +492,16 @@ test('sums the part up, and filters the limits by what they cost', async ({ page
   expect(await rules.count()).toBe(before)
 })
 
-/** Directions are built but not in this release. */
-test('offers no directions until they are part of the plan', async ({ page }) => {
+test('does not offer a directions tab', async ({ page }) => {
   await openInspector(page)
 
   await expect(page.getByRole('tab', { name: 'Inspector' })).toBeVisible()
   await expect(page.getByRole('tab', { name: 'Rules' })).toBeVisible()
-  await expect(page.getByRole('tab', { name: 'Directions' })).toBeHidden()
+  await expect(page.getByRole('tab', { name: 'Directions' })).toHaveCount(0)
 
-  // And nothing colours the part by them, which would be a mode with no button
-  // to turn it off.
   await expect(page.getByRole('button', { name: 'Plain' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Difficulty' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Directions' })).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Directions' })).toBeVisible()
 })
 
 /** The pencil is also a request to see the rule it edits. */

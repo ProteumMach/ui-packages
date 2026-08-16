@@ -62,13 +62,10 @@ describe('the mode persists', () => {
     expect(loadPaintMode(storage)).toBe('difficulty')
   })
 
-  it('does not restore a mode this release has no button for', () => {
-    // Directions are hidden for the first release. A part still coloured by
-    // them, with nothing on screen to turn it off, reads as the part being
-    // wrong rather than as a preference being remembered.
+  it('restores the directions mode', () => {
     const storage = { getItem: () => 'directions', setItem: () => undefined }
 
-    expect(loadPaintMode(storage)).toBe('plain')
+    expect(loadPaintMode(storage)).toBe('directions')
   })
 
   it('survives having no storage at all', () => {
