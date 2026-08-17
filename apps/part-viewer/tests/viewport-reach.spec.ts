@@ -434,3 +434,35 @@ test('offers no directions until they are part of the plan', async ({ page }) =>
   await expect(page.getByRole('button', { name: 'Difficulty' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Directions' })).toBeHidden()
 })
+
+/** The pencil is also a request to see the rule it edits. */
+test('opens a folded rule when its settings are asked for', async ({ page }) => {
+  await openInspector(page)
+  await page.getByRole('tab', { name: 'Rules' }).click()
+  await expect(page.getByRole('button', { name: 'Add rule' })).toBeVisible()
+
+  // Folded: the limits are not on screen.
+  const drilling = page
+    .locator('[data-keynav="rules"] > li')
+    .filter({ hasText: 'Drilling L/D ratio' })
+    .first()
+  await expect(drilling.getByLabel('easy to')).toBeHidden()
+
+  // The settings live inside what the chevron opens, so the pencil has to open
+  // it too or it appears to do nothing.
+  await drilling.getByRole('button', { name: /^Edit / }).click()
+  await expect(drilling.getByLabel('Rule name')).toBeVisible()
+  await expect(drilling.getByLabel('easy to')).toBeVisible()
+})
+
+/** The arrows read a feature, rather than queuing one up to be pressed. */
+test('reads each feature as the keyboard reaches it', async ({ page }) => {
+  await openInspector(page)
+
+  await page.getByRole('button', { name: /Blind hole/ }).click()
+  await page.locator('[data-row="hole-1"]').first().focus()
+
+  // No Enter: landing on the row is the request. Two gestures for one question
+  // is what this list used to ask for.
+  await expect(page.getByRole('heading', { name: 'Blind Hole' })).toBeVisible()
+})

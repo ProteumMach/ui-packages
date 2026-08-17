@@ -180,7 +180,11 @@ export const PartSummary = ({
                             aria-pressed={chosen}
                             onMouseEnter={() => onHover([feature.featureTag])}
                             onMouseLeave={() => onHover([])}
-                            onFocus={() => onHover([feature.featureTag])}
+                            // Arrowing onto a row reads it on the right and
+                            // lights it on the part. Moving a highlight that
+                            // then has to be pressed is two gestures for one
+                            // question, and the question is "what is this".
+                            onFocus={() => onChoose(feature.featureTag)}
                             onBlur={() => onHover([])}
                             onClick={() => onChoose(feature.featureTag)}
                             className={`flex w-full items-center gap-2 rounded-r px-2 py-1 text-left text-2xs transition ${

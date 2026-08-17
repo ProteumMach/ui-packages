@@ -188,7 +188,13 @@ export const RulesPanel = ({
               scores={scores}
               onChange={rules.updateRule}
               editing={editing === rule.id}
-              onEdit={() => setEditing((open) => (open === rule.id ? null : rule.id))}
+              onEdit={() => {
+                // Editing a folded rule showed nothing: the settings live
+                // inside what the chevron opens, so pressing the pencil is
+                // also a request to see the rule.
+                setEditing((editingId) => (editingId === rule.id ? null : rule.id))
+                setOpen((shown) => new Set([...shown, rule.id]))
+              }}
               onOpen={() =>
                 setOpen((shown) => {
                   const next = new Set(shown)
