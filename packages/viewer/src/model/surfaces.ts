@@ -32,8 +32,9 @@ import type { PartModelRegion } from './types.js'
  * A line the part has is the worse of the two to lose, so curved boundaries are
  * all drawn.
  *
- * The exact version of this wants the Engine to say which surface a region came
- * from. Until it does, this is the half that can be proved.
+ * All of which is the fallback. Where a report states `surfaceIdx` on its
+ * regions this stops guessing and groups by what the Engine said, which is
+ * exact for every kind of surface.
  */
 
 /**
@@ -75,6 +76,14 @@ export function visualSurfaces(
 }
 
 function computeSurfaces(geometry: BufferGeometry, regions: readonly PartModelRegion[]): SurfaceOf {
+  // Where the Engine says which surface a region came from, there is nothing to
+  // work out: two regions are one surface when they say they are. That answer is
+  // exact for every kind — a split down a fillet merges, and the fillet's
+  // junction with the shaft keeps its line — which is what the geometry below
+  // can only manage for planes.
+  const stated = statedSurfaces(regions)
+  if (stated) return stated
+
   const position = geometry.getAttribute('position')
   const surfaces = new Map<number, number>()
 
@@ -146,6 +155,24 @@ function computeSurfaces(geometry: BufferGeometry, regions: readonly PartModelRe
   for (const region of regions) surfaces.set(region.idx, find(region.idx))
 
   return surfaces
+}
+
+/**
+ * The grouping the report states, or `null` where it does not state one.
+ *
+ * All or nothing: a report that names the surface for some regions and not
+ * others would leave the rest to be inferred by different rules, and two
+ * halves of one face grouped by two different methods is worse than either.
+ */
+function statedSurfaces(regions: readonly PartModelRegion[]): SurfaceOf | null {
+  const surfaces = new Map<number, number>()
+
+  for (const region of regions) {
+    if (region.surface === undefined) return null
+    surfaces.set(region.idx, region.surface)
+  }
+
+  return regions.length > 0 ? surfaces : null
 }
 
 /** The unit normal of every facet, three components each. */

@@ -140,3 +140,36 @@ describe('how much disagreement is a split', () => {
     expect(surfaces.get(0)).not.toBe(surfaces.get(1))
   })
 })
+
+describe('when the report says which surface a region came from', () => {
+  const stated = (idx: number, start: number, end: number, surface: number, shapeKind = 'Torus') =>
+    ({ idx, shapeKind, area: 1, triangles: { start, end }, surface }) as PartModelRegion
+
+  it('groups by what the Engine said, for a kind the facets cannot settle', () => {
+    // A fillet split down the middle. Geometry alone cannot tell this from a
+    // fillet meeting a shaft, so the fallback keeps both lines; the Engine
+    // knows, and here it says.
+    const surfaces = visualSurfaces(splitSquare(), [stated(0, 0, 1, 7), stated(1, 1, 2, 7)])
+
+    expect(surfaces.get(0)).toBe(surfaces.get(1))
+  })
+
+  it('keeps two surfaces apart even where they meet flat', () => {
+    const surfaces = visualSurfaces(splitSquare(), [
+      stated(0, 0, 1, 7, 'Plane'),
+      stated(1, 1, 2, 8, 'Plane'),
+    ])
+
+    // Coplanar and adjacent, which the fallback would merge. The Engine says
+    // they are two faces, so they are two faces.
+    expect(surfaces.get(0)).not.toBe(surfaces.get(1))
+  })
+
+  it('falls back to the geometry when only some regions say', () => {
+    // Two halves of one face grouped by two different methods is worse than
+    // either, so a partial answer is no answer.
+    const surfaces = visualSurfaces(splitSquare(), [stated(0, 0, 1, 7, 'Plane'), region(1, 1, 2)])
+
+    expect(surfaces.get(0)).toBe(surfaces.get(1))
+  })
+})

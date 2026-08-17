@@ -121,6 +121,20 @@ export interface PartModelRegion {
    */
   readonly area: number
   readonly triangles: TriangleRange
+  /**
+   * Which analytic surface this region was cut from, where the Engine says.
+   *
+   * The Engine divides a surface when that makes a better machining plan, and
+   * two halves of one face then arrive as two regions. Only the Engine knows
+   * they were one: nothing else in a region says so, and from the facets alone
+   * a split down a fillet and a fillet running tangentially into a shaft are
+   * identical.
+   *
+   * Optional because reports today do not carry it. Where it is absent the
+   * viewer falls back to inferring, which it can only do safely for planes —
+   * see `visualSurfaces`.
+   */
+  readonly surface?: number
 }
 
 export interface PartModelFeature {
