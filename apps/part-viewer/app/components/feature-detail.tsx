@@ -1,4 +1,6 @@
-import { Badge, Button } from '@toolpath/ui'
+import { CheckIcon, CopyIcon } from '@phosphor-icons/react'
+import { Badge, Button, IconButton, Tooltip } from '@toolpath/ui'
+import { useEffect, useRef, useState } from 'react'
 import type { PartFeature, PublicInspectionReport } from '../shared/contracts'
 import { directionCss } from '../shared/direction-colors'
 import { moveThroughList } from '../shared/list-keys'
@@ -56,6 +58,45 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
     {children}
   </section>
 )
+
+/**
+ * A compact, self-confirming clipboard action for the raw values below.
+ *
+ * The field name stays in the accessible label after copying, so a screen
+ * reader still says what was copied rather than only confirming an action.
+ */
+const CopyButton = ({ value, label }: { value: string; label: string }) => {
+  const [copied, setCopied] = useState(false)
+  const reset = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(
+    () => () => {
+      if (reset.current) clearTimeout(reset.current)
+    },
+    [],
+  )
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(true)
+      if (reset.current) clearTimeout(reset.current)
+      reset.current = setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // Clipboard access is unavailable in some embedded or non-secure views.
+      // Leave the displayed value selectable in that case.
+    }
+  }
+
+  const action = `Copy ${label}`
+  return (
+    <Tooltip tip={copied ? 'Copied' : action}>
+      <IconButton size="sm" variant="muted" aria-label={action} title={action} onClick={copy}>
+        {copied ? <CheckIcon /> : <CopyIcon />}
+      </IconButton>
+    </Tooltip>
+  )
+}
 
 export const FeatureDetail = ({
   feature,
@@ -228,7 +269,10 @@ export const FeatureDetail = ({
             {flatten(feature.datasheet).map(([path, value]) => (
               <div key={path} className="flex items-baseline justify-between gap-4 py-0.5">
                 <dt className="font-mono text-zinc-500">{path}</dt>
-                <dd className="text-right font-mono tabular-nums text-zinc-300">{value}</dd>
+                <dd className="flex shrink-0 items-center gap-1 text-right font-mono tabular-nums text-zinc-300">
+                  <span>{value}</span>
+                  <CopyButton value={value} label={`${path} value`} />
+                </dd>
               </div>
             ))}
           </dl>
@@ -238,9 +282,14 @@ export const FeatureDetail = ({
           <summary className="cursor-pointer text-2xs font-bold uppercase tracking-wider text-zinc-500">
             Raw API record
           </summary>
-          <pre className="mt-2 max-h-80 overflow-auto rounded bg-transparent p-2 text-2xs leading-5 text-zinc-400">
-            {rawDatasheet(feature)}
-          </pre>
+          <div className="mt-2">
+            <div className="flex justify-end">
+              <CopyButton value={rawDatasheet(feature)} label="raw API record" />
+            </div>
+            <pre className="max-h-80 overflow-auto rounded bg-transparent p-2 text-2xs leading-5 text-zinc-400">
+              {rawDatasheet(feature)}
+            </pre>
+          </div>
         </details>
       </div>
     ) : (

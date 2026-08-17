@@ -492,7 +492,7 @@ test('sums the part up, and filters the limits by what they cost', async ({ page
   expect(await rules.count()).toBe(before)
 })
 
-test('does not offer a directions tab', async ({ page }) => {
+test('does not offer a directions view', async ({ page }) => {
   await openInspector(page)
 
   await expect(page.getByRole('tab', { name: 'Inspector' })).toBeVisible()
@@ -501,7 +501,57 @@ test('does not offer a directions tab', async ({ page }) => {
 
   await expect(page.getByRole('button', { name: 'Plain' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Difficulty' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Directions' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Directions' })).toHaveCount(0)
+})
+
+test('copies individual datasheet values and the raw API record', async ({ page }) => {
+  await openInspector(page)
+
+  // The browser clipboard is deliberately replaced here rather than granted:
+  // the viewer must still work in an embedded context where clipboard reads
+  // are forbidden, and this asserts exactly what each control writes.
+  await page.evaluate(() => {
+    const state = globalThis as typeof globalThis & { copiedPartViewerText?: string }
+    state.copiedPartViewerText = ''
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async (value: string) => {
+          state.copiedPartViewerText = value
+        },
+      },
+    })
+  })
+
+  await page.getByRole('button', { name: /Blind hole/ }).click()
+  await page
+    .getByRole('button', { name: /hole-1/ })
+    .first()
+    .click()
+
+  await page.getByText('All datasheet fields', { exact: true }).click()
+  await page.getByRole('button', { name: 'Copy facts.diameter value' }).click()
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (globalThis as typeof globalThis & { copiedPartViewerText?: string })
+            .copiedPartViewerText,
+      ),
+    )
+    .toBe('6.35')
+
+  await page.getByText('Raw API record', { exact: true }).click()
+  await page.getByRole('button', { name: 'Copy raw API record' }).click()
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (globalThis as typeof globalThis & { copiedPartViewerText?: string })
+            .copiedPartViewerText,
+      ),
+    )
+    .toContain('"diameter": 6.35')
 })
 
 /** The pencil is also a request to see the rule it edits. */

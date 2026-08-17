@@ -1,5 +1,3 @@
-import { directionColor, directionIndexOf } from '@toolpath/viewer'
-import type { PartFeature } from './report'
 import { bandHex, paintOrder } from './bands'
 import type { Band } from './rules'
 
@@ -11,9 +9,9 @@ import type { Band } from './rules'
  * changes is whether the part carries an answer to a question nobody has asked
  * yet.
  */
-export type PaintMode = 'plain' | 'directions' | 'difficulty'
+export type PaintMode = 'plain' | 'difficulty'
 
-export const PAINT_MODES: readonly PaintMode[] = ['plain', 'directions', 'difficulty']
+export const PAINT_MODES: readonly PaintMode[] = ['plain', 'difficulty']
 
 /**
  * The modes, in the order they are offered.
@@ -23,7 +21,6 @@ export const PAINT_MODES: readonly PaintMode[] = ['plain', 'directions', 'diffic
  */
 const ALL_PAINT_MODE_LABELS: readonly (readonly [PaintMode, string])[] = [
   ['plain', 'Plain'],
-  ['directions', 'Directions'],
   ['difficulty', 'Difficulty'],
 ]
 
@@ -61,32 +58,16 @@ export interface FeatureWash {
 /**
  * The standing wash for a mode.
  *
- * In `directions`, every feature takes its machining direction's colour — the
- * same colour that direction's arrow wears, and the same one its row carries.
- * That triple is the point of the palette: it is an identity, not a ranking.
- *
- * A feature whose direction is not among the part's candidates is left bare
- * rather than given a colour of its own. Nothing observed produces one, and
- * inventing a tenth colour for it would say the part has a way up that the
- * arrows do not show.
+ * Plain has no standing opinion; Difficulty colours every feature by the rule
+ * band it landed in.
  */
 export function paintWash(
   mode: PaintMode,
-  features: readonly PartFeature[],
-  candidateDirections: readonly { x: number; y: number; z: number }[],
   /** What the rules made of each feature, for `difficulty`. */
   verdicts: readonly { tag: string; band: Band | null }[] = [],
 ): FeatureWash[] {
   if (mode === 'difficulty') return difficultyWash(verdicts)
-  if (mode !== 'directions') return []
-
-  const washes: FeatureWash[] = []
-  for (const feature of features) {
-    const index = directionIndexOf({ candidateDirections }, feature.machiningDirection)
-    if (index === -1) continue
-    washes.push({ tag: feature.featureTag, color: directionColor(index), weight: PAINT_WEIGHT })
-  }
-  return washes
+  return []
 }
 
 /**
