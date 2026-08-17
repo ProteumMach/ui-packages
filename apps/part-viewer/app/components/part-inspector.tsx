@@ -15,10 +15,9 @@ import {
   scopeToDirection,
   stepCandidate,
 } from '../shared/selection'
-import { directionLabel, featureFromTags, filterFeatures, tagsOfType } from '../shared/report'
+import { featureFromTags, filterFeatures, tagsOfType } from '../shared/report'
 import { listHighlight } from '../shared/highlighting'
 import { useRules } from '../shared/use-rules'
-import { SHOWS_DIRECTIONS } from '../shared/release'
 import { featureScores } from '../shared/feature-score'
 import { rulesSummary } from '../shared/rules-summary'
 import { partContext } from '../shared/metrics'
@@ -29,7 +28,7 @@ import { PartSummary } from './part-summary'
 import { RulesPanel } from './rules-panel'
 import { FeatureViewer } from './feature-viewer'
 
-type ViewerTab = 'inspector' | 'directions' | 'rules'
+type ViewerTab = 'inspector' | 'rules'
 
 /**
  * A 1px divider needs a grab area wider than 1px, and that area has to come out
@@ -298,7 +297,7 @@ export const PartInspector = ({
           scores={scores}
         />
       </aside>
-    ) : tab === 'rules' || !SHOWS_DIRECTIONS ? (
+    ) : (
       <RulesPanel
         features={report.features}
         focusedTag={focusedTag}
@@ -310,43 +309,6 @@ export const PartInspector = ({
         types={featureTypes}
         unit={unit}
       />
-    ) : (
-      <aside className="size-full overflow-y-auto bg-zinc-900 p-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-info">Directions</p>
-        <h2 className="mt-1 font-display text-2xl font-bold">Machining directions</h2>
-        <p className="mt-3 text-sm leading-6 text-zinc-400">
-          Direction labels describe each feature&apos;s machining axis in the part coordinate
-          system. Select a feature in Inspector or on the viewer to inspect its direction.
-        </p>
-        {focused ? (
-          <dl className="mt-6 space-y-3 text-sm">
-            <div className="flex items-start justify-between gap-4">
-              <dt className="text-zinc-500">Direction</dt>
-              <dd className="font-medium text-zinc-200">
-                {directionLabel(focused.machiningDirection)}
-              </dd>
-            </div>
-            <div className="flex items-start justify-between gap-4">
-              <dt className="text-zinc-500">X axis</dt>
-              <dd className="font-medium text-zinc-200">
-                {focused.machiningDirection.x.toFixed(2)}
-              </dd>
-            </div>
-            <div className="flex items-start justify-between gap-4">
-              <dt className="text-zinc-500">Y axis</dt>
-              <dd className="font-medium text-zinc-200">
-                {focused.machiningDirection.y.toFixed(2)}
-              </dd>
-            </div>
-            <div className="flex items-start justify-between gap-4">
-              <dt className="text-zinc-500">Z axis</dt>
-              <dd className="font-medium text-zinc-200">
-                {focused.machiningDirection.z.toFixed(2)}
-              </dd>
-            </div>
-          </dl>
-        ) : null}
-      </aside>
     )
 
   return (
@@ -357,9 +319,6 @@ export const PartInspector = ({
           <Tabs value={tab} onValueChange={(value) => setTab(value as ViewerTab)}>
             <Tabs.List>
               <Tabs.Tab value="inspector">Inspector</Tabs.Tab>
-              {/* Hidden for the first release; the page behind it still
-                  builds and still has its tests. See `SHOWS_DIRECTIONS`. */}
-              {SHOWS_DIRECTIONS ? <Tabs.Tab value="directions">Directions</Tabs.Tab> : null}
               <Tabs.Tab value="rules">Rules</Tabs.Tab>
             </Tabs.List>
           </Tabs>

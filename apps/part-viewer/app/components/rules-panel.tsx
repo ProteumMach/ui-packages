@@ -49,7 +49,6 @@ export const RulesPanel = ({
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
   const [editing, setEditing] = useState<string | null>(null)
   const set = rules.ruleSet
-  const sets = [...rules.presets, ...rules.savedSets]
 
   const hits = useMemo(() => ruleHits(rules.verdicts, features), [features, rules.verdicts])
 
@@ -85,19 +84,16 @@ export const RulesPanel = ({
     <aside className="size-full overflow-y-auto bg-zinc-900 p-3 text-xs">
       <Heading>Rule set</Heading>
 
-      <div className="flex items-center gap-1.5">
-        {/* A shop's thresholds belong to a material and a machine, so which set
-            is in force is a choice rather than a setting made once. */}
+      <div className="mb-2 flex items-center gap-4">
+        {/* Presets make the demo's assumptions explicit while edits remain a
+            temporary way to explore what those assumptions change. */}
         <select
           aria-label="Rule set"
           className="h-8 min-w-0 flex-1 rounded border border-zinc-700 bg-transparent px-2 text-xs text-zinc-100"
           onChange={(event) => rules.loadPreset(event.target.value)}
-          value={sets.some((each) => each.id === set.id) ? set.id : ''}
+          value={rules.presetId}
         >
-          {sets.some((each) => each.id === set.id) ? null : (
-            <option value="">{set.name} — unsaved</option>
-          )}
-          {sets.map((each) => (
+          {rules.presets.map((each) => (
             <option key={each.id} value={each.id}>
               {each.name}
             </option>
@@ -105,6 +101,7 @@ export const RulesPanel = ({
         </select>
 
         <Button
+          className="shrink-0"
           onClick={() => {
             rules.addRule()
             setPending(true)
@@ -116,38 +113,19 @@ export const RulesPanel = ({
         </Button>
       </div>
 
-      {rules.dirty ? (
-        // A shipped preset is somebody's published guidelines, so a change to
-        // one is kept as a copy rather than written back over it.
-        <div className="mt-1.5 flex items-center gap-2 text-xs text-warning">
-          <span className="flex-1">Changed, not saved</span>
-          <button className="underline" onClick={rules.resetRules} type="button">
-            Put back
-          </button>
-          <button
-            className="underline"
-            onClick={() => {
-              const name = globalThis.prompt('Save these limits as', `${set.name} (ours)`)
-              if (name) rules.saveAsNew(name)
-            }}
-            type="button"
-          >
-            Save as…
-          </button>
-        </div>
-      ) : null}
-
       {/* One list for the whole panel, so the arrows walk from a rule into the
           features under it and on into the next rule — which is the order it
           reads in, and the order somebody expects to travel. */}
-      <RulesSummaryPanel
-        band={band}
-        onChoose={onChoose}
-        onHover={onHover}
-        onPickBand={setBand}
-        summary={summary}
-        unit={unit}
-      />
+      <div className="pt-2">
+        <RulesSummaryPanel
+          band={band}
+          onChoose={onChoose}
+          onHover={onHover}
+          onPickBand={setBand}
+          summary={summary}
+          unit={unit}
+        />
+      </div>
 
       <div className="mt-4 flex items-baseline gap-2">
         <Heading>What it cost</Heading>
@@ -180,7 +158,7 @@ export const RulesPanel = ({
           .filter((rule) => !filtering || shownHits(rule.id).length > 0)
           .map((rule) => (
             <RuleCard
-              key={rule.id}
+              key={`${rules.revision}:${rule.id}`}
               focusedTag={focusedTag}
               hits={shownHits(rule.id)}
               onChoose={onChoose}
@@ -211,6 +189,17 @@ export const RulesPanel = ({
             />
           ))}
       </ul>
+
+      <div className="mt-4 flex items-center gap-2 border-t border-zinc-800 pt-3 text-xs text-zinc-400">
+        <span className="flex-1">
+          Rule changes are temporary and reset on reload or when choosing another preset.
+        </span>
+        {rules.dirty ? (
+          <button className="text-warning underline" onClick={rules.resetRules} type="button">
+            Reset changes
+          </button>
+        ) : null}
+      </div>
     </aside>
   )
 }

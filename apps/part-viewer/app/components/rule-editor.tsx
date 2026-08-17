@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { CaretDownIcon, PencilSimpleIcon } from '@phosphor-icons/react'
-import { Button, Input } from '@toolpath/ui'
+import { Button, Input, TextArea } from '@toolpath/ui'
 import { bandCss } from '../shared/bands'
 import { KindIcon } from './feature-icons'
 import { METRICS } from '../shared/metrics'
@@ -760,11 +760,12 @@ const Settings = ({
       </Field>
 
       <Field label="Note">
-        <Input
+        <TextArea
           aria-label="Rule note"
           className="w-full"
           id={`${rule.id}-note`}
           name={`${rule.id}-note`}
+          rows={3}
           size="md"
           value={rule.note}
           onChange={(event) => onChange({ ...rule, note: event.target.value })}

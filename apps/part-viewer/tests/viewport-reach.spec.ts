@@ -162,15 +162,40 @@ test('paints the part by difficulty, and remembers that it was asked to', async 
 test('shows the limits it judges by, and what they made of a feature', async ({ page }) => {
   await openInspector(page)
 
+  await expect(page.getByRole('tab', { name: 'Directions' })).toHaveCount(0)
   await page.getByRole('tab', { name: 'Rules' }).click()
   await expect(page.getByLabel('Rule set')).toHaveValue('default')
   await expect(page.getByText('Drilling L/D ratio').first()).toBeVisible()
+
+  const ruleSetRight = await page
+    .getByLabel('Rule set')
+    .evaluate((element) => element.getBoundingClientRect().right)
+  const addRuleLeft = await page
+    .getByRole('button', { name: 'Add rule' })
+    .evaluate((element) => element.getBoundingClientRect().left)
+  expect(addRuleLeft - ruleSetRight).toBeGreaterThanOrEqual(16)
+  const controlsBottom = await page
+    .getByLabel('Rule set')
+    .evaluate((element) => element.getBoundingClientRect().bottom)
+  const scoreTop = await page
+    .getByLabel('Rule set')
+    .locator('xpath=ancestor::aside[1]')
+    .locator('section span.font-display')
+    .evaluate((element) => element.getBoundingClientRect().top)
+  expect(scoreTop - controlsBottom).toBeGreaterThanOrEqual(16)
 
   await openRule(page, 'Drilling L/D ratio')
   // The bands a measurement is judged against, in the same words the part uses.
   await expect(page.getByText('∞ – 3.0').first()).toBeVisible()
 
   await page.getByRole('tab', { name: 'Inspector' }).click()
+  const unitBottom = await page
+    .getByRole('button', { name: /Units: mm\. Switch to in/ })
+    .evaluate((element) => element.getBoundingClientRect().bottom)
+  const featuresTop = await page
+    .getByText('Features', { exact: true })
+    .evaluate((element) => element.getBoundingClientRect().top)
+  expect(featuresTop - unitBottom).toBeGreaterThanOrEqual(12)
   await page.getByRole('button', { name: /Blind hole/ }).click()
   await page
     .getByRole('button', { name: /hole-1/ })
@@ -239,7 +264,11 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
   await weight.fill('')
   await weight.pressSequentially('12')
   await expect(weight).toHaveValue('12')
-  await expect(page.getByText('Changed, not saved')).toBeVisible()
+  const temporaryRulesNotice = page.getByText(
+    'Rule changes are temporary and reset on reload or when choosing another preset.',
+  )
+  await temporaryRulesNotice.scrollIntoViewIfNeeded()
+  await expect(temporaryRulesNotice).toBeVisible()
 
   await page.getByRole('tab', { name: 'Inspector' }).click()
   await page.getByRole('button', { name: /Blind hole/ }).click()
@@ -268,14 +297,57 @@ test('lets a limit be moved, and re-judges the part as it moves', async ({ page 
   await applies.uncheck()
   await expect(applies).not.toBeChecked()
 
-  // And putting it back is one press: a shipped set is never written over.
-  await page.getByRole('button', { name: 'Put back' }).click()
-  await expect(page.getByText('Changed, not saved')).toBeHidden()
+  // Reset returns to the selected shipped preset in one press.
+  await page.getByRole('button', { name: 'Reset changes' }).click()
+  await expect(page.getByRole('button', { name: 'Reset changes' })).toHaveCount(0)
 
   // Reopened, because leaving the tab folds the rules again — the panel is
   // unmounted, and what was open with it.
   const reopened = await openRule(page, 'Drilling L/D ratio')
   await expect(reopened.getByLabel('easy to')).toHaveValue('3')
+})
+
+test('keeps rule edits only for the current session', async ({ page }) => {
+  await openInspector(page)
+  await page.getByRole('tab', { name: 'Rules' }).click()
+
+  const drilling = await openRule(page, 'Drilling L/D ratio')
+  await drilling.getByLabel('easy to').fill('0.5')
+  await expect(page.getByRole('button', { name: 'Reset changes' })).toBeVisible()
+
+  await page.reload()
+  await page.getByRole('tab', { name: 'Rules' }).click()
+
+  const reloaded = await openRule(page, 'Drilling L/D ratio')
+  await expect(reloaded.getByLabel('easy to')).toHaveValue('3')
+  await expect(page.getByRole('button', { name: 'Reset changes' })).toHaveCount(0)
+})
+
+test('switching or resetting a preset discards temporary rule edits', async ({ page }) => {
+  await openInspector(page)
+  await page.getByRole('tab', { name: 'Rules' }).click()
+
+  const ruleSet = page.getByLabel('Rule set')
+  const defaultDrilling = await openRule(page, 'Drilling L/D ratio')
+  await defaultDrilling.getByLabel('easy to').fill('0.5')
+
+  await ruleSet.selectOption('preset-sendcutsend')
+  const sendCutSendDrilling = page
+    .locator('[data-keynav="rules"] > li')
+    .filter({ hasText: 'Drilling L/D ratio' })
+    .first()
+  await expect(sendCutSendDrilling.getByLabel('easy to')).toHaveValue('2')
+
+  await sendCutSendDrilling.getByLabel('easy to').fill('1')
+  await page.getByRole('button', { name: 'Reset changes' }).click()
+  await expect(sendCutSendDrilling.getByLabel('easy to')).toHaveValue('2')
+
+  await ruleSet.selectOption('default')
+  const restoredDefault = page
+    .locator('[data-keynav="rules"] > li')
+    .filter({ hasText: 'Drilling L/D ratio' })
+    .first()
+  await expect(restoredDefault.getByLabel('easy to')).toHaveValue('3')
 })
 
 /**
@@ -420,19 +492,16 @@ test('sums the part up, and filters the limits by what they cost', async ({ page
   expect(await rules.count()).toBe(before)
 })
 
-/** Directions are built but not in this release. */
-test('offers no directions until they are part of the plan', async ({ page }) => {
+test('does not offer a directions tab', async ({ page }) => {
   await openInspector(page)
 
   await expect(page.getByRole('tab', { name: 'Inspector' })).toBeVisible()
   await expect(page.getByRole('tab', { name: 'Rules' })).toBeVisible()
-  await expect(page.getByRole('tab', { name: 'Directions' })).toBeHidden()
+  await expect(page.getByRole('tab', { name: 'Directions' })).toHaveCount(0)
 
-  // And nothing colours the part by them, which would be a mode with no button
-  // to turn it off.
   await expect(page.getByRole('button', { name: 'Plain' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Difficulty' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Directions' })).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Directions' })).toBeVisible()
 })
 
 /** The pencil is also a request to see the rule it edits. */

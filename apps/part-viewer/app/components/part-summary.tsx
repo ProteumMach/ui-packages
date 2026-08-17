@@ -65,14 +65,14 @@ export const PartSummary = ({
       {/* One button, not two. There are exactly two units and a machinist works
           in one of them all day, so this shows what you are reading in and
           pressing it reads in the other. */}
-      <div className="flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between gap-4">
         <Heading>Geometry</Heading>
         <button
           type="button"
           aria-label={`Units: ${unit}. Switch to ${unit === 'mm' ? 'in' : 'mm'}`}
           title={`Reading in ${unit} — click for ${unit === 'mm' ? 'in' : 'mm'}`}
           onClick={() => onUnit(unit === 'mm' ? 'in' : 'mm')}
-          className="rounded border border-zinc-700 bg-transparent px-2 py-0.5 text-2xs font-medium text-zinc-400 transition hover:bg-zinc-950/60 hover:text-zinc-100"
+          className="shrink-0 rounded border border-zinc-700 bg-transparent px-2 py-0.5 text-2xs font-medium text-zinc-400 transition hover:bg-zinc-950/60 hover:text-zinc-100"
         >
           {unit}
         </button>

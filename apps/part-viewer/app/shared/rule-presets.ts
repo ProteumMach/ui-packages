@@ -41,12 +41,6 @@ import type { Rule, RuleSet } from './rules'
  */
 const CAVITIES: ReadonlyArray<FeatureType> = [
   'filleted_open_pocket',
-  // The kernel's closed pocket with a blended floor, which this list left out.
-  // It is a cavity by every reading — the omission was in the prototype's list
-  // and came across with it, and it took five shipped rules with it: the
-  // narrowest cut, wall height, sharp corners, the milling radius range and
-  // standard floor radii all skipped a filleted pocket entirely.
-  'filleted_pocket',
   'open_pocket',
   'pocket',
   'through_pocket',
@@ -425,34 +419,6 @@ const copyOfDefaults = (
 
   return rules
 }
-
-/**
- * Bumped whenever the shipped rules change in a way a shop should receive.
- *
- * The working copy is kept in the browser so an afternoon of tuning survives a
- * reload — but that also means a session that has one never sees a shipped fix.
- * A rule set that skipped `undercut_filleted_tslot` stayed skipping it, and the
- * app looked unchanged after the fix landed.
- *
- * So the untouched default is re-seeded when this number moves. Sets a shop
- * saved under its own name are left exactly as saved: those are its document,
- * not ours.
- *
- * 1. The prototype's set, ported.
- * 2. Audiences widened to the filleted and through variants the kernel emits.
- * 3. Cutter-diameter rules read a radius, halved from the diameter the Engine
- *    reports.
- * 4. 3D surfacing area rescaled to 2–8 in² with no hard limit.
- * 5. Baselines added for inner fillets, slanted faces and threaded holes.
- * 6. Sharp corners are read off a zero cutter diameter, which every feature
- *    type reports, rather than a boolean only fillets carry.
- * 7. Part size, measured off the mesh against the machine's own envelope.
- * 8. Reach below the top of the part refuses past six inches, and carries the
- *    weight of a cost paid on every cut rather than once.
- * 9. The milling radius rule is a one-sided scale rather than a range: a
- *    generous internal radius costs nothing, so only the tightening end scores.
- */
-export const SHIPPED_VERSION = 11
 
 export const DEFAULT_RULE_SET: RuleSet = {
   id: 'default',

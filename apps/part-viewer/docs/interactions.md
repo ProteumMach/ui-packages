@@ -193,12 +193,12 @@ away, so a mode for it would be a mode to remember to leave.
 | ----------------------- | ------------ | --------------------------------- |
 | Paint mode              | localStorage | `part-viewer.paint`, across parts |
 | Units                   | localStorage | Across parts                      |
-| Rule sets               | localStorage | Named, versioned                  |
+| Rules                   | memory       | Temporary; resets on reload       |
 | Selection, picks, focus | memory       | Cleared when the part changes     |
 
-Both stored values are read **after mount** rather than during render: the
-server has no `localStorage`, and a value that differed between the two hydrates
-as a flash of the wrong colours or the wrong numbers.
+The two stored preferences are read **after mount** rather than during render:
+the server has no `localStorage`, and a value that differed between the two
+hydrates as a flash of the wrong colours or the wrong numbers.
 
 ---
 

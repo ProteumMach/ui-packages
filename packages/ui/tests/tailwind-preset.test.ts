@@ -1,28 +1,18 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { createRequire } from 'node:module'
-import postcss from 'postcss'
-import tailwindcss from 'tailwindcss'
 import { describe, expect, it } from 'vitest'
 
-const require = createRequire(import.meta.url)
-const preset = require('../tailwind-preset.cjs')
 const packageRoot = process.cwd()
 
-describe('@toolpath/ui/tailwind-preset', () => {
-  it('generates package utilities from the published bundle', async () => {
+describe('@toolpath/ui/theme.css', () => {
+  it('defines the public v4 theme and scans the component source', async () => {
     const bundle = await readFile(join(packageRoot, 'dist/index.js'), 'utf8')
+    const theme = await readFile(join(packageRoot, 'theme.css'), 'utf8')
+
     expect(bundle).toContain('bg-primary')
-
-    const result = await postcss([
-      tailwindcss({
-        presets: [preset],
-        content: [{ raw: bundle, extension: 'js' }],
-      }),
-    ]).process('@tailwind utilities;', { from: undefined })
-
-    expect(result.css).toContain('.bg-primary')
-    expect(result.css).toContain('.hide-scrollbar')
-    expect(result.css).toContain('.dark\\:bg-zinc-900')
+    expect(theme).toContain("@source './src'")
+    expect(theme).toContain('@custom-variant dark')
+    expect(theme).toContain('--color-primary: #e07a48')
+    expect(theme).toContain('--color-zinc-950: #282828')
   })
 })

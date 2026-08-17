@@ -1,4 +1,8 @@
-import { createToolpathClient, ResponseError } from '@toolpath/api'
+import {
+  createToolpathClient,
+  ResponseError,
+  type KeyValidationResponseStatusEnum,
+} from '@toolpath/api'
 import type { PartFeature, PartReport } from '../app/shared/contracts'
 
 const DATASHEET_BATCH_SIZE = 50
@@ -21,6 +25,13 @@ export class EngineError extends Error {
   ) {
     super(`Toolpath Engine ${operation} failed with HTTP ${status}.`)
     this.name = 'EngineError'
+  }
+}
+
+export class InvalidApiKeyError extends Error {
+  constructor(readonly keyStatus?: KeyValidationResponseStatusEnum) {
+    super('The Toolpath Engine rejected the API key.')
+    this.name = 'InvalidApiKeyError'
   }
 }
 
@@ -55,6 +66,36 @@ export const requireData = async <T>(
   } catch (error) {
     if (error instanceof ResponseError) {
       throw new EngineError(error.response.status, 'engine_request_failed', operation)
+    }
+    throw error
+  }
+}
+
+const keyStatusFromResponse = async (
+  response: Response,
+): Promise<KeyValidationResponseStatusEnum | undefined> => {
+  try {
+    const body = (await response.clone().json()) as { status?: unknown }
+    return typeof body.status === 'string'
+      ? (body.status as KeyValidationResponseStatusEnum)
+      : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** Confirms a submitted BYOK key before it is persisted in the encrypted browser session. */
+export const validateApiKey = async (apiKey: string): Promise<void> => {
+  try {
+    const validation = await createEngineClient(apiKey).keys.validateKey()
+    if (!validation.valid) throw new InvalidApiKeyError(validation.status)
+  } catch (error) {
+    if (error instanceof InvalidApiKeyError) throw error
+    if (error instanceof ResponseError && error.response.status === 401) {
+      throw new InvalidApiKeyError(await keyStatusFromResponse(error.response))
+    }
+    if (error instanceof ResponseError) {
+      throw new EngineError(error.response.status, 'engine_request_failed', 'validate API key')
     }
     throw error
   }

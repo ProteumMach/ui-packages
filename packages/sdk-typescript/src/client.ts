@@ -1,4 +1,11 @@
-import { Configuration, FeaturesApi, JobsApi, PartsApi, ServiceApi } from './generated/index.js'
+import {
+  Configuration,
+  FeaturesApi,
+  JobsApi,
+  KeysApi,
+  PartsApi,
+  ServiceApi,
+} from './generated/index.js'
 
 export interface ToolpathClientOptions {
   apiKey: string
@@ -9,6 +16,7 @@ export interface ToolpathClientOptions {
 export interface ToolpathClient {
   features: FeaturesApi
   jobs: JobsApi
+  keys: KeysApi
   parts: PartsApi
   service: ServiceApi
 }
@@ -26,6 +34,7 @@ export const createToolpathClient = ({
   return {
     features: new FeaturesApi(configuration),
     jobs: new JobsApi(configuration),
+    keys: new KeysApi(configuration),
     parts: new PartsApi(configuration),
     service: new ServiceApi(configuration),
   }

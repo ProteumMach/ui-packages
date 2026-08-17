@@ -380,9 +380,9 @@ export const asType = (rule: Rule, type: RuleType): Rule => {
  * What a plan is allowed to spend on orientations.
  *
  * Not a per-feature rule — it is about the arrangement as a whole, which is why
- * it sits beside the rules rather than among them. Saved with the set, because
- * "how readily this shop re-fixtures" belongs with its thresholds: a shop with
- * a pallet changer buys a setup far more cheaply than one with a vice.
+ * it sits beside the rules rather than among them. It travels with the preset
+ * because "how readily this shop re-fixtures" belongs with its thresholds: a
+ * shop with a pallet changer buys a setup far more cheaply than one with a vice.
  */
 /**
  * The machine the part has to fit in, in millimetres.
@@ -437,11 +437,11 @@ export const DEFAULT_PLAN_LIMITS: PlanLimits = {
 
 export interface RuleSet {
   id: string
-  /** Named for the material, the machine, or the shop it belongs to. */
+  /** A human-readable label for this preset. */
   name: string
   rules: Array<Rule>
   /**
-   * What this shop calls the five bands, where it does not use the shipped
+   * What this preset calls the five bands, where it does not use the shipped
    * words. See {@link bandName}.
    */
   bandNames?: Partial<BandNames>
@@ -449,18 +449,6 @@ export interface RuleSet {
   source?: string
   /** What the arrangement may spend on orientations. */
   plan?: PlanLimits
-  /**
-   * The shipped set this one was first saved from, if any.
-   *
-   * A shipped preset is never written over — those are somebody's published
-   * guidelines, and the point of citing them is that they stay as published —
-   * so pressing Save on one keeps a copy instead. Without this, the *next*
-   * Save from that preset made another copy, and another: a shop that tuned
-   * the defaults three times had three sets called "Toolpath defaults" and no
-   * way to tell them apart. With it, the second Save recognises its own copy
-   * and writes over that.
-   */
-  from?: string
 }
 
 export interface BandRange {

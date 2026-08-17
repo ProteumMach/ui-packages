@@ -10,34 +10,18 @@ shared design tokens.
 npm install @toolpath/ui react react-dom tailwindcss
 ```
 
-## Tailwind setup
+## Tailwind v4 setup
 
-Add the Toolpath preset and scan the published component bundle. The package
-does not inject CSS: your application must include Tailwind's base, components,
-and utilities directives in its global stylesheet.
-
-```js
-// tailwind.config.cjs
-const path = require('node:path')
-const toolpathUiRoot = path.dirname(require.resolve('@toolpath/ui/package.json'))
-
-/** @type {import('tailwindcss').Config} */
-module.exports = {
-  presets: [require('@toolpath/ui/tailwind-preset')],
-  content: ['./src/**/*.{js,ts,jsx,tsx}', path.join(toolpathUiRoot, 'dist/**/*.{js,mjs}')],
-}
-```
+Import Tailwind and the Toolpath theme in your application stylesheet. The
+theme scans the package's component source, provides the Toolpath tokens, and
+uses the document's `dark` class for dark mode.
 
 ```css
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import '@toolpath/ui/theme.css';
 ```
 
-The preset uses class-based dark mode. Add `dark` to an ancestor, usually the
-document element, to enable it. It supplies the fonts as Tailwind font stacks;
-load the corresponding web fonts in your application if you want the exact
-Toolpath typography.
+Load Open Sans, Nunito, and Roboto Mono to use the exact Toolpath typography.
 
 ## Use components
 

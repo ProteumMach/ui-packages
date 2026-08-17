@@ -1,0 +1,70 @@
+/*
+ * Toolpath's public Tailwind v4 theme.
+ *
+ * This is the canonical styling contract for every Toolpath application.
+ */
+/* Importing the theme also makes every primitive's utility classes visible to
+   Tailwind's scanner. Consumers should not have to maintain a second source
+   list for this package. */
+@source './src';
+
+/* Every Toolpath app selects dark mode with the document's `.dark` class. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-body: 'Open Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: Nunito, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-3xs: 8px;
+  --text-3xs--line-height: 12px;
+  --text-2xs: 10px;
+  --text-2xs--line-height: 14px;
+
+  --color-primary: #e07a48;
+  --color-primary-darken: #d6632a;
+  --color-danger: #ba5b4b;
+  --color-danger-darken: #843e32;
+  --color-warning: #ffe066;
+  --color-warning-darken: #cd8e04;
+  --color-info: #6bb0b3;
+  --color-info-lighten: #e5f6f7;
+  --color-success: #68b688;
+  --color-success-darken: #5da37a;
+  --color-yellow: #ffcc03;
+
+  --color-gray: #4d5168;
+  --color-gray-50: #f3f4f6;
+  --color-gray-100: #dcdee5;
+  --color-gray-200: #c4c7d4;
+  --color-gray-300: #959bb1;
+  --color-gray-400: #71768d;
+  --color-gray-500: #4d5168;
+  --color-gray-600: #3c4051;
+  --color-gray-700: #2b2e3a;
+  --color-gray-800: #23252f;
+  --color-gray-900: #1a1c23;
+
+  --color-zinc-50: #eeeeee;
+  --color-zinc-100: #e1e1e1;
+  --color-zinc-200: #c6c6c6;
+  --color-zinc-300: #aeaeae;
+  --color-zinc-400: #939393;
+  --color-zinc-500: #7b7b7b;
+  --color-zinc-600: #626262;
+  --color-zinc-700: #4b4b4b;
+  --color-zinc-800: #3d3d3d;
+  --color-zinc-900: #2f2f2f;
+  --color-zinc-950: #282828;
+
+  --color-tag: #c4c7d4;
+  --color-tag-blue: #80afff;
+  --color-tag-light-blue: #80d6ff;
+  --color-tag-sea-foam: #91ede4;
+  --color-tag-green: #75e67e;
+  --color-tag-yellow: #fddb81;
+  --color-tag-orange: #ffb080;
+  --color-tag-red: #f2627f;
+  --color-tag-pink: #f695fb;
+  --color-tag-lavender: #ae9efa;
+}
