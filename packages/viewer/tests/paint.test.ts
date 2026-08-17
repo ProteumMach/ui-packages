@@ -243,26 +243,26 @@ describe('a split is not a hole in the highlight', () => {
     }
   }
 
-  it('carries a paint across a split nobody else claims', async () => {
+  it('paints every split-origin sibling of a feature region', async () => {
     const { part, kept, cut, tag } = await splitFace()
 
-    // The feature owns only the half the region index knows about; the other
-    // half was bare, which reads as a hole in the highlight rather than a
-    // split in the plan.
+    // The feature owns only the half the region index knows about. Its visual
+    // surface nevertheless includes the other half.
     paint(part, { selection: [tag] })
 
     expect(part.regionPaint(kept)?.color).toBe(quantized(part, DEFAULT_THEME.highlight))
     expect(part.regionPaint(cut)?.color).toBe(quantized(part, DEFAULT_THEME.highlight))
   })
 
-  it('leaves a surface two paints disagree over alone', async () => {
+  it('applies the later feature layer to the complete split-origin group', async () => {
     const { part, kept, cut, tag } = await splitFace()
 
     paint(part, { selection: [tag], regionHighlights: [{ region: cut, color: BAND, weight: 1 }] })
 
-    // Two claims on one surface is the reason it was split. Neither spreads
-    // over the other.
+    // Selection is applied after region highlights, and a feature paint covers
+    // every sibling. The result is the same in every mode, rather than
+    // depending on whether a post-processing spread found a contested claim.
     expect(part.regionPaint(kept)?.color).toBe(quantized(part, DEFAULT_THEME.highlight))
-    expect(part.regionPaint(cut)?.color).toBe(quantized(part, BAND))
+    expect(part.regionPaint(cut)?.color).toBe(quantized(part, DEFAULT_THEME.highlight))
   })
 })

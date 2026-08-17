@@ -112,6 +112,16 @@ export interface RegionIndex {
 }
 
 export interface PartModelRegion {
+  /**
+   * Opaque, report-local identity of the B-rep face this region came from before
+   * analysis split it. Equal values are one visual surface; it is not an index
+   * or a kernel surface identifier.
+   */
+  readonly splitOrigin: number
+  /**
+   * Post-split region identity. Feature ownership, picking, and triangle
+   * ranges deliberately continue to use this rather than `splitOrigin`.
+   */
   readonly idx: number
   readonly shapeKind: ShapeKind
   /**

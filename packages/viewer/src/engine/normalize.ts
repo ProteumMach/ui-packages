@@ -131,12 +131,14 @@ function readRegions(value: unknown, issues: string[]): PartModelRegion[] {
       continue
     }
     const idx = raw['idx']
+    const splitOrigin = raw['splitOrigin']
     const start = raw['triangleStart']
     const end = raw['triangleEnd']
     const area = raw['area']
     const shapeKind = raw['shapeKind']
     if (
       !isNonNegativeInteger(idx) ||
+      !isNonNegativeInteger(splitOrigin) ||
       !isNonNegativeInteger(start) ||
       !isNonNegativeInteger(end) ||
       !isFiniteNumber(area) ||
@@ -145,7 +147,7 @@ function readRegions(value: unknown, issues: string[]): PartModelRegion[] {
       issues.push(`regions[${i}] does not match the Region schema`)
       continue
     }
-    regions.push({ idx, shapeKind, area, triangles: { start, end } })
+    regions.push({ idx, splitOrigin, shapeKind, area, triangles: { start, end } })
   }
   return regions
 }

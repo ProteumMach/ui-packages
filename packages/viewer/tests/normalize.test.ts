@@ -44,6 +44,12 @@ describe('normalizePartReport — the 0.3.0 demo report', () => {
     expect(model.regions.map((region) => region.area)).toEqual([1200, 314.16, 78.54])
   })
 
+  it('keeps split origins as opaque visual-surface groups', () => {
+    const model = normalizePartReport(demo())
+
+    expect(model.regions.map((region) => region.splitOrigin)).toEqual([0, 1, 2])
+  })
+
   it('identifies features by tag and wires the region index', () => {
     const { features, regionIndex } = normalizePartReport(demo())
 
@@ -254,13 +260,35 @@ describe('normalizePartReport — malformed reports fail loudly', () => {
   it('rejects a region table that does not tile the mesh', () => {
     const report = withOverride(demo(), {
       regions: [
-        { idx: 0, shapeKind: 'Plane', area: 1, triangleStart: 0, triangleEnd: 40 },
-        { idx: 1, shapeKind: 'Plane', area: 1, triangleStart: 41, triangleEnd: 96 },
+        {
+          idx: 0,
+          splitOrigin: 0,
+          shapeKind: 'Plane',
+          area: 1,
+          triangleStart: 0,
+          triangleEnd: 40,
+        },
+        {
+          idx: 1,
+          splitOrigin: 1,
+          shapeKind: 'Plane',
+          area: 1,
+          triangleStart: 41,
+          triangleEnd: 96,
+        },
       ],
     })
 
     expect(() => normalizePartReport(report)).toThrow(PartReportFormatError)
     expect(() => normalizePartReport(report)).toThrow(/belong to no region/)
+  })
+
+  it.each([undefined, -1, 1.5])('rejects an invalid region splitOrigin: %p', (splitOrigin) => {
+    const report = structuredClone(demo())
+    const regions = report['regions'] as Array<Record<string, unknown>>
+    regions[0]!['splitOrigin'] = splitOrigin
+
+    expect(() => normalizePartReport(report)).toThrow(/Region schema/)
   })
 
   it('rejects a feature with no featureTag', () => {

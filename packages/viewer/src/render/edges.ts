@@ -19,9 +19,9 @@ import { visualSurfaces } from '../model/surfaces.js'
  * With one qualification. The Engine splits a surface where that makes a better
  * machining plan, and those splits are boundaries between regions without being
  * edges of the part: a floor cut in two to be reached from two directions is
- * still one flat floor. So the walk is over *visual surfaces* — regions grouped
- * where they continue each other — and a split leaves no line. See
- * `visualSurfaces`; nothing about picking or features goes through it.
+ * still one face to look at. So the walk is over *visual surfaces* — regions
+ * grouped by the kernel's exact `splitOrigin` lineage — and a split leaves no
+ * line. Nothing about picking or features goes through that grouping.
  *
  * The mesh must be non-indexed, which `parsePartGeometry` guarantees.
  */
@@ -40,7 +40,7 @@ export function regionEdgesGeometry(
 
   // Triangle → the surface it is part of, so the walk below is a lookup rather
   // than a search through the region table for every facet.
-  const surfaces = visualSurfaces(geometry, model.regions)
+  const surfaces = visualSurfaces(model.regions)
   const regionOf = new Int32Array(triangleCount).fill(-1)
   for (const region of model.regions) {
     const end = Math.min(region.triangles.end, triangleCount)
