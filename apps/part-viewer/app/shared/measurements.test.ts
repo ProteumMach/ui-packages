@@ -204,3 +204,38 @@ describe('the tools a feature admits', () => {
     )
   })
 })
+
+describe('a chamfer says what angle it is', () => {
+  const chamfer = (facts: Record<string, unknown>) =>
+    ({
+      featureTag: 'chamfer-1',
+      featureType: 'chamfer',
+      regionIdxs: [0],
+      machiningDirection: { x: 0, y: 0, z: -1 },
+      datasheet: { facts: { kind: 'Chamfer', ...facts }, zMax: 0, zMin: -0.18, partZMax: 0 },
+    }) as never
+
+  const angleOf = (subject: never) => {
+    const rows = measurements({ feature: subject, features: [subject], regions: [], unit: 'in' })
+    return rows.find((row) => row.key === 'bevelAngle')
+  }
+
+  it('reads it where the Engine puts it', () => {
+    // Under `bevel`, which is why the panel showed no angle while the rule
+    // judging chamfer angles read one off the same datasheet.
+    expect(angleOf(chamfer({ bevel: { angleDeg: 56 } }))?.value).toBe('56.0°')
+  })
+
+  it('takes the older spelling in radians and says it converted', () => {
+    // Kernel 0.4.0 renamed the field as it converted. Reading the wrong one
+    // either way is an error of 57×.
+    const row = angleOf(chamfer({ bevel: { angleRad: Math.PI / 4 } }))
+
+    expect(row?.value).toBe('45.0°')
+    expect(row?.from).toContain('angleRad')
+  })
+
+  it('says nothing where the Engine reported no angle', () => {
+    expect(angleOf(chamfer({}))).toBeUndefined()
+  })
+})

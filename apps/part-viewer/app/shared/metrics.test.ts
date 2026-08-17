@@ -137,6 +137,7 @@ describe('the two readers of the datasheet agree', () => {
     ['featureDepth', 'depth'],
     ['maxTool', 'requiredCutter'],
     ['minRadius', 'minRadius'],
+    ['bevelAngle', 'chamferAngle'],
     ['diameter', 'holeDiameter'],
     ['floorFillet', 'floorFilletRadius'],
     ['area', 'surfaceArea'],

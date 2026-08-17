@@ -1,6 +1,6 @@
 import type { PartFeature } from './contracts'
 import { asNumber, asRecord, facts } from './report'
-import { formatArea, formatLength, type Unit } from './units'
+import { formatArea, formatLength, radiansToDegrees, type Unit } from './units'
 
 /**
  * What a feature amounts to, in the order somebody asks it.
@@ -258,13 +258,27 @@ export function measurements({
     })
   }
 
-  const angle = asNumber(sheetFacts.angle ?? sheetFacts.bevelAngle)
+  // The Engine states a chamfer's angle under `bevel`, and states it in degrees
+  // from kernel 0.4.0 — before that in radians, under a name that says so.
+  // This read `facts.angle`, which no report has carried, so a chamfer showed
+  // no angle at all while the rule that judges chamfer angles read one.
+  const bevel = asRecord(sheetFacts.bevel)
+  const degrees = asNumber(bevel?.angleDeg)
+  const radians = asNumber(bevel?.angleRad)
+  const legacy = asNumber(sheetFacts.angle ?? sheetFacts.bevelAngle)
+  const angle = degrees ?? (radians === null ? legacy : radiansToDegrees(radians))
+
   if (angle !== null) {
     rows.push({
       key: 'bevelAngle',
-      label: 'Angle',
+      label: 'Chamfer angle',
       value: `${angle.toFixed(1)}°`,
-      from: 'facts.angle',
+      from:
+        degrees !== null
+          ? 'facts.bevel.angleDeg'
+          : radians !== null
+            ? 'facts.bevel.angleRad in degrees'
+            : 'facts.angle',
     })
   }
 
