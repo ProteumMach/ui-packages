@@ -41,6 +41,12 @@ import type { Rule, RuleSet } from './rules'
  */
 const CAVITIES: ReadonlyArray<FeatureType> = [
   'filleted_open_pocket',
+  // The kernel's closed pocket with a blended floor, which this list left out.
+  // It is a cavity by every reading — the omission was in the prototype's list
+  // and came across with it, and it took five shipped rules with it: the
+  // narrowest cut, wall height, sharp corners, the milling radius range and
+  // standard floor radii all skipped a filleted pocket entirely.
+  'filleted_pocket',
   'open_pocket',
   'pocket',
   'through_pocket',
@@ -446,7 +452,7 @@ const copyOfDefaults = (
  * 9. The milling radius rule is a one-sided scale rather than a range: a
  *    generous internal radius costs nothing, so only the tightening end scores.
  */
-export const SHIPPED_VERSION = 10
+export const SHIPPED_VERSION = 11
 
 export const DEFAULT_RULE_SET: RuleSet = {
   id: 'default',

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 import type { PartFeature } from './contracts'
 import { DEFAULT_RULES, DEFAULT_RULE_SET, PRESET_SETS, SHIPPED_VERSION } from './rule-presets'
 import { evaluateFeature, evaluatePart, scoreFeature, scorePart } from './rules'
+import { withShippedAudiences } from './use-rules'
 
 /**
  * The shipped numbers are a shop's judgement rather than an example, so what is
@@ -86,5 +87,52 @@ describe('SHIPPED_VERSION', () => {
     // session keeps its stale copy and the fix looks like it never landed.
     expect(Number.isInteger(SHIPPED_VERSION)).toBe(true)
     expect(SHIPPED_VERSION).toBeGreaterThan(0)
+  })
+})
+
+describe('who the shipped rules judge', () => {
+  const audience = (id: string) =>
+    new Set(DEFAULT_RULES.find((rule) => rule.id === id)?.featureTypes ?? [])
+
+  test('counts a filleted pocket as the cavity it is', () => {
+    // It was missing from the list the prototype used, so five rules skipped
+    // it: the narrowest cut, wall height, sharp corners, the milling radius
+    // range, and the floor radii it was reported against.
+    for (const rule of [
+      'min-cutout-width',
+      'wall-height-ratio',
+      'sharp-corners',
+      'cutter-diameter',
+      'standard-floor-radius',
+    ]) {
+      expect(audience(rule).has('filleted_pocket')).toBe(true)
+    }
+  })
+
+  test('leaves the holes alone, which are not cavities to a cutter', () => {
+    expect(audience('standard-drill-sizes').has('filleted_pocket')).toBe(false)
+  })
+})
+
+describe('a set saved before this list changed', () => {
+  test('takes the new audience without losing the numbers on it', () => {
+    // Which features a rule looks at is this app's mapping onto the kernel's
+    // type names, and it goes stale when the list is corrected. The thresholds
+    // are the shop's and are not touched.
+    const theirs = {
+      id: 'theirs',
+      name: 'Ours',
+      rules: DEFAULT_RULES.map((rule) =>
+        rule.id === 'standard-floor-radius'
+          ? { ...rule, featureTypes: ['pocket'], weight: 99 }
+          : rule,
+      ),
+    } as never
+
+    const refreshed = withShippedAudiences(theirs)
+    const floor = refreshed.rules.find((rule) => rule.id === 'standard-floor-radius')
+
+    expect(floor?.featureTypes).toContain('filleted_pocket')
+    expect(floor?.weight).toBe(99)
   })
 })
