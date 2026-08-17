@@ -162,10 +162,7 @@ export const FeatureViewer = ({
     })
   }
 
-  const wash = useMemo(
-    () => paintWash(paintMode, report.features, report.candidateDirections, verdicts),
-    [paintMode, report.candidateDirections, report.features, verdicts],
-  )
+  const wash = useMemo(() => paintWash(paintMode, verdicts), [paintMode, verdicts])
 
   const pickInViewport = (pick: PartPick) => {
     if (armed) {
