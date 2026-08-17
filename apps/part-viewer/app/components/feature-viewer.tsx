@@ -245,7 +245,7 @@ export const FeatureViewer = ({
                   : 'All arrows — click to turn them off'
               }
               onClick={() => onArrows(nextArrows(arrows))}
-              className={`ml-0.5 grid size-6 place-items-center rounded border-l border-zinc-800 pl-1 transition ${
+              className={`ml-0.5 grid size-6 place-items-center rounded border-l border-zinc-800 transition ${
                 arrows === 'all'
                   ? 'bg-info/20 text-info'
                   : 'text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100'
