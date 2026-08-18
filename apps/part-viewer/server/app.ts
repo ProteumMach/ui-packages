@@ -13,6 +13,8 @@ import type { AppEnv } from './types'
 export const createApp = (): Hono<AppEnv> => {
   const app = new Hono<AppEnv>()
   app.use('*', secureHeaders())
+  // Keep the probe independent of Engine availability and browser session state.
+  app.get('/health', (c) => c.text('ok'))
   app.use('/api/*', async (c, next) => {
     c.header('Cache-Control', 'no-store')
     c.header('Pragma', 'no-cache')

@@ -65,6 +65,13 @@ afterEach(() => {
 })
 
 describe('Part Viewer Hono API', () => {
+  test('serves an unauthenticated health probe', async () => {
+    const response = await createApp().request('/health')
+
+    expect(response.status).toBe(200)
+    await expect(response.text()).resolves.toBe('ok')
+  })
+
   test('validates and seals the BYOK key, reports connection state, and clears the session', async () => {
     vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
       const request = new Request(input, init)

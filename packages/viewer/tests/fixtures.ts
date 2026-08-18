@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs'
 import { normalizePartReport } from '../src/engine/normalize.js'
 import type { PartModel } from '../src/model/types.js'
 
-export type ReportFixture = 'local-0.3.0-cube' | 'local-0.3.0-demo' | 'staging-0.2.0-2inches-cube'
+export type ReportFixture = 'local-0.3.0-cube' | 'local-0.3.0-demo' | 'legacy-0.2.0-cube'
 
-/** Reads a captured report as the untyped JSON a fetch would hand back. */
+/** Reads a fixture report as the untyped JSON a fetch would hand back. */
 export function loadReportFixture(name: ReportFixture): Record<string, unknown> {
   const url = new URL(`../fixtures/reports/${name}.json`, import.meta.url)
   return JSON.parse(readFileSync(url, 'utf8')) as Record<string, unknown>

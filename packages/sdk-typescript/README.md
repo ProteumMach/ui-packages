@@ -1,6 +1,6 @@
 # Toolpath TypeScript SDK
 
-TypeScript bindings and a presigned-upload helper for the Toolpath Engine API.
+`@toolpath/api` provides TypeScript bindings and an upload helper for the Toolpath Engine API.
 
 ## Install
 
@@ -8,23 +8,22 @@ TypeScript bindings and a presigned-upload helper for the Toolpath Engine API.
 npm install @toolpath/api
 ```
 
-The SDK is ESM-only and supports Node.js 20 and newer.
+Create an API key in the [Toolpath portal](https://portal.toolpath.com/api-keys), then create a client:
 
-```typescript
-import { readFile } from 'node:fs/promises'
+```ts
 import { createToolpathClient, uploadToPresignedUrl } from '@toolpath/api'
 
-const api = createToolpathClient({
-  apiKey: process.env.TOOLPATH_API_KEY!,
-  baseUrl: 'https://api.toolpath.com',
-})
-const filePath = '/path/to/part.step'
-const created = await api.parts.createPart({ filename: 'part.step' })
+const client = createToolpathClient({ apiKey: process.env.TOOLPATH_API_KEY! })
+const part = await client.parts.createPart({ filename: 'bracket.step' })
 
-await uploadToPresignedUrl(created.data.uploadUrl, await readFile(filePath))
+await uploadToPresignedUrl(part.uploadUrl, stepFileBytes)
+const analysis = await client.parts.analyzePart({ id: part.partId })
 ```
 
-Use `createToolpathClient()` for every Engine API operation. It returns named generated APIs such as
-`parts.createPart()` and `jobs.getJob()`. `uploadToPresignedUrl()` performs the direct PUT after the
-create-part operation returns its upload URL. Generated code lives in `src/generated` and must not be
-edited by hand.
+The SDK exports generated request, response, and API types from the Toolpath OpenAPI contract. See the
+[TypeScript example](../../examples/typescript) and [API documentation](https://developers.toolpath.com)
+for a complete analysis flow.
+
+## License
+
+MIT

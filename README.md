@@ -1,28 +1,19 @@
 # Toolpath
 
 Official open-source SDKs, UI primitives, and examples for building applications with the
-[Toolpath Engine API](https://developers.toolpath.com).
+[Toolpath API](https://developers.toolpath.com).
 
 Toolpath analyzes a CAD part so you can understand whether it fits your shop, how it can be
-machined, and what it may cost. This repository helps you call that API from TypeScript, JavaScript,
-or Python.
+machined, and what it may cost.
 
-> **Release status:** The source code, UI package, and examples are available now. The first npm
-> releases have not been published yet, so the registry installation commands below will return
-> “not found” until that release is complete. See [Run the examples from source](#run-the-examples-from-source)
-> if you want to evaluate the project today.
+## Where to start
 
-## Choose where to start
-
-| I want to…                           | Use                             | Documentation                                         |
-| ------------------------------------ | ------------------------------- | ----------------------------------------------------- |
-| Call Toolpath from JavaScript        | `@toolpath/api`                 | [TypeScript SDK](packages/sdk-typescript/README.md)   |
-| Build a React UI with Toolpath style | `@toolpath/ui`                  | [Tailwind UI primitives](packages/ui/README.md)       |
-| Explore a Toolpath part in 3D        | `@toolpath/viewer`              | [React Three Fiber viewer](packages/viewer/README.md) |
-| Call Toolpath from Python            | `toolpath`                      | [Python SDK](packages/sdk-python/README.md)           |
-| Create and upload a part             | TypeScript or Python            | [Examples](#part-upload-examples)                     |
-| Call the API without an SDK          | HTTP, cURL, or another language | [API documentation](https://developers.toolpath.com)  |
-| Inspect the exact public API shape   | OpenAPI 3.1                     | [OpenAPI document](openapi/openapi.json)              |
+| I want to…                    | Use                             | Documentation                                        |
+| ----------------------------- | ------------------------------- | ---------------------------------------------------- |
+| Call Toolpath from JavaScript | `@toolpath/api`                 | [TypeScript SDK](packages/sdk-typescript)            |
+| Call Toolpath from Python     | `toolpath`                      | [Python SDK](packages/sdk-python)                    |
+| See SDK usage examples        | TypeScript or Python            | [Examples](#part-upload-examples)                    |
+| Call the API without an SDK   | HTTP, cURL, or another language | [API documentation](https://developers.toolpath.com) |
 
 The SDKs are generated from the same OpenAPI document, so their request and response types match the
 public API contract retained in this repository. They also provide a focused helper for directly
@@ -38,28 +29,21 @@ To analyze a part, you need:
    - TypeScript/JavaScript: [Node.js 24](https://nodejs.org/en/download)
    - Python: [Python 3.11 or newer](https://www.python.org/downloads/)
 
-## How part analysis works
-
-Part analysis is asynchronous and currently uses polling:
-
-1. Create a part and receive a temporary upload URL.
-2. Upload the STEP file directly to that URL.
-3. Start analysis and receive a job ID.
-4. Request the report periodically until it is ready.
-5. Read or print the returned report.
-
-Use the generated low-level API bindings to control this lifecycle in your application.
-`uploadToPresignedUrl` / `upload_to_presigned_url` performs the direct upload after the create-part
-operation returns its presigned URL.
-
 ## Part-upload examples
 
 The runnable examples create a part and upload its STEP file; your application controls analysis and
 report retrieval through the generated API bindings:
 
 - [TypeScript example](examples/typescript/README.md)
-- [React viewer example](examples/react-viewer/README.md)
 - [Python example](examples/python/README.md)
+- [React viewer example](examples/react-viewer/README.md)
+
+## Example Applications
+
+Part Viewer is a bring-your-own-key reference application for inspecting Toolpath part
+features and meshes.
+
+- [Part Viewer](apps/part-viewer/README.md)
 
 ## Run the examples from source
 
@@ -139,6 +123,25 @@ macOS or Linux:
 ```bash
 uv run --project examples/python python examples/python/src/analyze_part.py "/path/to/part.step"
 ```
+
+### 5. Run the Part Viewer app
+
+Create the app's local environment file, set a stable session secret and your Toolpath API
+URL, then start the development server:
+
+```bash
+cp apps/part-viewer/.env.example apps/part-viewer/.env
+openssl rand -base64 32
+```
+
+Paste the generated value after `APP_SESSION_SECRET=` in `apps/part-viewer/.env`, and set
+`TOOLPATH_API_BASE_URL` to the Toolpath API URL. Then run:
+
+```bash
+pnpm --filter @toolpath/part-viewer dev
+```
+
+Open the local URL printed by the development server, then enter your Toolpath API key to connect.
 
 ## License
 

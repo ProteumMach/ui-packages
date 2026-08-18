@@ -1,85 +1,83 @@
-name: Release
+name: Release public packages
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/release.yml
+      - packages/ui/src/**
+      - packages/ui/tailwind-preset.cjs
+      - packages/ui/package.json
+      - packages/viewer/src/**
+      - packages/viewer/package.json
+      - packages/sdk-typescript/src/**
+      - packages/sdk-typescript/package.json
+      - openapi/**
+      - codegen/typescript-fetch.yaml
+      - scripts/generate-sdks.mjs
   workflow_dispatch:
-    inputs:
-      package:
-        description: Package family to build
-        required: true
-        type: choice
-        options:
-          - sdk
-          - ui
-          - viewer
-      publish:
-        description: Publish the reviewed tag to the registries
-        required: true
-        default: false
-        type: boolean
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: npm-release
+  cancel-in-progress: false
 
 jobs:
-  build-and-test:
+  quality:
+    uses: ./.github/workflows/_quality.yml
+
+  release:
+    needs: quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
         with:
-          node-version: 24.18.0
-          package-manager-cache: false
-      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
-        if: inputs.package != 'sdk'
-        with:
-          version: 0.11.28
-          python-version: '3.11'
-      - run: pnpm install --frozen-lockfile
-      - name: Validate the selected package
-        run: |
-          if [ "${{ inputs.package }}" = "sdk" ]; then
-            pnpm release:typescript-sdk:check
-          else
-            pnpm check
-          fi
-      - run: node scripts/prepare-release.mjs
-        env:
-          RELEASE_PACKAGE: ${{ inputs.package }}
-          PUBLISH: ${{ inputs.publish }}
-      - uses: actions/upload-artifact@v7
-        with:
-          name: release-packages
-          path: |
-            release-artifacts/*
-          if-no-files-found: error
-          retention-days: 3
+          fetch-depth: 0
 
-  publish-npm:
-    if: inputs.publish
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    environment: publish
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v7
-        with:
-          name: release-packages
-          path: release-artifacts
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
           node-version: 24.18.0
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
+
+      - run: pnpm install --frozen-lockfile
       - run: npm install --global npm@11.19.0
-      - name: Publish TypeScript SDK
-        if: inputs.package == 'sdk'
-        run: npm publish release-artifacts/toolpath-api-*.tgz --access public --provenance
-      - name: Publish UI package
-        if: inputs.package == 'ui'
-        run: npm publish release-artifacts/toolpath-ui-*.tgz --access public
-      - name: Publish viewer package
-        if: inputs.package == 'viewer'
-        run: npm publish release-artifacts/toolpath-viewer-*.tgz --access public
+
+      - name: Create Toolpath release-bot token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.TOOLPATH_ACTIONS_BOT_APP_ID }}
+          private-key: ${{ secrets.TOOLPATH_ACTIONS_BOT_PK }}
+          owner: toolpath
+          repositories: toolpath
+
+      # Pending Changesets create or update the release-metadata PR. Once that
+      # PR merges, this action publishes only npm versions absent from npm.
+      - name: Version or publish packages
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          version: pnpm version-packages
+          publish: pnpm release:npm
+          commit: 'chore(release): version packages'
+          title: 'chore(release): version packages'
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
+
+      # The App-created PR triggers ordinary pull-request CI. GitHub merges it
+      # only after the repository's protected-branch requirements succeed.
+      - name: Enable auto-merge for the release-metadata PR
+        if: steps.changesets.outputs.pullRequestNumber != ''
+        run: gh pr merge "${{ steps.changesets.outputs.pullRequestNumber }}" --auto --squash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}

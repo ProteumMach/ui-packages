@@ -10,28 +10,13 @@ permissions:
   contents: read
 
 jobs:
-  quality-and-unit-tests:
+  quality:
+    uses: ./.github/workflows/_quality.yml
+
+  build-part-viewer-container:
+    needs: quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24.18.0
-          cache: pnpm
-      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
-        with:
-          version: 0.11.28
-          python-version: '3.11'
-      - run: pnpm install --frozen-lockfile
-      - run: >-
-          pnpm --filter @toolpath/example-react-viewer exec playwright install --with-deps chromium
-      - run: pnpm check
-      # The app's own browser tests, which `pnpm check` does not reach: its
-      # `test` script is vitest alone. They cover what only a browser can say —
-      # that the viewport receives a pointer at its own edges, and that the
-      # paint mode holds across a reload — and until this step existed they ran
-      # nowhere but on somebody's laptop.
-      - run: pnpm --filter @toolpath/part-viewer exec playwright install --with-deps chromium
-      # After `pnpm check`, so the build these serve already exists.
-      - run: pnpm --filter @toolpath/part-viewer test:e2e
+      - name: Build Part Viewer container
+        run: docker build --file apps/part-viewer/Dockerfile --target prod --tag part-viewer:ci .
