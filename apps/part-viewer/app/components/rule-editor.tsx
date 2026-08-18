@@ -18,7 +18,7 @@ import {
   unitSuffix,
 } from '../shared/rule-text'
 import type { Band, FlagRule, Rule, RuleType, ThresholdRule } from '../shared/rules'
-import { BANDS, FLAG_TESTS, RULE_TYPES, asType, bandName } from '../shared/rules'
+import { BANDS, FLAG_TESTS, RULE_TYPES, asType, bandName, plainType } from '../shared/rules'
 import type { Unit } from '../shared/units'
 import { decimalsFor } from '../shared/units'
 
@@ -398,7 +398,10 @@ const Settings = ({
   onChange: (rule: Rule) => void
   onRemove: () => void
 }) => {
-  const chosen = new Set(rule.featureTypes)
+  // Matched the way the rules match: the chips come from the part's own
+  // vocabulary and the audience is written in the SDK's, so a literal `has`
+  // lights none of them.
+  const chosen = new Set(rule.featureTypes.map(plainType))
   const metric = rule.type === 'baseline' ? undefined : rule.metric
 
   return (
@@ -713,15 +716,15 @@ const Settings = ({
           {types.map((type) => (
             <button
               key={type}
-              aria-pressed={chosen.has(type)}
+              aria-pressed={chosen.has(plainType(type))}
               className={`rounded px-1.5 py-0.5 text-2xs ${
                 chosen.has(type) ? 'bg-info/25 text-info' : 'bg-zinc-800 text-zinc-400'
               }`}
               onClick={() =>
                 onChange({
                   ...rule,
-                  featureTypes: chosen.has(type)
-                    ? rule.featureTypes.filter((each) => each !== type)
+                  featureTypes: chosen.has(plainType(type))
+                    ? rule.featureTypes.filter((each) => plainType(each) !== plainType(type))
                     : [...rule.featureTypes, type],
                 })
               }

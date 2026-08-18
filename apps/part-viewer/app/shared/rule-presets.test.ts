@@ -122,3 +122,33 @@ describe('who the cavity rules judge', () => {
     expect(audience('standard-drill-sizes').has(EngineFeatureType.FilletedPocket)).toBe(false)
   })
 })
+
+describe('the two spellings of a feature type', () => {
+  const pocket = (type: string) =>
+    feature({
+      featureType: type,
+      datasheet: {
+        facts: { kind: 'Cavity', cd: { ignore: { min: 6.604 } } },
+        zMax: 0,
+        zMin: -27,
+        extendedZMax: 0,
+        extendedZMin: -27,
+      },
+    })
+
+  test('judges a filleted pocket whichever vocabulary named it', () => {
+    // The audiences are written in the SDK's `FeatureType` — `FilletedPocket` —
+    // and a report names the same type `filleted_pocket`. Compared literally
+    // the milling rule claims 33 types and judges none of them, which reads on
+    // screen as the rule being in force while the feature says it is about
+    // other feature types.
+    for (const spelling of ['FilletedPocket', 'filleted_pocket', 'OpenPocket', 'open_pocket']) {
+      const verdict = evaluateFeature(DEFAULT_RULE_SET.rules, pocket(spelling))
+      const milling = verdict.results.find((result) => result.rule.id === 'milling-ld')
+
+      // 27 deep on a 6.604 cutter is a shade over 4:1.
+      expect(milling?.value, spelling).toBeCloseTo(4.09, 1)
+      expect(milling?.band, spelling).not.toBe(null)
+    }
+  })
+})
