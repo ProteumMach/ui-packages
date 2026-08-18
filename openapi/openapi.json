@@ -336,6 +336,10 @@
             "type": "integer",
             "minimum": 0
           },
+          "splitOrigin": {
+            "type": "integer",
+            "minimum": 0
+          },
           "shapeKind": {
             "type": "string"
           },
@@ -353,6 +357,7 @@
         },
         "required": [
           "idx",
+          "splitOrigin",
           "shapeKind",
           "area",
           "triangleStart",
