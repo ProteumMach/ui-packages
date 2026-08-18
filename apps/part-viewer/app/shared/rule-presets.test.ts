@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest'
+import { FeatureType as EngineFeatureType } from '@toolpath/api'
 import type { PartFeature } from './contracts'
 import { DEFAULT_RULES, DEFAULT_RULE_SET, PRESET_SETS } from './rule-presets'
 import { evaluateFeature, evaluatePart, scoreFeature, scorePart } from './rules'
@@ -81,5 +82,43 @@ describe('judging a part with it', () => {
     // passed. "0.94, and 200 unjudged" is a different statement from 0.94.
     expect(score.unjudged).toBe(1)
     expect(score.counts.easy).toBe(0)
+  })
+})
+
+describe('who the milling reach rule judges', () => {
+  const milling = DEFAULT_RULES.find((rule) => rule.id === 'milling-ld')
+
+  test('takes in the holes as well as everything an endmill makes', () => {
+    // A bore bottomed at 180° is flat, and a flat bottom is not something a
+    // drill leaves. The metric stands down on a hole bottomed by a point, so a
+    // drilled hole in this audience says nothing here rather than being judged
+    // twice.
+    expect(milling?.featureTypes).toContain(EngineFeatureType.BlindHole)
+    expect(milling?.featureTypes).toContain(EngineFeatureType.ThroughHole)
+    expect(milling?.featureTypes).toContain(EngineFeatureType.Pocket)
+  })
+})
+
+describe('who the cavity rules judge', () => {
+  const audience = (id: string) =>
+    new Set(DEFAULT_RULES.find((rule) => rule.id === id)?.featureTypes ?? [])
+
+  test('counts a filleted pocket as the cavity it is', () => {
+    // It has gone missing from this list twice. Without it five rules skip the
+    // type: the narrowest cut, wall height, sharp corners, the milling radius
+    // range, and the floor radii it is reported against.
+    for (const rule of [
+      'min-cutout-width',
+      'wall-height-ratio',
+      'sharp-corners',
+      'cutter-diameter',
+      'standard-floor-radius',
+    ]) {
+      expect(audience(rule).has(EngineFeatureType.FilletedPocket)).toBe(true)
+    }
+  })
+
+  test('leaves the drill sizes to the holes', () => {
+    expect(audience('standard-drill-sizes').has(EngineFeatureType.FilletedPocket)).toBe(false)
   })
 })
