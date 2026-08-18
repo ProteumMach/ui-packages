@@ -13,9 +13,9 @@ T = TypeVar("T", bound="Vec3")
 class Vec3:
     """
     Attributes:
-        x (float):
-        y (float):
-        z (float):
+        x (float): X coordinate or direction component.
+        y (float): Y coordinate or direction component.
+        z (float): Z coordinate or direction component.
     """
 
     x: float

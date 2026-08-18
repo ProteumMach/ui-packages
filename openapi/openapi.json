@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Toolpath Engine API",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Public REST API for Toolpath engine operations.\n\n**Units.** All dimensional values — in reports and in feature datasheets — are in\nmillimetres; all angles are in degrees. Each report also states this in its `units` field.\n\n**Browser use.** CORS is per API key: a request only receives an\n`Access-Control-Allow-Origin` header when its `Origin` is in the allowlist configured on the\nkey used (set when creating or editing the key in the portal). A key with no allowed origins\nis server-to-server only. A Bearer API key placed in client-side JavaScript is readable by\nanyone — restrict its origins, prefer a `read_only` key (read_only keys may call GET\noperations only; writes are rejected with 403), or proxy requests through your own server."
   },
   "tags": [
@@ -55,14 +55,16 @@
             "enum": [
               "ok",
               "error"
-            ]
+            ],
+            "description": "Overall Engine API health state."
           },
           "db": {
             "type": "string",
             "enum": [
               "up",
               "down"
-            ]
+            ],
+            "description": "PostgreSQL connectivity state."
           }
         },
         "required": [
@@ -75,6 +77,7 @@
         "properties": {
           "openapi": {
             "type": "string",
+            "description": "OpenAPI specification version used by this document.",
             "example": "3.1.0"
           }
         },
@@ -154,17 +157,22 @@
         "type": "object",
         "properties": {
           "partId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the newly created part."
           },
           "uploadUrl": {
             "type": "string",
-            "format": "uri"
+            "format": "uri",
+            "description": "Short-lived URL that accepts a direct upload of the CAD source."
           },
           "sourceBucket": {
-            "type": "string"
+            "type": "string",
+            "description": "Object-storage bucket receiving the CAD source."
           },
           "sourceS3Key": {
-            "type": "string"
+            "type": "string",
+            "description": "Object-storage key assigned to the CAD source."
           }
         },
         "required": [
@@ -178,16 +186,21 @@
         "type": "object",
         "properties": {
           "jobId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the queued analysis job."
           },
           "partId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the part submitted for analysis."
           },
           "status": {
             "type": "string",
             "enum": [
               "queued"
-            ]
+            ],
+            "description": "Initial state of the accepted analysis job."
           }
         },
         "required": [
@@ -200,37 +213,56 @@
         "type": "object",
         "properties": {
           "partId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the part this report describes."
           },
           "reportId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of this immutable analysis report."
           },
           "jobId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the analysis job that produced this report."
           },
           "kernelVersion": {
-            "type": "string"
+            "type": "string",
+            "description": "Version of the Toolpath kernel that produced this report."
           },
           "units": {
-            "$ref": "#/components/schemas/ReportUnits"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportUnits"
+              },
+              {
+                "type": "object",
+                "properties": {}
+              }
+            ],
+            "description": "Units used by all dimensional values in this report."
           },
           "regions": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Region"
-            }
+            },
+            "description": "Recognized B-rep regions, ordered by region index."
           },
           "features": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PartFeature"
-            }
+            },
+            "description": "Features recognized in this analysis run."
           },
           "candidateDirections": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Vec3"
-            }
+            },
+            "description": "Directions from which the part can be analyzed or machined."
           },
           "directionZBounds": {
             "type": [
@@ -239,52 +271,62 @@
             ],
             "items": {
               "$ref": "#/components/schemas/DirectionZBounds"
-            }
+            },
+            "description": "Part z extents for each candidate direction, or null when detail enrichment did not run."
           },
           "meshPointCount": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "Number of points in the generated mesh."
           },
           "meshTriangleCount": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "Number of triangles in the generated mesh."
           },
           "thumbnailUrl": {
             "type": [
               "string",
               "null"
             ],
-            "format": "uri"
+            "format": "uri",
+            "description": "15-minute URL for the rendered PNG thumbnail, or null when absent."
           },
           "meshStlUrl": {
             "type": [
               "string",
               "null"
             ],
-            "format": "uri"
+            "format": "uri",
+            "description": "15-minute URL for the generated STL mesh, or null when absent."
           },
           "meshGlbUrl": {
             "type": [
               "string",
               "null"
             ],
-            "format": "uri"
+            "format": "uri",
+            "description": "15-minute URL for the generated GLB mesh, or null when absent."
           },
           "downloadMs": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "Worker time spent downloading the source CAD file, in milliseconds."
           },
           "recognitionMs": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "Kernel time spent on initial part analysis, in milliseconds."
           },
           "enrichmentMs": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "Kernel time spent building per-feature details, in milliseconds."
           },
           "totalMs": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "Total worker processing time for this report, in milliseconds."
           }
         },
         "required": [
@@ -315,13 +357,15 @@
             "type": "string",
             "enum": [
               "mm"
-            ]
+            ],
+            "description": "Unit used by every length and area measurement."
           },
           "angle": {
             "type": "string",
             "enum": [
               "deg"
-            ]
+            ],
+            "description": "Unit used by every angular measurement."
           }
         },
         "required": [
@@ -334,25 +378,31 @@
         "properties": {
           "idx": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "Stable region index referenced by `features[].regionIdxs`."
           },
           "splitOrigin": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "Report-local source-face group; equal values identify regions split from one B-rep face."
           },
           "shapeKind": {
-            "type": "string"
+            "type": "string",
+            "description": "Recognized surface kind, such as Plane, Cylinder, Cone, Sphere, Torus, or Freeform."
           },
           "area": {
-            "type": "number"
+            "type": "number",
+            "description": "Surface area of the region, in mm²."
           },
           "triangleStart": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "Inclusive start of this region’s triangle range in the returned mesh ordering."
           },
           "triangleEnd": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "Exclusive end of this region’s triangle range in the returned mesh ordering."
           }
         },
         "required": [
@@ -368,23 +418,37 @@
         "type": "object",
         "properties": {
           "featureId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid",
+            "description": "Globally unique identifier of this feature record within its report."
           },
           "featureTag": {
-            "type": "string"
+            "type": "string",
+            "description": "Stable kernel feature tag, encoded as a lowercase hexadecimal string."
           },
           "regionIdxs": {
             "type": "array",
             "items": {
               "type": "integer",
               "minimum": 0
-            }
+            },
+            "description": "Indexes of regions this feature covers; join each value to `regions[].idx`."
           },
           "featureType": {
-            "type": "string"
+            "type": "string",
+            "description": "Kernel-recognized feature type. This vocabulary is open-ended as the kernel evolves."
           },
           "machiningDirection": {
-            "$ref": "#/components/schemas/Vec3"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Vec3"
+              },
+              {
+                "type": "object",
+                "properties": {}
+              }
+            ],
+            "description": "Access direction from which the kernel extracted this feature."
           },
           "axis": {
             "allOf": [
@@ -395,9 +459,11 @@
                 "type": [
                   "object",
                   "null"
-                ]
+                ],
+                "properties": {}
               }
-            ]
+            ],
+            "description": "Feature-local machining axis, such as a face normal; null for older reports."
           }
         },
         "required": [
@@ -413,13 +479,16 @@
         "type": "object",
         "properties": {
           "x": {
-            "type": "number"
+            "type": "number",
+            "description": "X coordinate or direction component."
           },
           "y": {
-            "type": "number"
+            "type": "number",
+            "description": "Y coordinate or direction component."
           },
           "z": {
-            "type": "number"
+            "type": "number",
+            "description": "Z coordinate or direction component."
           }
         },
         "required": [
@@ -432,13 +501,24 @@
         "type": "object",
         "properties": {
           "direction": {
-            "$ref": "#/components/schemas/Vec3"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Vec3"
+              },
+              {
+                "type": "object",
+                "properties": {}
+              }
+            ],
+            "description": "Candidate machining direction whose tool-axis frame defines these bounds."
           },
           "zMin": {
-            "type": "number"
+            "type": "number",
+            "description": "Lowest part extent in this direction’s tool-axis frame, in mm."
           },
           "zMax": {
-            "type": "number"
+            "type": "number",
+            "description": "Highest part extent in this direction’s tool-axis frame, in mm."
           }
         },
         "required": [
@@ -451,16 +531,21 @@
         "type": "object",
         "properties": {
           "jobId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the queued enrichment job."
           },
           "partId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the part owning the requested features."
           },
           "status": {
             "type": "string",
             "enum": [
               "queued"
-            ]
+            ],
+            "description": "Initial state of the accepted enrichment job."
           }
         },
         "required": [
@@ -478,7 +563,8 @@
               "type": "string",
               "format": "uuid"
             },
-            "minItems": 1
+            "minItems": 1,
+            "description": "Identifiers of features from one part whose datasheets should be computed."
           }
         },
         "required": [
@@ -492,13 +578,15 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/FeatureDatasheetEntry"
-            }
+            },
+            "description": "Datasheets for requested features that belong to the authorized organization."
           },
           "notFound": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Requested feature identifiers that were unknown or inaccessible to this organization."
           }
         },
         "required": [
@@ -511,16 +599,27 @@
         "properties": {
           "featureId": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Identifier of the resolved feature."
           },
           "featureTag": {
-            "type": "string"
+            "type": "string",
+            "description": "Stable kernel feature tag, encoded as a lowercase hexadecimal string."
           },
           "featureType": {
-            "type": "string"
+            "type": "string",
+            "description": "Kernel-recognized feature type; the vocabulary is open-ended."
           },
           "datasheet": {
-            "$ref": "#/components/schemas/FeatureDatasheet"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FeatureDatasheet"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Generated machining datasheet, or null when this feature has no datasheet yet."
           }
         },
         "required": [
@@ -531,8 +630,123 @@
       },
       "FeatureDatasheet": {
         "type": "object",
-        "additionalProperties": true,
-        "description": "Per-feature DFM measurement facts. Z bounds in the direction frame (zMin/zMax; local height is zMax − zMin), stock-to-leave, tolerance band, floor/wall flags and areas, plus a per-kind `facts` object (narrow on `facts.kind` for diameters, tool bounds, corner/fillet radius). Lengths are mm, angles degrees. The exact shape is the kernel’s FeatureDatasheet (@toolpath/tp-kernel)."
+        "additionalProperties": false,
+        "properties": {
+          "featureType": {
+            "$ref": "#/components/schemas/FeatureType",
+            "description": "Kernel-recognized feature type that this datasheet measures."
+          },
+          "zMin": {
+            "type": "number",
+            "description": "Bottom of the feature along the tool axis, in mm."
+          },
+          "zMax": {
+            "type": "number",
+            "description": "Top of the feature along the tool axis, in mm."
+          },
+          "extendedZMin": {
+            "type": "number",
+            "description": "The z range extended by adjacent geometry the tool passes over reaching the\nfeature."
+          },
+          "extendedZMax": {
+            "type": "number",
+            "description": "Highest z the tool passes over while reaching the feature, in mm."
+          },
+          "radialStockToLeave": {
+            "type": "number",
+            "description": "Material intentionally left radially for a later operation, in mm."
+          },
+          "axialStockToLeave": {
+            "type": "number",
+            "description": "Material intentionally left along the tool axis for a later operation, in mm."
+          },
+          "toleranceBand": {
+            "$ref": "#/components/schemas/ToleranceBand",
+            "description": "Permitted deviation bands for the machined feature."
+          },
+          "hasFloor": {
+            "type": "boolean",
+            "description": "Whether the feature has a floor machined perpendicular to the tool axis."
+          },
+          "hasWall": {
+            "type": "boolean",
+            "description": "Whether the feature has a wall machined parallel to the tool axis."
+          },
+          "floorishArea": {
+            "type": "number",
+            "description": "Projected area machined floor-wise (perpendicular to the tool axis)."
+          },
+          "wallishArea": {
+            "type": "number",
+            "description": "Area machined wall-wise (parallel to the tool axis)."
+          },
+          "facts": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/HoleFacts"
+              },
+              {
+                "$ref": "#/components/schemas/PocketFacts"
+              },
+              {
+                "$ref": "#/components/schemas/BossFacts"
+              },
+              {
+                "$ref": "#/components/schemas/WallFacts"
+              },
+              {
+                "$ref": "#/components/schemas/FaceFacts"
+              },
+              {
+                "$ref": "#/components/schemas/SurfaceFacts"
+              },
+              {
+                "$ref": "#/components/schemas/ChamferFacts"
+              },
+              {
+                "$ref": "#/components/schemas/ProfileFacts"
+              },
+              {
+                "$ref": "#/components/schemas/DovetailFacts"
+              },
+              {
+                "$ref": "#/components/schemas/TslotFacts"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "kind",
+              "mapping": {
+                "Hole": "#/components/schemas/HoleFacts",
+                "Pocket": "#/components/schemas/PocketFacts",
+                "Boss": "#/components/schemas/BossFacts",
+                "Wall": "#/components/schemas/WallFacts",
+                "Face": "#/components/schemas/FaceFacts",
+                "Three": "#/components/schemas/SurfaceFacts",
+                "Chamfer": "#/components/schemas/ChamferFacts",
+                "Profile": "#/components/schemas/ProfileFacts",
+                "Dovetail": "#/components/schemas/DovetailFacts",
+                "Tslot": "#/components/schemas/TslotFacts"
+              }
+            },
+            "description": "The per-kind facts; narrow on `facts.kind`."
+          }
+        },
+        "required": [
+          "featureType",
+          "zMin",
+          "zMax",
+          "extendedZMin",
+          "extendedZMax",
+          "radialStockToLeave",
+          "axialStockToLeave",
+          "toleranceBand",
+          "hasFloor",
+          "hasWall",
+          "floorishArea",
+          "wallishArea",
+          "facts"
+        ],
+        "description": "One feature as machining sees it: static, self-contained, and enough to choose a\ntool against without having the part in hand. All lengths mm and angles degrees;\nz runs up the tool axis, so `zMin` is the bottom of the feature and `zMax` its top."
       },
       "ListJobsResponse": {
         "type": "object",
@@ -541,20 +755,24 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/JobSummary"
-            }
+            },
+            "description": "Jobs in this page, newest first."
           },
           "page": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "description": "One-based page number returned."
           },
           "pageSize": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 100,
+            "description": "Maximum number of jobs returned in this page."
           },
           "total": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "Total number of jobs matching the query."
           }
         },
         "required": [
@@ -568,13 +786,18 @@
         "type": "object",
         "properties": {
           "partUuid": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the part this job processes."
           },
           "jobUuid": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of this job."
           },
           "productType": {
-            "type": "string"
+            "type": "string",
+            "description": "Product operation performed by the job, such as analyze-part or enrich-features."
           },
           "status": {
             "type": "string",
@@ -583,7 +806,8 @@
               "running",
               "succeeded",
               "failed"
-            ]
+            ],
+            "description": "Current durable state of the job."
           },
           "progress": {
             "type": [
@@ -591,11 +815,13 @@
               "null"
             ],
             "minimum": 0,
-            "maximum": 100
+            "maximum": 100,
+            "description": "Worker-reported completion percentage, or null before progress is available."
           },
           "createdAt": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Time at which the job was created, in ISO 8601 format."
           }
         },
         "required": [
@@ -611,13 +837,18 @@
         "type": "object",
         "properties": {
           "partUuid": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the part this job processes."
           },
           "jobUuid": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of this job."
           },
           "productType": {
-            "type": "string"
+            "type": "string",
+            "description": "Product operation performed by the job, such as analyze-part or enrich-features."
           },
           "status": {
             "type": "string",
@@ -626,7 +857,8 @@
               "running",
               "succeeded",
               "failed"
-            ]
+            ],
+            "description": "Current durable state of the job."
           },
           "progress": {
             "type": [
@@ -634,23 +866,28 @@
               "null"
             ],
             "minimum": 0,
-            "maximum": 100
+            "maximum": 100,
+            "description": "Worker-reported completion percentage, or null before progress is available."
           },
           "error": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Failure reason when the job status is failed; otherwise null."
           },
           "reportId": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "format": "uuid",
+            "description": "Identifier of the report produced by a successful analysis, or null until available."
           },
           "createdAt": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Time at which the job was created, in ISO 8601 format."
           }
         },
         "required": [
@@ -663,6 +900,707 @@
           "reportId",
           "createdAt"
         ]
+      },
+      "BevelFacts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "angleDeg": {
+            "type": "number",
+            "description": "Between the bevel's surface and the tool axis, degrees: zero for a wall, a right\nangle for a floor. A matching tool's cone half angle is this."
+          },
+          "slant": {
+            "type": "number",
+            "description": "How far the bevel runs along its own slope — the length of cutting edge a tool\nneeds to span it in one pass."
+          },
+          "lowerAdjacentZMin": {
+            "type": "number",
+            "description": "The highest bottom among the features the bevel stands on — how far down there\nis room under it before a tool would meet something. z grows up the tool axis,\nso this is *below* the bevel's own `zMin` by the room there is."
+          },
+          "isOpenPocketBottom": {
+            "type": "boolean",
+            "description": "The bevel breaks the edge along an open pocket's floor."
+          },
+          "countersink": {
+            "$ref": "#/components/schemas/SinkFacts",
+            "description": "Present only when the bevel is a countersink of revolution."
+          }
+        },
+        "required": [
+          "angleDeg",
+          "slant",
+          "lowerAdjacentZMin",
+          "isOpenPocketBottom"
+        ],
+        "description": "The bevel itself: how it leans, how far it runs, and what its surroundings allow a\ncone to overshoot."
+      },
+      "BossFacts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "Boss",
+            "description": "Discriminator for this facts variant."
+          },
+          "cd": {
+            "$ref": "#/components/schemas/CdData",
+            "description": "Clearance-diameter limits for tools sweeping around the boss."
+          },
+          "maxBottomDiameter": {
+            "type": "number",
+            "description": "Largest bottom diameter a terminal tool may have, in mm."
+          },
+          "filletRadius": {
+            "type": "number",
+            "description": "Radius of the floor blend, in mm; zero when sharp."
+          },
+          "filletHeight": {
+            "type": "number",
+            "description": "Height of the floor blend, in mm; zero when sharp."
+          }
+        },
+        "required": [
+          "kind",
+          "cd",
+          "maxBottomDiameter",
+          "filletRadius",
+          "filletHeight"
+        ],
+        "description": "A boss: a pocket turned inside out — material with void around it."
+      },
+      "CdBounds": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "min": {
+            "type": "number",
+            "description": "Largest tool diameter that reaches every point of the feature, in mm."
+          },
+          "max": {
+            "type": "number",
+            "description": "Largest tool diameter that fits somewhere in the feature, in mm."
+          }
+        },
+        "required": [
+          "min",
+          "max"
+        ],
+        "description": "How wide a tool a feature admits — two upper bounds, differing in how much of the\nfeature the tool has to reach. `min` is the largest tool that reaches every part of\nthe feature, `max` the largest that fits somewhere; `min <= max`. Infinities are\nmeaningful — see `CdBounds` in the `api` crate for the three sentinel states."
+      },
+      "CdData": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "ignore": {
+            "$ref": "#/components/schemas/CdBounds",
+            "description": "Clearance-diameter bounds while deviations in the ignored tolerance band are allowed."
+          },
+          "deviate": {
+            "$ref": "#/components/schemas/CdBounds",
+            "description": "Clearance-diameter bounds while deviations in the reported tolerance band are allowed."
+          },
+          "effectiveAdaptive": {
+            "$ref": "#/components/schemas/CdBounds",
+            "description": "Clearance-diameter bounds after adaptive-cutting allowances are applied."
+          },
+          "terminalCornerRadius": {
+            "type": "number",
+            "description": "The corner radius a terminal tool must not exceed; negative infinity when\nunconstrained."
+          }
+        },
+        "required": [
+          "ignore",
+          "deviate",
+          "effectiveAdaptive",
+          "terminalCornerRadius"
+        ],
+        "description": "Clearance-diameter bounds per tolerance regime, plus the flags derived with them."
+      },
+      "ChamferFacts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "Chamfer",
+            "description": "Discriminator for this facts variant."
+          },
+          "bevel": {
+            "$ref": "#/components/schemas/BevelFacts",
+            "description": "Measurements for machining the chamfer with a conical tool flank."
+          },
+          "three": {
+            "$ref": "#/components/schemas/SurfaceFacts",
+            "description": "Measurements for machining the chamfer as a followable surface."
+          }
+        },
+        "required": [
+          "kind",
+          "bevel",
+          "three"
+        ],
+        "description": "A chamfer, which is two things at once and carries a measurement of each: a bevel\ncut by a cone's flank, and a surface a ball can follow. Which one a given tool\nanswers to is settled by the tool's own shape."
+      },
+      "DovetailFacts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "Dovetail",
+            "description": "Discriminator for this facts variant."
+          },
+          "taperDeg": {
+            "type": "number",
+            "description": "Between the overhanging wall and the tool axis, degrees, positive however the\nwall leans."
+          },
+          "filletRadius": {
+            "type": "number",
+            "description": "Radius of the blend between wall and floor; 0.0 for the sharp kind."
+          },
+          "floorWidth": {
+            "type": "number",
+            "description": "The widest clearance over the floor — the width the groove cuts at."
+          },
+          "topOpeningWidth": {
+            "type": "number",
+            "description": "The clearance through the opening at the top of the groove."
+          },
+          "bottomOpeningWidth": {
+            "type": "number",
+            "description": "The clearance just above the floor, under the overhangs."
+          },
+          "isExternal": {
+            "type": "boolean",
+            "description": "The groove's inner clearances vary from place to place — it runs out somewhere —\nrather than being the one constant width a closed internal dovetail has."
+          },
+          "cd": {
+            "$ref": "#/components/schemas/CdData",
+            "description": "Derived from the widths and the taper, not measured off an axis, so the three\nregimes hold one answer."
+          },
+          "isInvalidGeometry": {
+            "type": "boolean",
+            "description": "A width could not be measured at all, so `cd` is arithmetic over a zero and no\ntool should be offered on its strength."
+          }
+        },
+        "required": [
+          "kind",
+          "taperDeg",
+          "filletRadius",
+          "floorWidth",
+          "topOpeningWidth",
+          "bottomOpeningWidth",
+          "isExternal",
+          "cd",
+          "isInvalidGeometry"
+        ],
+        "description": "A dovetail groove: overhanging walls leaning back at one angle over a floor, so the\nspace widens with depth and a tool has to enter through an opening narrower than where\nit cuts.\n\nThat inversion is why this carries widths rather than a medial-axis measurement. All\nthree are clearance diameters read at their own heights, with `0.0` standing for a\nmeasurement that failed — which is what `isInvalidGeometry` reports."
+      },
+      "FaceFacts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "Face",
+            "description": "Discriminator for this facts variant."
+          },
+          "isTopFace": {
+            "type": "boolean",
+            "description": "The face is the highest surface of the part along the tool axis."
+          },
+          "isFacing": {
+            "type": "boolean",
+            "description": "The face is to be faced off: a top face the fixture does not rule out."
+          },
+          "needsSidemill": {
+            "type": "boolean",
+            "description": "Sweeping the floor does not clear the face on its own — a wall pass must follow."
+          },
+          "cd": {
+            "$ref": "#/components/schemas/CdData",
+            "description": "Clearance-diameter limits for tools sweeping the face."
+          },
+          "maxBottomDiameter": {
+            "type": "number",
+            "description": "Largest bottom diameter a terminal tool may have, in mm."
+          }
+        },
+        "required": [
+          "kind",
+          "isTopFace",
+          "isFacing",
+          "needsSidemill",
+          "cd",
+          "maxBottomDiameter"
+        ],
+        "description": "A face: a plane square to the tool axis, cleared by sweeping across it."
+      },
+      "FeatureType": {
+        "type": "string",
+        "enum": [
+          "ThroughHole",
+          "BlindHole",
+          "ThroughPocket",
+          "Pocket",
+          "OpenPocket",
+          "Profile",
+          "Boss",
+          "Face",
+          "Sink",
+          "Chamfer",
+          "Fillet",
+          "ContourSurface",
+          "FilletedPocket",
+          "Thread",
+          "FilletedOpenPocket",
+          "FilletedBlindHole",
+          "Wall",
+          "SlantedFace",
+          "InnerFillet",
+          "OuterFillet",
+          "SyntheticHole",
+          "FilletedBoss",
+          "UndercutTslot",
+          "UndercutDovetail",
+          "UndercutFilletedTslot",
+          "BackSink",
+          "BackChamfer",
+          "UndercutWall",
+          "USlot",
+          "UndercutFilletedDovetail",
+          "TaperedThroughHole",
+          "ThreadedBlindHole",
+          "ThreadedThroughHole"
+        ],
+        "description": "What kind of thing a feature is, and so how it gets machined. The names are the\ncontract at this boundary (the shared numeric wire format stays inside the binary\nAPI)."
+      },
+      "HoleFacts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "Hole",
+            "description": "Discriminator for this facts variant."
+          },
+          "diameter": {
+            "type": "number",
+            "description": "What the hole is actually drilled to — narrower than modelled for a threaded\nhole."
+          },
+          "fullConeDeg": {
+            "type": "number",
+            "description": "Full apex angle of the cone at the hole bottom, degrees; 180 for a flat bottom."
+          },
+          "isCounterbore": {
+            "type": "boolean",
+            "description": "Whether the hole includes a larger counterbore above its bore."
+          },
+          "holeProcess": {
+            "$ref": "#/components/schemas/HoleProcess",
+            "description": "The requested machining process for this hole."
+          },
+          "threading": {
+            "$ref": "#/components/schemas/Threading",
+            "description": "The thread this hole is to receive and how it is cut; absent for a plain hole."
+          },
+          "cd": {
+            "$ref": "#/components/schemas/CdData",
+            "description": "Clearance-diameter limits for tools entering the hole."
+          },
+          "maxSpotDiameter": {
+            "type": "number",
+            "description": "Largest spot-drill diameter that reaches the hole without collision, in mm."
+          },
+          "maxDrillDiameter": {
+            "type": "number",
+            "description": "Largest drill diameter that leaves the hole within its permitted oversize, in mm."
+          },
+          "maxEndmillDiameter": {
+            "type": "number",
+            "description": "Largest end-mill diameter that can machine the hole, in mm."
+          },
+          "filletRadius": {
+            "type": "number",
+            "description": "Radius of the blend at the hole bottom, in mm; zero when sharp."
+          },
+          "filletHeight": {
+            "type": "number",
+            "description": "Height of the bottom blend, in mm; zero when sharp."
+          }
+        },
+        "required": [
+          "kind",
+          "diameter",
+          "fullConeDeg",
+          "isCounterbore",
+          "holeProcess",
+          "cd",
+          "maxSpotDiameter",
+          "maxDrillDiameter",
+          "maxEndmillDiameter",
+          "filletRadius",
+          "filletHeight"
+        ],
+        "description": "A hole's facts. See `HoleFacts` in the `api` crate for what each figure means."
+      },
+      "HoleProcess": {
+        "type": "string",
+        "enum": [
+          "Automatic",
+          "Drill",
+          "Mill"
+        ],
+        "description": "How the user wants a hole machined."
+      },
+      "PocketFacts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "Pocket",
+            "description": "Discriminator for this facts variant."
+          },
+          "cd": {
+            "$ref": "#/components/schemas/CdData",
+            "description": "Clearance-diameter limits for tools sweeping the pocket."
+          },
+          "maxBottomDiameter": {
+            "type": "number",
+            "description": "The bottom diameter a terminal tool must not exceed; negative infinity when\nunconstrained."
+          },
+          "filletRadius": {
+            "type": "number",
+            "description": "Radius of the floor fillet; 0.0 when unfilleted."
+          },
+          "filletHeight": {
+            "type": "number",
+            "description": "Height of the floor fillet; 0.0 when unfilleted."
+          }
+        },
+        "required": [
+          "kind",
+          "cd",
+          "maxBottomDiameter",
+          "filletRadius",
+          "filletHeight"
+        ],
+        "description": "A pocket: a walled space with a floor, and the blend where the two meet."
+      },
+      "ProfileFacts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "Profile",
+            "description": "Discriminator for this facts variant."
+          },
+          "cd": {
+            "$ref": "#/components/schemas/CdData",
+            "description": "Clearance-diameter limits for tools following the profile."
+          },
+          "length": {
+            "type": "number",
+            "description": "How far the pass travels, mm — the outline's own length."
+          },
+          "isModified": {
+            "type": "boolean",
+            "description": "Whether the outline is the part's silhouette or the bridged reading of it."
+          }
+        },
+        "required": [
+          "kind",
+          "cd",
+          "length",
+          "isModified"
+        ],
+        "description": "A profile: one pass around the part's outline."
+      },
+      "SinkFacts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "center": {
+            "$ref": "#/components/schemas/Vec2",
+            "description": "Where the cone's axis crosses the plane the contours are read in (the tool\nframe's) — the sink's position across the part, not along the tool."
+          },
+          "innerRadius": {
+            "type": "number",
+            "description": "Radius of the circle the bevel starts from, at its lower edge — the pilot hole."
+          },
+          "outerRadius": {
+            "type": "number",
+            "description": "Radius it has opened to at the upper edge."
+          }
+        },
+        "required": [
+          "center",
+          "innerRadius",
+          "outerRadius"
+        ],
+        "description": "A countersink read as a cone of revolution: the circle its bevel starts from and the\none it opens to."
+      },
+      "SurfaceFacts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "Three",
+            "description": "Discriminator for this facts variant."
+          },
+          "filletRadius": {
+            "type": "number",
+            "description": "The blend radius, signed by which way the surface turns: positive rolling over\nan edge, negative running into a corner, zero for no blend at all."
+          },
+          "maxStepdown": {
+            "type": "number",
+            "description": "The deepest cut taken in one pass down the surface, mm."
+          },
+          "surfaceFinishCuspHeight": {
+            "type": "number",
+            "description": "How much scallop the finishing pass may leave between neighbouring passes, mm."
+          },
+          "isUShapedFillet": {
+            "type": "boolean",
+            "description": "Whether the fillet has a U-shaped cross section."
+          },
+          "hasSharpCorner": {
+            "type": "boolean",
+            "description": "Whether the surface includes a sharp corner a tool must respect."
+          },
+          "useOnlyBallToolsForFinish": {
+            "type": "boolean",
+            "description": "Whether only ball tools are suitable for the finishing pass."
+          },
+          "maxBottomDiameter": {
+            "type": "number",
+            "description": "Largest bottom diameter a terminal tool may have, in mm."
+          },
+          "cd": {
+            "$ref": "#/components/schemas/CdData",
+            "description": "Clearance-diameter limits for tools reaching the surface."
+          },
+          "toolFit": {
+            "$ref": "#/components/schemas/ToolFitResult",
+            "description": "Geometry limits imposed by the surface shape itself."
+          }
+        },
+        "required": [
+          "kind",
+          "filletRadius",
+          "maxStepdown",
+          "surfaceFinishCuspHeight",
+          "isUShapedFillet",
+          "hasSharpCorner",
+          "useOnlyBallToolsForFinish",
+          "maxBottomDiameter",
+          "cd",
+          "toolFit"
+        ],
+        "description": "A three-dimensional surface a tool has to follow rather than sweep; also the surface\nhalf of a chamfer."
+      },
+      "Threading": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "spec": {
+            "$ref": "#/components/schemas/ThreadSpec",
+            "description": "The dimensional definition of the thread."
+          },
+          "process": {
+            "$ref": "#/components/schemas/ThreadProcess",
+            "description": "The process used to cut the thread."
+          }
+        },
+        "required": [
+          "spec",
+          "process"
+        ],
+        "description": "A thread a hole is to receive, and how it is to be cut."
+      },
+      "ThreadProcess": {
+        "type": "string",
+        "enum": [
+          "ThreadMill",
+          "CutTap",
+          "FormTap"
+        ],
+        "description": "How a thread is to be cut: the three ways there are."
+      },
+      "ThreadSpec": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "basicDiameter": {
+            "type": "number",
+            "description": "Nominal major diameter of the thread, in mm."
+          },
+          "threadPitch": {
+            "type": "number",
+            "description": "Distance between thread crests, in mm."
+          },
+          "minMinorDiameter": {
+            "type": "number",
+            "description": "Smallest allowed minor diameter, in mm."
+          },
+          "maxMinorDiameter": {
+            "type": "number",
+            "description": "Largest allowed minor diameter, in mm."
+          },
+          "minMajorDiameter": {
+            "type": "number",
+            "description": "Smallest allowed major diameter, in mm."
+          },
+          "threadPercentage": {
+            "type": "number",
+            "description": "How much of the theoretical thread depth is to be formed, as a percentage."
+          }
+        },
+        "required": [
+          "basicDiameter",
+          "threadPitch",
+          "minMinorDiameter",
+          "maxMinorDiameter",
+          "minMajorDiameter",
+          "threadPercentage"
+        ],
+        "description": "The thread a hole is to receive."
+      },
+      "ToleranceBand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "atolIgnore": {
+            "type": "number",
+            "description": "Deviation at or below this value is ignored, in mm."
+          },
+          "atolDeviate": {
+            "type": "number",
+            "description": "Deviation above the ignored band but at or below this value is reported, in mm."
+          },
+          "atolMax": {
+            "type": "number",
+            "description": "Maximum allowed deviation from the model, in mm."
+          }
+        },
+        "required": [
+          "atolIgnore",
+          "atolDeviate",
+          "atolMax"
+        ],
+        "description": "How far a machined surface may deviate from the model, in three escalating bands\n(`0 <= ignore <= deviate <= max`)."
+      },
+      "ToolFitResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "cornerRadius": {
+            "type": "number",
+            "description": "Corner radius the surface shape admits, in mm."
+          },
+          "toolDiameter": {
+            "type": "number",
+            "description": "Largest full-diameter tool the surface shape admits, in mm."
+          },
+          "toolBottomDiameter": {
+            "type": "number",
+            "description": "Largest bottom diameter the surface shape admits, in mm."
+          }
+        },
+        "required": [
+          "cornerRadius",
+          "toolDiameter",
+          "toolBottomDiameter"
+        ],
+        "description": "The tool geometry a surface's own shape admits, before the layers are consulted."
+      },
+      "TslotFacts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "Tslot",
+            "description": "Discriminator for this facts variant."
+          },
+          "isExternal": {
+            "type": "boolean",
+            "description": "The slot runs around material standing in it rather than into the material\naround a void."
+          },
+          "isClosed": {
+            "type": "boolean",
+            "description": "The slot's walls close on themselves in plan view."
+          },
+          "undercutDepth": {
+            "type": "number",
+            "description": "How far the groove runs back from its opening, radially; infinite when the slot\ncould not be measured."
+          },
+          "maxEntryCd": {
+            "type": "number",
+            "description": "The widest tool that can come down through the opening above the slot to reach\nit; infinite when nothing above constrains one, zero when nothing fits at all."
+          },
+          "cd": {
+            "$ref": "#/components/schemas/CdData",
+            "description": "Clearance-diameter limits for tools machining inside the slot."
+          },
+          "filletRadius": {
+            "type": "number",
+            "description": "Radius of the blend where the slot's walls meet its floor and ceiling; 0.0 when\nsharp."
+          }
+        },
+        "required": [
+          "kind",
+          "isExternal",
+          "isClosed",
+          "undercutDepth",
+          "maxEntryCd",
+          "cd",
+          "filletRadius"
+        ],
+        "description": "A t-slot: a groove cut sideways into a wall or around a post, under a ceiling the\nmachining direction cannot see past."
+      },
+      "Vec2": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "x": {
+            "type": "number",
+            "description": "Horizontal x coordinate in the current frame."
+          },
+          "y": {
+            "type": "number",
+            "description": "Horizontal y coordinate in the current frame."
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "description": "A 2D vector (a plain `{ x, y }` object)."
+      },
+      "WallFacts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "Wall",
+            "description": "Discriminator for this facts variant."
+          },
+          "cd": {
+            "$ref": "#/components/schemas/CdData",
+            "description": "Clearance-diameter limits for tools machining the wall."
+          }
+        },
+        "required": [
+          "kind",
+          "cd"
+        ],
+        "description": "A wall: a run of surface square to the tool axis, with no floor of its own."
       }
     },
     "parameters": {}

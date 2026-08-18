@@ -13,7 +13,7 @@ T = TypeVar("T", bound="OpenApiDocument")
 class OpenApiDocument:
     """
     Attributes:
-        openapi (str):  Example: 3.1.0.
+        openapi (str): OpenAPI specification version used by this document. Example: 3.1.0.
     """
 
     openapi: str

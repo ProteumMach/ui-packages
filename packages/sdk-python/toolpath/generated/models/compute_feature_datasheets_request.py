@@ -14,7 +14,7 @@ T = TypeVar("T", bound="ComputeFeatureDatasheetsRequest")
 class ComputeFeatureDatasheetsRequest:
     """
     Attributes:
-        feature_ids (list[UUID]):
+        feature_ids (list[UUID]): Identifiers of features from one part whose datasheets should be computed.
     """
 
     feature_ids: list[UUID]

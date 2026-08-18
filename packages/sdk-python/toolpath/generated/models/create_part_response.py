@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any, TypeVar
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -13,20 +14,20 @@ T = TypeVar("T", bound="CreatePartResponse")
 class CreatePartResponse:
     """
     Attributes:
-        part_id (str):
-        upload_url (str):
-        source_bucket (str):
-        source_s3_key (str):
+        part_id (UUID): Identifier of the newly created part.
+        upload_url (str): Short-lived URL that accepts a direct upload of the CAD source.
+        source_bucket (str): Object-storage bucket receiving the CAD source.
+        source_s3_key (str): Object-storage key assigned to the CAD source.
     """
 
-    part_id: str
+    part_id: UUID
     upload_url: str
     source_bucket: str
     source_s3_key: str
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        part_id = self.part_id
+        part_id = str(self.part_id)
 
         upload_url = self.upload_url
 
@@ -50,7 +51,7 @@ class CreatePartResponse:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        part_id = d.pop("partId")
+        part_id = UUID(d.pop("partId"))
 
         upload_url = d.pop("uploadUrl")
 

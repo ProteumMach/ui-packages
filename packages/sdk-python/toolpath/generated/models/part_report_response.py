@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar, cast
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -9,8 +10,8 @@ from attrs import field as _attrs_field
 if TYPE_CHECKING:
     from ..models.direction_z_bounds import DirectionZBounds
     from ..models.part_feature import PartFeature
+    from ..models.part_report_response_units import PartReportResponseUnits
     from ..models.region import Region
-    from ..models.report_units import ReportUnits
     from ..models.vec_3 import Vec3
 
 
@@ -21,31 +22,32 @@ T = TypeVar("T", bound="PartReportResponse")
 class PartReportResponse:
     """
     Attributes:
-        part_id (str):
-        report_id (str):
-        job_id (str):
-        kernel_version (str):
-        units (ReportUnits):
-        regions (list[Region]):
-        features (list[PartFeature]):
-        candidate_directions (list[Vec3]):
-        direction_z_bounds (list[DirectionZBounds] | None):
-        mesh_point_count (int):
-        mesh_triangle_count (int):
-        thumbnail_url (None | str):
-        mesh_stl_url (None | str):
-        mesh_glb_url (None | str):
-        download_ms (int):
-        recognition_ms (int):
-        enrichment_ms (int):
-        total_ms (int):
+        part_id (UUID): Identifier of the part this report describes.
+        report_id (UUID): Identifier of this immutable analysis report.
+        job_id (UUID): Identifier of the analysis job that produced this report.
+        kernel_version (str): Version of the Toolpath kernel that produced this report.
+        units (PartReportResponseUnits): Units used by all dimensional values in this report.
+        regions (list[Region]): Recognized B-rep regions, ordered by region index.
+        features (list[PartFeature]): Features recognized in this analysis run.
+        candidate_directions (list[Vec3]): Directions from which the part can be analyzed or machined.
+        direction_z_bounds (list[DirectionZBounds] | None): Part z extents for each candidate direction, or null when
+            detail enrichment did not run.
+        mesh_point_count (int): Number of points in the generated mesh.
+        mesh_triangle_count (int): Number of triangles in the generated mesh.
+        thumbnail_url (None | str): 15-minute URL for the rendered PNG thumbnail, or null when absent.
+        mesh_stl_url (None | str): 15-minute URL for the generated STL mesh, or null when absent.
+        mesh_glb_url (None | str): 15-minute URL for the generated GLB mesh, or null when absent.
+        download_ms (int): Worker time spent downloading the source CAD file, in milliseconds.
+        recognition_ms (int): Kernel time spent on initial part analysis, in milliseconds.
+        enrichment_ms (int): Kernel time spent building per-feature details, in milliseconds.
+        total_ms (int): Total worker processing time for this report, in milliseconds.
     """
 
-    part_id: str
-    report_id: str
-    job_id: str
+    part_id: UUID
+    report_id: UUID
+    job_id: UUID
     kernel_version: str
-    units: ReportUnits
+    units: PartReportResponseUnits
     regions: list[Region]
     features: list[PartFeature]
     candidate_directions: list[Vec3]
@@ -62,11 +64,11 @@ class PartReportResponse:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        part_id = self.part_id
+        part_id = str(self.part_id)
 
-        report_id = self.report_id
+        report_id = str(self.report_id)
 
-        job_id = self.job_id
+        job_id = str(self.job_id)
 
         kernel_version = self.kernel_version
 
@@ -149,20 +151,20 @@ class PartReportResponse:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.direction_z_bounds import DirectionZBounds
         from ..models.part_feature import PartFeature
+        from ..models.part_report_response_units import PartReportResponseUnits
         from ..models.region import Region
-        from ..models.report_units import ReportUnits
         from ..models.vec_3 import Vec3
 
         d = dict(src_dict)
-        part_id = d.pop("partId")
+        part_id = UUID(d.pop("partId"))
 
-        report_id = d.pop("reportId")
+        report_id = UUID(d.pop("reportId"))
 
-        job_id = d.pop("jobId")
+        job_id = UUID(d.pop("jobId"))
 
         kernel_version = d.pop("kernelVersion")
 
-        units = ReportUnits.from_dict(d.pop("units"))
+        units = PartReportResponseUnits.from_dict(d.pop("units"))
 
         regions = []
         _regions = d.pop("regions")

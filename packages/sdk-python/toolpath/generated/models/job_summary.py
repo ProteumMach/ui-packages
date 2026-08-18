@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 from collections.abc import Mapping
 from typing import Any, TypeVar, cast
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -16,16 +17,16 @@ T = TypeVar("T", bound="JobSummary")
 class JobSummary:
     """
     Attributes:
-        part_uuid (str):
-        job_uuid (str):
-        product_type (str):
-        status (JobSummaryStatus):
-        progress (int | None):
-        created_at (datetime.datetime):
+        part_uuid (UUID): Identifier of the part this job processes.
+        job_uuid (UUID): Identifier of this job.
+        product_type (str): Product operation performed by the job, such as analyze-part or enrich-features.
+        status (JobSummaryStatus): Current durable state of the job.
+        progress (int | None): Worker-reported completion percentage, or null before progress is available.
+        created_at (datetime.datetime): Time at which the job was created, in ISO 8601 format.
     """
 
-    part_uuid: str
-    job_uuid: str
+    part_uuid: UUID
+    job_uuid: UUID
     product_type: str
     status: JobSummaryStatus
     progress: int | None
@@ -33,9 +34,9 @@ class JobSummary:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        part_uuid = self.part_uuid
+        part_uuid = str(self.part_uuid)
 
-        job_uuid = self.job_uuid
+        job_uuid = str(self.job_uuid)
 
         product_type = self.product_type
 
@@ -64,9 +65,9 @@ class JobSummary:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        part_uuid = d.pop("partUuid")
+        part_uuid = UUID(d.pop("partUuid"))
 
-        job_uuid = d.pop("jobUuid")
+        job_uuid = UUID(d.pop("jobUuid"))
 
         product_type = d.pop("productType")
 

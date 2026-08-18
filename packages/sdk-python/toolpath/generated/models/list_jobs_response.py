@@ -17,10 +17,10 @@ T = TypeVar("T", bound="ListJobsResponse")
 class ListJobsResponse:
     """
     Attributes:
-        items (list[JobSummary]):
-        page (int):
-        page_size (int):
-        total (int):
+        items (list[JobSummary]): Jobs in this page, newest first.
+        page (int): One-based page number returned.
+        page_size (int): Maximum number of jobs returned in this page.
+        total (int): Total number of jobs matching the query.
     """
 
     items: list[JobSummary]

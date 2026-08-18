@@ -13,12 +13,12 @@ T = TypeVar("T", bound="Region")
 class Region:
     """
     Attributes:
-        idx (int):
-        split_origin (int):
-        shape_kind (str):
-        area (float):
-        triangle_start (int):
-        triangle_end (int):
+        idx (int): Stable region index referenced by `features[].regionIdxs`.
+        split_origin (int): Report-local source-face group; equal values identify regions split from one B-rep face.
+        shape_kind (str): Recognized surface kind, such as Plane, Cylinder, Cone, Sphere, Torus, or Freeform.
+        area (float): Surface area of the region, in mm².
+        triangle_start (int): Inclusive start of this region’s triangle range in the returned mesh ordering.
+        triangle_end (int): Exclusive end of this region’s triangle range in the returned mesh ordering.
     """
 
     idx: int
