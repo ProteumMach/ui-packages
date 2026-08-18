@@ -49,7 +49,7 @@ export interface PartObject {
   paintRegion(region: number, color: number, weight: number): void
   /** What a region is painted with now. `null` for a region it does not have. */
   regionPaint(region: number): RegionPaint | null
-  /** Paints every visual-surface sibling of every region a feature owns. */
+  /** Paints every region the feature explicitly owns. */
   paintFeature(tag: FeatureTag, color: number, weight: number): void
   clearPaint(): void
   /** A feature's bounds in part space, for framing. `null` if it has none. */
@@ -136,13 +136,6 @@ export function createPart(
 ): PartObject {
   const position = geometry.getAttribute('position')
   const texels = buildRegionTexels(model)
-  const regionByIdx = new Map(model.regions.map((region) => [region.idx, region]))
-  const regionsBySplitOrigin = new Map<number, number[]>()
-  for (const region of model.regions) {
-    const siblings = regionsBySplitOrigin.get(region.splitOrigin)
-    if (siblings) siblings.push(region.idx)
-    else regionsBySplitOrigin.set(region.splitOrigin, [region.idx])
-  }
 
   geometry.setAttribute(
     REGION_ATTRIBUTE,
@@ -273,15 +266,7 @@ export function createPart(
     },
 
     paintFeature(tag, color, weight) {
-      const regions = new Set<number>()
-      for (const idx of model.regionIndex.regionsForFeature(tag)) {
-        const region = regionByIdx.get(idx)
-        if (!region) continue
-        for (const sibling of regionsBySplitOrigin.get(region.splitOrigin) ?? []) {
-          regions.add(sibling)
-        }
-      }
-      for (const region of regions) {
+      for (const region of model.regionIndex.regionsForFeature(tag)) {
         paintRegion(region, color, weight)
       }
     },
