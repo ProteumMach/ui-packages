@@ -14,6 +14,7 @@ class Region:
     """
     Attributes:
         idx (int):
+        split_origin (int):
         shape_kind (str):
         area (float):
         triangle_start (int):
@@ -21,6 +22,7 @@ class Region:
     """
 
     idx: int
+    split_origin: int
     shape_kind: str
     area: float
     triangle_start: int
@@ -29,6 +31,8 @@ class Region:
 
     def to_dict(self) -> dict[str, Any]:
         idx = self.idx
+
+        split_origin = self.split_origin
 
         shape_kind = self.shape_kind
 
@@ -43,6 +47,7 @@ class Region:
         field_dict.update(
             {
                 "idx": idx,
+                "splitOrigin": split_origin,
                 "shapeKind": shape_kind,
                 "area": area,
                 "triangleStart": triangle_start,
@@ -57,6 +62,8 @@ class Region:
         d = dict(src_dict)
         idx = d.pop("idx")
 
+        split_origin = d.pop("splitOrigin")
+
         shape_kind = d.pop("shapeKind")
 
         area = d.pop("area")
@@ -67,6 +74,7 @@ class Region:
 
         region = cls(
             idx=idx,
+            split_origin=split_origin,
             shape_kind=shape_kind,
             area=area,
             triangle_start=triangle_start,

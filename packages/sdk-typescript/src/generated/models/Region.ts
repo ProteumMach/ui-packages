@@ -27,6 +27,12 @@ export interface Region {
   idx: number
   /**
    *
+   * @type {number}
+   * @memberof Region
+   */
+  splitOrigin: number
+  /**
+   *
    * @type {string}
    * @memberof Region
    */
@@ -56,6 +62,7 @@ export interface Region {
  */
 export function instanceOfRegion(value: object): value is Region {
   if (!('idx' in value) || value['idx'] === undefined) return false
+  if (!('splitOrigin' in value) || value['splitOrigin'] === undefined) return false
   if (!('shapeKind' in value) || value['shapeKind'] === undefined) return false
   if (!('area' in value) || value['area'] === undefined) return false
   if (!('triangleStart' in value) || value['triangleStart'] === undefined) return false
@@ -73,6 +80,7 @@ export function RegionFromJSONTyped(json: any, ignoreDiscriminator: boolean): Re
   }
   return {
     idx: json['idx'],
+    splitOrigin: json['splitOrigin'],
     shapeKind: json['shapeKind'],
     area: json['area'],
     triangleStart: json['triangleStart'],
@@ -94,6 +102,7 @@ export function RegionToJSONTyped(
 
   return {
     idx: value['idx'],
+    splitOrigin: value['splitOrigin'],
     shapeKind: value['shapeKind'],
     area: value['area'],
     triangleStart: value['triangleStart'],
