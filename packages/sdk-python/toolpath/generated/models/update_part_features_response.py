@@ -7,23 +7,23 @@ from uuid import UUID
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..models.compute_feature_datasheets_response_status import ComputeFeatureDatasheetsResponseStatus
+from ..models.update_part_features_response_status import UpdatePartFeaturesResponseStatus
 
-T = TypeVar("T", bound="ComputeFeatureDatasheetsResponse")
+T = TypeVar("T", bound="UpdatePartFeaturesResponse")
 
 
 @_attrs_define
-class ComputeFeatureDatasheetsResponse:
+class UpdatePartFeaturesResponse:
     """
     Attributes:
         job_id (UUID): Identifier of the queued enrichment job.
         part_id (UUID): Identifier of the part owning the requested features.
-        status (ComputeFeatureDatasheetsResponseStatus): Initial state of the accepted enrichment job.
+        status (UpdatePartFeaturesResponseStatus): Initial state of the accepted enrichment job.
     """
 
     job_id: UUID
     part_id: UUID
-    status: ComputeFeatureDatasheetsResponseStatus
+    status: UpdatePartFeaturesResponseStatus
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -52,16 +52,16 @@ class ComputeFeatureDatasheetsResponse:
 
         part_id = UUID(d.pop("partId"))
 
-        status = ComputeFeatureDatasheetsResponseStatus(d.pop("status"))
+        status = UpdatePartFeaturesResponseStatus(d.pop("status"))
 
-        compute_feature_datasheets_response = cls(
+        update_part_features_response = cls(
             job_id=job_id,
             part_id=part_id,
             status=status,
         )
 
-        compute_feature_datasheets_response.additional_properties = d
-        return compute_feature_datasheets_response
+        update_part_features_response.additional_properties = d
+        return update_part_features_response
 
     @property
     def additional_keys(self) -> list[str]:

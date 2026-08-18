@@ -7,23 +7,23 @@ from uuid import UUID
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..models.analyze_job_response_status import AnalyzeJobResponseStatus
+from ..models.update_part_response_status import UpdatePartResponseStatus
 
-T = TypeVar("T", bound="AnalyzeJobResponse")
+T = TypeVar("T", bound="UpdatePartResponse")
 
 
 @_attrs_define
-class AnalyzeJobResponse:
+class UpdatePartResponse:
     """
     Attributes:
         job_id (UUID): Identifier of the queued analysis job.
         part_id (UUID): Identifier of the part submitted for analysis.
-        status (AnalyzeJobResponseStatus): Initial state of the accepted analysis job.
+        status (UpdatePartResponseStatus): Initial state of the accepted analysis job.
     """
 
     job_id: UUID
     part_id: UUID
-    status: AnalyzeJobResponseStatus
+    status: UpdatePartResponseStatus
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -52,16 +52,16 @@ class AnalyzeJobResponse:
 
         part_id = UUID(d.pop("partId"))
 
-        status = AnalyzeJobResponseStatus(d.pop("status"))
+        status = UpdatePartResponseStatus(d.pop("status"))
 
-        analyze_job_response = cls(
+        update_part_response = cls(
             job_id=job_id,
             part_id=part_id,
             status=status,
         )
 
-        analyze_job_response.additional_properties = d
-        return analyze_job_response
+        update_part_response.additional_properties = d
+        return update_part_response
 
     @property
     def additional_keys(self) -> list[str]:

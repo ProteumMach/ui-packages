@@ -42,7 +42,7 @@ no default environment.
    `SameSite=Lax` cookie.
 3. `POST /api/parts` calls `POST /v1/parts` and returns its short-lived, single-object PUT URL.
    The browser uploads directly to that URL, then `POST /api/parts/:partId/analyze` calls
-   `POST /v1/parts/{id}/analyze` through `@toolpath/api`.
+   `PATCH /v1/parts/{id}` through `@toolpath/api`.
 4. `GET /api/parts/:partId/events` opens an app-owned SSE connection to monitor the part-analysis
    job's queued and running progress. The server forwards Toolpath API job SSE updates as
    `analysis` events, then fetches and emits a report when the job succeeds.

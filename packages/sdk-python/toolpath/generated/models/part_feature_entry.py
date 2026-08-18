@@ -13,11 +13,11 @@ if TYPE_CHECKING:
     from ..models.feature_datasheet import FeatureDatasheet
 
 
-T = TypeVar("T", bound="FeatureDatasheetEntry")
+T = TypeVar("T", bound="PartFeatureEntry")
 
 
 @_attrs_define
-class FeatureDatasheetEntry:
+class PartFeatureEntry:
     """
     Attributes:
         feature_id (UUID): Identifier of the resolved feature.
@@ -92,15 +92,15 @@ class FeatureDatasheetEntry:
 
         datasheet = _parse_datasheet(d.pop("datasheet", UNSET))
 
-        feature_datasheet_entry = cls(
+        part_feature_entry = cls(
             feature_id=feature_id,
             feature_tag=feature_tag,
             feature_type=feature_type,
             datasheet=datasheet,
         )
 
-        feature_datasheet_entry.additional_properties = d
-        return feature_datasheet_entry
+        part_feature_entry.additional_properties = d
+        return part_feature_entry
 
     @property
     def additional_keys(self) -> list[str]:

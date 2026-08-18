@@ -5,21 +5,21 @@ const mocks = vi.hoisted(() => {
   const api = {
     parts: {
       createPart: vi.fn(),
-      analyzePart: vi.fn(),
-      getPartReport: vi.fn(),
+      updatePart: vi.fn(),
+      getPart: vi.fn(),
     },
     jobs: {
       streamJobEventsRaw: vi.fn(),
     },
     features: {
-      getFeatureDatasheets: vi.fn(),
+      getPartFeatures: vi.fn(),
     },
   }
   return { api, uploadToPresignedUrl: vi.fn() }
 })
 
 vi.mock('@toolpath/api', () => ({
-  AnalyzePartFeatureDetailsEnum: { True: 'true' },
+  UpdatePartFeatureDetailsEnum: { True: 'true' },
   createToolpathClient: vi.fn(() => mocks.api),
   JobDetailFromJSON: (value: Record<string, unknown>) => ({
     ...value,
@@ -38,7 +38,7 @@ describe('analyzePart example', () => {
       partId: 'part-1',
       uploadUrl: 'https://upload.test/part',
     })
-    mocks.api.parts.analyzePart.mockResolvedValue({ partId: 'part-1', jobId: 'job-1' })
+    mocks.api.parts.updatePart.mockResolvedValue({ partId: 'part-1', jobId: 'job-1' })
     mocks.api.jobs.streamJobEventsRaw.mockResolvedValue({
       raw: new Response(
         [
@@ -52,12 +52,13 @@ describe('analyzePart example', () => {
         ].join('\n'),
       ),
     })
-    mocks.api.parts.getPartReport.mockResolvedValue({
+    mocks.api.parts.getPart.mockResolvedValue({
       partId: 'part-1',
       reportId: 'report-1',
       jobId: 'job-1',
-      features: [],
+      features: [{ featureId: 'feature-1', featureTag: 'tag-1' }],
     })
+    mocks.api.features.getPartFeatures.mockResolvedValue({ datasheets: [], notFound: [] })
 
     const report = await analyzePart(fileURLToPath(new URL('../.env.example', import.meta.url)), {
       apiKey: 'test-key',
@@ -65,7 +66,11 @@ describe('analyzePart example', () => {
     })
 
     expect(mocks.api.jobs.streamJobEventsRaw).toHaveBeenCalledWith({ id: 'job-1' })
-    expect(mocks.api.parts.getPartReport).toHaveBeenCalledOnce()
+    expect(mocks.api.parts.getPart).toHaveBeenCalledWith({ id: 'part-1', jobId: 'job-1' })
+    expect(mocks.api.features.getPartFeatures).toHaveBeenCalledWith({
+      id: 'part-1',
+      ids: 'feature-1',
+    })
     expect(report).toMatchObject({ partId: 'part-1', reportId: 'report-1' })
   })
 })

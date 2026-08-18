@@ -9,16 +9,16 @@ from uuid import uuid4
 
 from httpx_sse import aconnect_sse
 from toolpath import AuthenticatedClient, upload_to_presigned_url
-from toolpath.generated.api.features import get_feature_datasheets
-from toolpath.generated.api.parts import analyze_part, create_part, get_part_report
+from toolpath.generated.api.features import get_part_features
+from toolpath.generated.api.parts import create_part, get_part, update_part
 from toolpath.generated.models import (
-    AnalyzeJobResponse,
-    AnalyzePartFeatureDetails,
     CreatePartResponse,
-    FeatureDatasheetsResponse,
     JobDetail,
     JobDetailStatus,
+    PartFeaturesResponse,
     PartReportResponse,
+    UpdatePartFeatureDetails,
+    UpdatePartResponse,
 )
 from toolpath.generated.types import Unset
 
@@ -54,13 +54,15 @@ async def add_feature_datasheets(
     feature_ids = list(dict.fromkeys(feature.feature_id for feature in report.features))
 
     for index in range(0, len(feature_ids), 50):
-        response = await get_feature_datasheets.asyncio(
-            client=api, ids=",".join(feature_ids[index : index + 50])
+        response = await get_part_features.asyncio(
+            str(report.part_id),
+            client=api,
+            ids=",".join(feature_ids[index : index + 50]),
         )
-        if not isinstance(response, FeatureDatasheetsResponse):
+        if not isinstance(response, PartFeaturesResponse):
             raise TypeError(f"Could not get feature datasheets: {response}")
         for entry in response.datasheets:
-            if not isinstance(entry.datasheet, Unset):
+            if entry.datasheet is not None and not isinstance(entry.datasheet, Unset):
                 datasheets_by_tag[entry.feature_tag] = entry.datasheet.to_dict()
 
     report_data = report.to_dict()
@@ -87,13 +89,13 @@ async def analyze(
 
     await upload_to_presigned_url(created.upload_url, file_path.read_bytes())
 
-    queued = await analyze_part.asyncio(
-        created.part_id,
+    queued = await update_part.asyncio(
+        str(created.part_id),
         client=api,
-        feature_details=AnalyzePartFeatureDetails.TRUE,
+        feature_details=UpdatePartFeatureDetails.TRUE,
         idempotency_key=str(uuid4()),
     )
-    if not isinstance(queued, AnalyzeJobResponse):
+    if not isinstance(queued, UpdatePartResponse):
         raise TypeError(f"Could not start analysis: {queued}")
     print(f"Analysis started as job {queued.job_id}", file=sys.stderr)
 
@@ -101,7 +103,7 @@ async def analyze(
     if job.status is JobDetailStatus.FAILED:
         raise RuntimeError(job.error or "The Toolpath Engine could not analyze this part.")
 
-    report = await get_part_report.asyncio(client=api, id=created.part_id, job_id=queued.job_id)
+    report = await get_part.asyncio(client=api, id=str(created.part_id), job_id=str(queued.job_id))
     if not isinstance(report, PartReportResponse):
         raise TypeError(f"Could not get the report: {report}")
     return await add_feature_datasheets(api, report)

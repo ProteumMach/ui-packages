@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Toolpath Engine API",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "Public REST API for Toolpath engine operations.\n\n**Units.** All dimensional values — in reports and in feature datasheets — are in\nmillimetres; all angles are in degrees. Each report also states this in its `units` field.\n\n**Browser use.** CORS is per API key: a request only receives an\n`Access-Control-Allow-Origin` header when its `Origin` is in the allowlist configured on the\nkey used (set when creating or editing the key in the portal). A key with no allowed origins\nis server-to-server only. A Bearer API key placed in client-side JavaScript is readable by\nanyone — restrict its origins, prefer a `read_only` key (read_only keys may call GET\noperations only; writes are rejected with 403), or proxy requests through your own server."
   },
   "tags": [
@@ -20,7 +20,7 @@
     },
     {
       "name": "Features",
-      "description": "Per-feature datasheet operations."
+      "description": "Part feature operations."
     },
     {
       "name": "Jobs",
@@ -182,7 +182,7 @@
           "sourceS3Key"
         ]
       },
-      "AnalyzeJobResponse": {
+      "UpdatePartResponse": {
         "type": "object",
         "properties": {
           "jobId": {
@@ -527,7 +527,7 @@
           "zMax"
         ]
       },
-      "ComputeFeatureDatasheetsResponse": {
+      "UpdatePartFeaturesResponse": {
         "type": "object",
         "properties": {
           "jobId": {
@@ -554,7 +554,7 @@
           "status"
         ]
       },
-      "ComputeFeatureDatasheetsRequest": {
+      "UpdatePartFeaturesRequest": {
         "type": "object",
         "properties": {
           "featureIds": {
@@ -571,13 +571,13 @@
           "featureIds"
         ]
       },
-      "FeatureDatasheetsResponse": {
+      "PartFeaturesResponse": {
         "type": "object",
         "properties": {
           "datasheets": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/FeatureDatasheetEntry"
+              "$ref": "#/components/schemas/PartFeatureEntry"
             },
             "description": "Datasheets for requested features that belong to the authorized organization."
           },
@@ -594,7 +594,7 @@
           "notFound"
         ]
       },
-      "FeatureDatasheetEntry": {
+      "PartFeatureEntry": {
         "type": "object",
         "properties": {
           "featureId": {
@@ -1790,13 +1790,13 @@
         }
       }
     },
-    "/v1/parts/{id}/analyze": {
-      "post": {
-        "operationId": "analyzePart",
+    "/v1/parts/{id}": {
+      "patch": {
+        "operationId": "updatePart",
         "tags": [
           "Parts"
         ],
-        "summary": "Start part analysis",
+        "summary": "Queue part analysis",
         "parameters": [
           {
             "schema": {
@@ -1842,7 +1842,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AnalyzeJobResponse"
+                  "$ref": "#/components/schemas/UpdatePartResponse"
                 }
               }
             }
@@ -1908,15 +1908,13 @@
             }
           }
         }
-      }
-    },
-    "/v1/parts/{id}/report": {
+      },
       "get": {
-        "operationId": "getPartReport",
+        "operationId": "getPart",
         "tags": [
           "Parts"
         ],
-        "summary": "Get the latest part report",
+        "summary": "Get the analyzed part",
         "parameters": [
           {
             "schema": {
@@ -2005,18 +2003,30 @@
         }
       }
     },
-    "/v1/features/datasheets": {
-      "post": {
-        "operationId": "computeFeatureDatasheets",
+    "/v1/parts/{id}/features": {
+      "patch": {
+        "operationId": "updatePartFeatures",
         "tags": [
           "Features"
         ],
-        "summary": "Queue datasheet computation for a list of features",
+        "summary": "Queue processing for selected part features",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "0195f02c-4b4a-7b5d-9b6e-8f139d5e2820"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ComputeFeatureDatasheetsRequest"
+                "$ref": "#/components/schemas/UpdatePartFeaturesRequest"
               }
             }
           }
@@ -2027,13 +2037,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ComputeFeatureDatasheetsResponse"
+                  "$ref": "#/components/schemas/UpdatePartFeaturesResponse"
                 }
               }
             }
           },
           "400": {
-            "description": "The request is invalid, or the features span more than one part.",
+            "description": "The request is invalid.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2053,7 +2063,7 @@
             }
           },
           "404": {
-            "description": "None of the features exist in the authorized organization.",
+            "description": "The part or selected features do not exist in the authorized organization.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2095,12 +2105,22 @@
         }
       },
       "get": {
-        "operationId": "getFeatureDatasheets",
+        "operationId": "getPartFeatures",
         "tags": [
           "Features"
         ],
-        "summary": "Get datasheets for a list of features",
+        "summary": "Get selected features for a part",
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "0195f02c-4b4a-7b5d-9b6e-8f139d5e2820"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
           {
             "schema": {
               "type": "string",
@@ -2119,7 +2139,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FeatureDatasheetsResponse"
+                  "$ref": "#/components/schemas/PartFeaturesResponse"
                 }
               }
             }
@@ -2144,8 +2164,18 @@
               }
             }
           },
+          "404": {
+            "description": "The part does not exist in the authorized organization.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "500": {
-            "description": "The feature datasheets could not be retrieved.",
+            "description": "The part features could not be retrieved.",
             "content": {
               "application/problem+json": {
                 "schema": {

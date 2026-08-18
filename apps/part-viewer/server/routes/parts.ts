@@ -3,7 +3,7 @@ import type { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { z } from 'zod'
 import { isSupportedCadFilename } from '../../app/shared/cad'
-import { AnalyzePartFeatureDetailsEnum } from '@toolpath/api'
+import { UpdatePartFeatureDetailsEnum } from '@toolpath/api'
 import { createEngineClient, requireData } from '../engine'
 import { requireApiKey } from '../connection'
 import type { AppEnv } from '../types'
@@ -28,11 +28,11 @@ export const registerPartRoutes = (app: Hono<AppEnv>) => {
     const apiKey = await requireApiKey(c)
     const { partId } = c.req.valid('param')
     const analysis = await requireData(
-      createEngineClient(apiKey).parts.analyzePart({
+      createEngineClient(apiKey).parts.updatePart({
         id: partId,
-        // Reports no longer embed these measurements. Ask Engine to compute them so the
-        // ready-report path can retrieve them from /v1/features/datasheets.
-        featureDetails: AnalyzePartFeatureDetailsEnum.True,
+        // Reports no longer embed these measurements. Ask Engine to compute them so the ready
+        // report path can retrieve them from the part-scoped features endpoint.
+        featureDetails: UpdatePartFeatureDetailsEnum.True,
         idempotencyKey: crypto.randomUUID(),
       }),
       'start analysis',

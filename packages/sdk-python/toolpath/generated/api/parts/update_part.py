@@ -6,16 +6,16 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.analyze_job_response import AnalyzeJobResponse
-from ...models.analyze_part_feature_details import AnalyzePartFeatureDetails
 from ...models.problem_details import ProblemDetails
+from ...models.update_part_feature_details import UpdatePartFeatureDetails
+from ...models.update_part_response import UpdatePartResponse
 from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
     id: str,
     *,
-    feature_details: AnalyzePartFeatureDetails | Unset = AnalyzePartFeatureDetails.FALSE,
+    feature_details: UpdatePartFeatureDetails | Unset = UpdatePartFeatureDetails.FALSE,
     idempotency_key: str | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
@@ -33,8 +33,8 @@ def _get_kwargs(
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
-        "method": "post",
-        "url": "/v1/parts/{id}/analyze".format(
+        "method": "patch",
+        "url": "/v1/parts/{id}".format(
             id=quote(str(id), safe=""),
         ),
         "params": params,
@@ -46,9 +46,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> AnalyzeJobResponse | ProblemDetails | None:
+) -> ProblemDetails | UpdatePartResponse | None:
     if response.status_code == 202:
-        response_202 = AnalyzeJobResponse.from_dict(response.json())
+        response_202 = UpdatePartResponse.from_dict(response.json())
 
         return response_202
 
@@ -90,7 +90,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[AnalyzeJobResponse | ProblemDetails]:
+) -> Response[ProblemDetails | UpdatePartResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -103,15 +103,15 @@ def sync_detailed(
     id: str,
     *,
     client: AuthenticatedClient | Client,
-    feature_details: AnalyzePartFeatureDetails | Unset = AnalyzePartFeatureDetails.FALSE,
+    feature_details: UpdatePartFeatureDetails | Unset = UpdatePartFeatureDetails.FALSE,
     idempotency_key: str | Unset = UNSET,
-) -> Response[AnalyzeJobResponse | ProblemDetails]:
-    """Start part analysis
+) -> Response[ProblemDetails | UpdatePartResponse]:
+    """Queue part analysis
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        feature_details (AnalyzePartFeatureDetails | Unset): When true, enrich recognized features
-            into per-feature datasheets. Defaults to false. Default: AnalyzePartFeatureDetails.FALSE.
+        feature_details (UpdatePartFeatureDetails | Unset): When true, enrich recognized features
+            into per-feature datasheets. Defaults to false. Default: UpdatePartFeatureDetails.FALSE.
             Example: true.
         idempotency_key (str | Unset):  Example: analysis-request-123.
 
@@ -120,7 +120,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[AnalyzeJobResponse | ProblemDetails]
+        Response[ProblemDetails | UpdatePartResponse]
     """
 
     kwargs = _get_kwargs(
@@ -140,15 +140,15 @@ def sync(
     id: str,
     *,
     client: AuthenticatedClient | Client,
-    feature_details: AnalyzePartFeatureDetails | Unset = AnalyzePartFeatureDetails.FALSE,
+    feature_details: UpdatePartFeatureDetails | Unset = UpdatePartFeatureDetails.FALSE,
     idempotency_key: str | Unset = UNSET,
-) -> AnalyzeJobResponse | ProblemDetails | None:
-    """Start part analysis
+) -> ProblemDetails | UpdatePartResponse | None:
+    """Queue part analysis
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        feature_details (AnalyzePartFeatureDetails | Unset): When true, enrich recognized features
-            into per-feature datasheets. Defaults to false. Default: AnalyzePartFeatureDetails.FALSE.
+        feature_details (UpdatePartFeatureDetails | Unset): When true, enrich recognized features
+            into per-feature datasheets. Defaults to false. Default: UpdatePartFeatureDetails.FALSE.
             Example: true.
         idempotency_key (str | Unset):  Example: analysis-request-123.
 
@@ -157,7 +157,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        AnalyzeJobResponse | ProblemDetails
+        ProblemDetails | UpdatePartResponse
     """
 
     return sync_detailed(
@@ -172,15 +172,15 @@ async def asyncio_detailed(
     id: str,
     *,
     client: AuthenticatedClient | Client,
-    feature_details: AnalyzePartFeatureDetails | Unset = AnalyzePartFeatureDetails.FALSE,
+    feature_details: UpdatePartFeatureDetails | Unset = UpdatePartFeatureDetails.FALSE,
     idempotency_key: str | Unset = UNSET,
-) -> Response[AnalyzeJobResponse | ProblemDetails]:
-    """Start part analysis
+) -> Response[ProblemDetails | UpdatePartResponse]:
+    """Queue part analysis
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        feature_details (AnalyzePartFeatureDetails | Unset): When true, enrich recognized features
-            into per-feature datasheets. Defaults to false. Default: AnalyzePartFeatureDetails.FALSE.
+        feature_details (UpdatePartFeatureDetails | Unset): When true, enrich recognized features
+            into per-feature datasheets. Defaults to false. Default: UpdatePartFeatureDetails.FALSE.
             Example: true.
         idempotency_key (str | Unset):  Example: analysis-request-123.
 
@@ -189,7 +189,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[AnalyzeJobResponse | ProblemDetails]
+        Response[ProblemDetails | UpdatePartResponse]
     """
 
     kwargs = _get_kwargs(
@@ -207,15 +207,15 @@ async def asyncio(
     id: str,
     *,
     client: AuthenticatedClient | Client,
-    feature_details: AnalyzePartFeatureDetails | Unset = AnalyzePartFeatureDetails.FALSE,
+    feature_details: UpdatePartFeatureDetails | Unset = UpdatePartFeatureDetails.FALSE,
     idempotency_key: str | Unset = UNSET,
-) -> AnalyzeJobResponse | ProblemDetails | None:
-    """Start part analysis
+) -> ProblemDetails | UpdatePartResponse | None:
+    """Queue part analysis
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        feature_details (AnalyzePartFeatureDetails | Unset): When true, enrich recognized features
-            into per-feature datasheets. Defaults to false. Default: AnalyzePartFeatureDetails.FALSE.
+        feature_details (UpdatePartFeatureDetails | Unset): When true, enrich recognized features
+            into per-feature datasheets. Defaults to false. Default: UpdatePartFeatureDetails.FALSE.
             Example: true.
         idempotency_key (str | Unset):  Example: analysis-request-123.
 
@@ -224,7 +224,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        AnalyzeJobResponse | ProblemDetails
+        ProblemDetails | UpdatePartResponse
     """
 
     return (

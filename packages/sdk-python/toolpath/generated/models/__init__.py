@@ -1,24 +1,16 @@
 """Contains all the data models used in inputs/outputs"""
 
-from .analyze_job_response import AnalyzeJobResponse
-from .analyze_job_response_status import AnalyzeJobResponseStatus
-from .analyze_part_feature_details import AnalyzePartFeatureDetails
 from .bevel_facts import BevelFacts
 from .boss_facts import BossFacts
 from .cd_bounds import CdBounds
 from .cd_data import CdData
 from .chamfer_facts import ChamferFacts
-from .compute_feature_datasheets_request import ComputeFeatureDatasheetsRequest
-from .compute_feature_datasheets_response import ComputeFeatureDatasheetsResponse
-from .compute_feature_datasheets_response_status import ComputeFeatureDatasheetsResponseStatus
 from .create_part_response import CreatePartResponse
 from .direction_z_bounds import DirectionZBounds
 from .direction_z_bounds_direction import DirectionZBoundsDirection
 from .dovetail_facts import DovetailFacts
 from .face_facts import FaceFacts
 from .feature_datasheet import FeatureDatasheet
-from .feature_datasheet_entry import FeatureDatasheetEntry
-from .feature_datasheets_response import FeatureDatasheetsResponse
 from .feature_type import FeatureType
 from .health_response import HealthResponse
 from .health_response_db import HealthResponseDb
@@ -36,7 +28,9 @@ from .list_jobs_status import ListJobsStatus
 from .open_api_document import OpenApiDocument
 from .part_feature import PartFeature
 from .part_feature_axis import PartFeatureAxis
+from .part_feature_entry import PartFeatureEntry
 from .part_feature_machining_direction import PartFeatureMachiningDirection
+from .part_features_response import PartFeaturesResponse
 from .part_report_response import PartReportResponse
 from .part_report_response_units import PartReportResponseUnits
 from .pocket_facts import PocketFacts
@@ -54,30 +48,28 @@ from .threading import Threading
 from .tolerance_band import ToleranceBand
 from .tool_fit_result import ToolFitResult
 from .tslot_facts import TslotFacts
+from .update_part_feature_details import UpdatePartFeatureDetails
+from .update_part_features_request import UpdatePartFeaturesRequest
+from .update_part_features_response import UpdatePartFeaturesResponse
+from .update_part_features_response_status import UpdatePartFeaturesResponseStatus
+from .update_part_response import UpdatePartResponse
+from .update_part_response_status import UpdatePartResponseStatus
 from .vec_2 import Vec2
 from .vec_3 import Vec3
 from .wall_facts import WallFacts
 
 __all__ = (
-    "AnalyzeJobResponse",
-    "AnalyzeJobResponseStatus",
-    "AnalyzePartFeatureDetails",
     "BevelFacts",
     "BossFacts",
     "CdBounds",
     "CdData",
     "ChamferFacts",
-    "ComputeFeatureDatasheetsRequest",
-    "ComputeFeatureDatasheetsResponse",
-    "ComputeFeatureDatasheetsResponseStatus",
     "CreatePartResponse",
     "DirectionZBounds",
     "DirectionZBoundsDirection",
     "DovetailFacts",
     "FaceFacts",
     "FeatureDatasheet",
-    "FeatureDatasheetEntry",
-    "FeatureDatasheetsResponse",
     "FeatureType",
     "HealthResponse",
     "HealthResponseDb",
@@ -95,7 +87,9 @@ __all__ = (
     "OpenApiDocument",
     "PartFeature",
     "PartFeatureAxis",
+    "PartFeatureEntry",
     "PartFeatureMachiningDirection",
+    "PartFeaturesResponse",
     "PartReportResponse",
     "PartReportResponseUnits",
     "PocketFacts",
@@ -113,6 +107,12 @@ __all__ = (
     "ToleranceBand",
     "ToolFitResult",
     "TslotFacts",
+    "UpdatePartFeatureDetails",
+    "UpdatePartFeaturesRequest",
+    "UpdatePartFeaturesResponse",
+    "UpdatePartFeaturesResponseStatus",
+    "UpdatePartResponse",
+    "UpdatePartResponseStatus",
     "Vec2",
     "Vec3",
     "WallFacts",

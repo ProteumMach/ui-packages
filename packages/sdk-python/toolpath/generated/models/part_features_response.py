@@ -7,22 +7,22 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 if TYPE_CHECKING:
-    from ..models.feature_datasheet_entry import FeatureDatasheetEntry
+    from ..models.part_feature_entry import PartFeatureEntry
 
 
-T = TypeVar("T", bound="FeatureDatasheetsResponse")
+T = TypeVar("T", bound="PartFeaturesResponse")
 
 
 @_attrs_define
-class FeatureDatasheetsResponse:
+class PartFeaturesResponse:
     """
     Attributes:
-        datasheets (list[FeatureDatasheetEntry]): Datasheets for requested features that belong to the authorized
+        datasheets (list[PartFeatureEntry]): Datasheets for requested features that belong to the authorized
             organization.
         not_found (list[str]): Requested feature identifiers that were unknown or inaccessible to this organization.
     """
 
-    datasheets: list[FeatureDatasheetEntry]
+    datasheets: list[PartFeatureEntry]
     not_found: list[str]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -47,25 +47,25 @@ class FeatureDatasheetsResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.feature_datasheet_entry import FeatureDatasheetEntry
+        from ..models.part_feature_entry import PartFeatureEntry
 
         d = dict(src_dict)
         datasheets = []
         _datasheets = d.pop("datasheets")
         for datasheets_item_data in _datasheets:
-            datasheets_item = FeatureDatasheetEntry.from_dict(datasheets_item_data)
+            datasheets_item = PartFeatureEntry.from_dict(datasheets_item_data)
 
             datasheets.append(datasheets_item)
 
         not_found = cast(list[str], d.pop("notFound"))
 
-        feature_datasheets_response = cls(
+        part_features_response = cls(
             datasheets=datasheets,
             not_found=not_found,
         )
 
-        feature_datasheets_response.additional_properties = d
-        return feature_datasheets_response
+        part_features_response.additional_properties = d
+        return part_features_response
 
     @property
     def additional_keys(self) -> list[str]:

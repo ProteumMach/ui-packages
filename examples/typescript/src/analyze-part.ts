@@ -4,9 +4,9 @@ import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { createParser } from 'eventsource-parser'
 import {
-  AnalyzePartFeatureDetailsEnum,
+  UpdatePartFeatureDetailsEnum,
   createToolpathClient,
-  type FeatureDatasheetEntry,
+  type PartFeatureEntry,
   type JobDetail,
   type PartReportResponse,
   JobDetailFromJSON,
@@ -24,7 +24,7 @@ interface AnalyzePartOptions {
 type ReportWithDatasheets = Omit<PartReportResponse, 'features'> & {
   features: Array<
     PartReportResponse['features'][number] & {
-      datasheet: FeatureDatasheetEntry['datasheet'] | null
+      datasheet: PartFeatureEntry['datasheet'] | null
     }
   >
 }
@@ -94,10 +94,11 @@ const getWholePartReport = async (
   report: PartReportResponse,
 ): Promise<ReportWithDatasheets> => {
   const featureIds = [...new Set(report.features.map((feature) => feature.featureId))]
-  const datasheetsByTag = new Map<string, FeatureDatasheetEntry['datasheet']>()
+  const datasheetsByTag = new Map<string, PartFeatureEntry['datasheet']>()
 
   for (let index = 0; index < featureIds.length; index += 50) {
-    const response = await api.features.getFeatureDatasheets({
+    const response = await api.features.getPartFeatures({
+      id: report.partId,
       ids: featureIds.slice(index, index + 50).join(','),
     })
     for (const entry of response.datasheets) {
@@ -129,9 +130,9 @@ export const analyzePart = async (
 
   await uploadToPresignedUrl(created.uploadUrl, await readFile(filePath), { fetch })
 
-  const analysis = await api.parts.analyzePart({
+  const analysis = await api.parts.updatePart({
     id: created.partId,
-    featureDetails: AnalyzePartFeatureDetailsEnum.True,
+    featureDetails: UpdatePartFeatureDetailsEnum.True,
     idempotencyKey: randomUUID(),
   })
   onStatus(`Analysis started as job ${analysis.jobId}`)
@@ -140,7 +141,7 @@ export const analyzePart = async (
   if (job.status === 'failed') {
     throw new Error(job.error ?? 'The Toolpath Engine could not analyze this part.')
   }
-  const report = await api.parts.getPartReport({ id: created.partId, jobId: analysis.jobId })
+  const report = await api.parts.getPart({ id: created.partId, jobId: analysis.jobId })
   return getWholePartReport(api, report)
 }
 

@@ -17,7 +17,7 @@ const client = createToolpathClient({ apiKey: process.env.TOOLPATH_API_KEY! })
 const part = await client.parts.createPart({ filename: 'bracket.step' })
 
 await uploadToPresignedUrl(part.uploadUrl, stepFileBytes)
-const analysis = await client.parts.analyzePart({ id: part.partId })
+const analysis = await client.parts.updatePart({ id: part.partId })
 ```
 
 The SDK exports generated request, response, and API types from the Toolpath OpenAPI contract. See the

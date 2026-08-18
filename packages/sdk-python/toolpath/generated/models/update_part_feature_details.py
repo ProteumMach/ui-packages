@@ -1,8 +1,9 @@
 from enum import Enum
 
 
-class ComputeFeatureDatasheetsResponseStatus(str, Enum):
-    QUEUED = "queued"
+class UpdatePartFeatureDetails(str, Enum):
+    FALSE = "false"
+    TRUE = "true"
 
     def __str__(self) -> str:
         return str(self.value)
