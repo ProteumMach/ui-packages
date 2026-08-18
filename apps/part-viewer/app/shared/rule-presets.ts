@@ -40,6 +40,11 @@ const THREADED_HOLE = EngineFeatureType.ThreadedBlindHole
  */
 const CAVITIES: ReadonlyArray<FeatureType> = [
   EngineFeatureType.FilletedOpenPocket,
+  // A closed pocket with a blended floor, which this list has now been missing
+  // twice: it is a cavity by every reading, and without it five rules skip the
+  // type — the narrowest cut, wall height, sharp corners, the milling radius
+  // range and the standard floor radii it is reported against.
+  EngineFeatureType.FilletedPocket,
   EngineFeatureType.OpenPocket,
   EngineFeatureType.Pocket,
   EngineFeatureType.ThroughPocket,
@@ -102,7 +107,12 @@ export const DEFAULT_RULES: ReadonlyArray<Rule> = [
     noGo: 12,
     weight: 14,
     enabled: true,
-    featureTypes: MILLED,
+    // Everything an endmill makes, and the holes one makes too: a bore
+    // bottomed at 180° is flat, and a flat bottom is not something a drill
+    // leaves. The metric stands down on a hole bottomed by a point, so a
+    // drilled hole in this audience is judged by the drilling ratio and says
+    // nothing here rather than being judged twice.
+    featureTypes: [...MILLED, ...HOLES],
     note: 'Reach against the widest endmill the corners allow. Long and thin means chatter, and a tool hanging out of the holder.',
   },
   {

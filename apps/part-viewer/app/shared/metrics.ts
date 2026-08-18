@@ -582,6 +582,29 @@ const nestedNumber = (
   return stated(typeof found.value === 'number' || found.value === null ? found.value : undefined)
 }
 
+/** How far off 180° a bottom can be and still be flat, in degrees. */
+const FLAT_WITHIN = 0.5
+
+/**
+ * Whether an endmill is what makes this feature.
+ *
+ * Everything that is not a hole, plus the holes that are: a bore bottomed at
+ * 180° has a flat bottom, and a flat bottom is not something a drill leaves —
+ * it is milled or bored, and the milling reach is the ratio that describes it.
+ * A hole bottomed by a point is drilled, and the drilling ratio answers for it
+ * against the bore rather than against a cutter.
+ *
+ * A hole that reports no point angle is left to the drill: claiming it is
+ * milled would be inventing the one fact this turns on.
+ */
+const milled = (datasheet: FeatureDatasheet): boolean => {
+  if (factsOf(datasheet)?.kind !== 'Hole') return true
+
+  const tip = kindNumber(datasheet, 'Hole', 'fullConeDeg')
+
+  return tip !== null && Math.abs(tip - 180) <= FLAT_WITHIN
+}
+
 /** A fact only one `facts.kind` carries, read only from that kind. */
 const onKind = <K extends FactsKind>(
   datasheet: FeatureDatasheet,
@@ -645,11 +668,18 @@ export const METRICS: ReadonlyArray<MetricSpec> = [
     quantity: 'ratio',
     formula: (datasheet) => `part top − ${zPath(datasheet, 'min')} ÷ facts.cd.ignore.min`,
     note: 'Reach below the top of the part against the widest endmill the feature allows. Long and thin means chatter, and a tool hanging out of the holder.',
-    read: (datasheet, context) => ratio(reachOf(datasheet, context), requiredCutter(datasheet)),
-    sources: (datasheet, context) => [
-      ...reachSources(datasheet, context),
-      ...requiredCutterSources(datasheet),
-    ],
+    read: (datasheet, context) =>
+      milled(datasheet) ? ratio(reachOf(datasheet, context), requiredCutter(datasheet)) : null,
+    sources: (datasheet, context) =>
+      milled(datasheet)
+        ? [...reachSources(datasheet, context), ...requiredCutterSources(datasheet)]
+        : [
+            {
+              path: 'facts.fullConeDeg',
+              value: kindNumber(datasheet, 'Hole', 'fullConeDeg'),
+              note: 'a hole bottomed by a point is drilled, not milled — the drilling ratio answers for it',
+            },
+          ],
   },
   {
     id: 'drillingLD',

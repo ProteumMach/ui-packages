@@ -205,3 +205,63 @@ describe('a corner radius is not a cutter', () => {
     expect(metrics.minRadius).toBeCloseTo(3.175, 6)
   })
 })
+
+describe('which reach ratio a hole gets', () => {
+  const hole = (facts: Record<string, unknown>) =>
+    ({
+      featureTag: 'hole-1',
+      featureType: 'blind_hole',
+      regionIdxs: [0],
+      machiningDirection: { x: 0, y: 0, z: 1 },
+      axis: { x: 0, y: 0, z: 1 },
+      datasheet: {
+        facts: { kind: 'Hole', diameter: 6.35, cd: { ignore: { min: 6.35 } }, ...facts },
+        zMax: 0,
+        zMin: -25.4,
+        extendedZMax: 0,
+        extendedZMin: -25.4,
+      },
+    }) as unknown as PartFeature
+
+  test('a flat bottom is milled, so the milling reach applies', () => {
+    // 180° is a flat bottom, and a flat bottom is not something a drill leaves.
+    const metrics = readMetrics(hole({ fullConeDeg: 180 }))
+
+    expect(metrics.millingLD).toBeCloseTo(4, 6)
+    expect(metrics.drillingLD).toBeCloseTo(4, 6)
+  })
+
+  test('a pointed bottom is drilled, so the milling reach says nothing', () => {
+    const metrics = readMetrics(hole({ fullConeDeg: 118 }))
+
+    expect(metrics.millingLD).toBe(null)
+    expect(metrics.drillingLD).toBeCloseTo(4, 6)
+  })
+
+  test('a hole that reports no point angle is left to the drill', () => {
+    // Claiming it is milled would be inventing the one fact this turns on.
+    expect(readMetrics(hole({})).millingLD).toBe(null)
+  })
+
+  test('says which way it read the hole, where the working is shown', () => {
+    const [reading] = metricSources('millingLD', hole({ fullConeDeg: 118 }))
+
+    expect(reading?.note).toContain('drilled, not milled')
+  })
+
+  test('leaves everything an endmill makes alone', () => {
+    const pocket = {
+      ...hole({}),
+      featureType: 'pocket',
+      datasheet: {
+        facts: { kind: 'Pocket', cd: { ignore: { min: 6.35 } } },
+        zMax: 0,
+        zMin: -25.4,
+        extendedZMax: 0,
+        extendedZMin: -25.4,
+      },
+    } as unknown as PartFeature
+
+    expect(readMetrics(pocket).millingLD).toBeCloseTo(4, 6)
+  })
+})

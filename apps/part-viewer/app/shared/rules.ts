@@ -31,6 +31,26 @@ import {
  * `no go` is a hard limit rather than another step on the scale: a rule can
  * leave it unset and simply keep scaling.
  */
+/**
+ * Whether two names mean one feature type.
+ *
+ * There are two vocabularies for the same thing and they meet here. A report's
+ * `features[].featureType` reads `filleted_pocket`; the SDK's `FeatureType`
+ * enum — which the shipped audiences are written in — reads `FilletedPocket`.
+ * Compared literally they never match, and a rule aimed at 33 types judges
+ * none of them while saying it applies to all of them, which is the worst way
+ * to be wrong: the panel says the rule is in force and the feature says the
+ * rule is about something else.
+ *
+ * So the comparison is on the letters, ignoring case and separators. It costs
+ * a `toLowerCase` per rule per feature and it survives the kernel changing its
+ * mind about spelling again.
+ */
+const sameType = (a: string, b: string): boolean => plainType(a) === plainType(b)
+
+export const plainType = (type: string): string =>
+  type.replaceAll('_', '').replaceAll('-', '').toLowerCase()
+
 export const BANDS = ['easy', 'alright', 'meh', 'rats', 'no go'] as const
 
 export type Band = (typeof BANDS)[number]
@@ -617,7 +637,10 @@ export const evaluateRule = (
     return null
   }
 
-  if (rule.featureTypes.length > 0 && !rule.featureTypes.includes(featureType)) {
+  if (
+    rule.featureTypes.length > 0 &&
+    !rule.featureTypes.some((each) => sameType(each, featureType))
+  ) {
     return null
   }
 
@@ -625,7 +648,11 @@ export const evaluateRule = (
   // can be missing: a feature either is one of the types this rule has an
   // opinion about or it is not.
   if (rule.type === 'baseline') {
-    return rule.bands[featureType] ?? null
+    return (
+      rule.bands[featureType] ??
+      Object.entries(rule.bands).find(([type]) => sameType(type, featureType))?.[1] ??
+      null
+    )
   }
 
   const value = readValue(rule, metrics)
