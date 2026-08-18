@@ -19,9 +19,10 @@ import './style.css'
  * A part the viewer can render, built by hand rather than fetched.
  *
  * A real one comes from `normalizePartReport(report)`. This is the same shape:
- * regions are half-open triangle ranges that tile the mesh completely, and
- * features name the regions they own. `buildRegionIndex` inverts that mapping
- * and rejects a table with a gap or an overlap.
+ * regions are half-open triangle ranges that tile the mesh completely,
+ * `splitOrigin` groups regions derived from one original face, and features
+ * name the regions they own. `buildRegionIndex` inverts that mapping and
+ * rejects a table with a gap or an overlap.
  */
 const cubeFaces = [
   { tag: 'right-face', direction: { x: 1, y: 0, z: 0 } },
@@ -34,6 +35,8 @@ const cubeFaces = [
 
 const regions = cubeFaces.map((_face, idx) => ({
   idx,
+  // This example has no analysis splits, so every region is its own origin.
+  splitOrigin: idx,
   shapeKind: 'Plane',
   area: 25.4 * 25.4,
   triangles: { start: idx * 2, end: idx * 2 + 2 },
