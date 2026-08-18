@@ -49,7 +49,7 @@ export interface PartObject {
   paintRegion(region: number, color: number, weight: number): void
   /** What a region is painted with now. `null` for a region it does not have. */
   regionPaint(region: number): RegionPaint | null
-  /** Paints every region a feature owns. */
+  /** Paints every region the feature explicitly owns. */
   paintFeature(tag: FeatureTag, color: number, weight: number): void
   clearPaint(): void
   /** A feature's bounds in part space, for framing. `null` if it has none. */
@@ -70,8 +70,10 @@ export interface RegionPaint {
   readonly weight: number
 }
 
-/** The part of a `PartModel` the buffer builders need. */
-type RegionTable = Pick<PartModel, 'regions'>
+/** The part of a region table the buffer builders need. */
+type RegionTable = {
+  readonly regions: readonly Pick<PartModel['regions'][number], 'idx' | 'triangles'>[]
+}
 
 /**
  * Maps a region's `idx` to its column in the state texture.

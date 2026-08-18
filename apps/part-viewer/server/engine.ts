@@ -107,10 +107,10 @@ export const getPartReport = async (
   jobId: string | null,
 ): Promise<PartReport | null> => {
   try {
-    return (await createEngineClient(apiKey).parts.getPart({
+    return await createEngineClient(apiKey).parts.getPart({
       id: partId,
       jobId: jobId ?? undefined,
-    })) as PartReport
+    })
   } catch (error) {
     if (error instanceof ResponseError && error.response.status === 404) return null
     if (error instanceof ResponseError) {

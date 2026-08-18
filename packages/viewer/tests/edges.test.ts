@@ -13,7 +13,7 @@ import { cubeModel, loadMeshFixture } from './fixtures.js'
  */
 
 function region(idx: number, start: number, end: number): PartModelRegion {
-  return { idx, shapeKind: 'Plane', area: 1, triangles: { start, end } }
+  return { idx, splitOrigin: idx, shapeKind: 'Plane', area: 1, triangles: { start, end } }
 }
 
 function model(

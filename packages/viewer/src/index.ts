@@ -42,7 +42,7 @@ export {
 } from './render/view-cube.js'
 export { gridGeometry, gridSpec } from './render/grid.js'
 export { regionEdgesGeometry } from './render/edges.js'
-export { CONTINUES_WITHIN, visualSurfaces } from './model/surfaces.js'
+export { visualSurfaces } from './model/surfaces.js'
 export { CadCameraControls } from './camera.js'
 export {
   CAD_CAMERA_UP,

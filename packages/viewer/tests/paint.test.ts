@@ -199,7 +199,7 @@ describe('applyHighlightLayers — the order is the specification', () => {
   })
 })
 
-describe('a split is not a hole in the highlight', () => {
+describe('feature highlights respect post-split ownership', () => {
   /**
    * The Engine divides a surface where that makes a better machining plan. One
    * face of the cube, cut into its two triangles: still one flat face, and two
@@ -243,25 +243,24 @@ describe('a split is not a hole in the highlight', () => {
     }
   }
 
-  it('carries a paint across a split nobody else claims', async () => {
+  it('does not paint a split-origin sibling the feature does not own', async () => {
     const { part, kept, cut, tag } = await splitFace()
 
-    // The feature owns only the half the region index knows about; the other
-    // half was bare, which reads as a hole in the highlight rather than a
-    // split in the plan.
+    // Visual continuity and feature ownership are separate: splitOrigin is
+    // used to suppress analysis-only mesh seams, not to widen a feature.
     paint(part, { selection: [tag] })
 
     expect(part.regionPaint(kept)?.color).toBe(quantized(part, DEFAULT_THEME.highlight))
-    expect(part.regionPaint(cut)?.color).toBe(quantized(part, DEFAULT_THEME.highlight))
+    expect(part.regionPaint(cut)?.weight).toBe(0)
   })
 
-  it('leaves a surface two paints disagree over alone', async () => {
+  it('lets a named sibling region retain its own paint', async () => {
     const { part, kept, cut, tag } = await splitFace()
 
     paint(part, { selection: [tag], regionHighlights: [{ region: cut, color: BAND, weight: 1 }] })
 
-    // Two claims on one surface is the reason it was split. Neither spreads
-    // over the other.
+    // The selection covers its owned region; the neighbouring split sibling
+    // keeps the more-specific paint assigned directly to it.
     expect(part.regionPaint(kept)?.color).toBe(quantized(part, DEFAULT_THEME.highlight))
     expect(part.regionPaint(cut)?.color).toBe(quantized(part, BAND))
   })

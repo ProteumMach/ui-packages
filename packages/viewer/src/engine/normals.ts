@@ -11,10 +11,9 @@ import { visualSurfaces } from '../model/surfaces.js'
  * triangle its own normal, which is honest but leaves a bore looking like a
  * fifty-sided nut, because that is exactly what its triangles are.
  *
- * Neither is necessary here, because the report says which triangles belong to
- * one analytic surface. Averaging *within* a region and never *across* one
- * gives a bore that shades like a bore and an edge that stays an edge: the
- * distinction a mesh cannot express is one the region table can.
+ * The report says which post-split regions came from one original B-rep face.
+ * Averaging within that exact visual surface and never across one gives a bore
+ * that shades like a bore and an edge that stays an edge.
  *
  * Two vertices are the same point if their coordinates match exactly. That is
  * safe rather than optimistic — `toNonIndexed` copies each shared vertex from
@@ -39,8 +38,8 @@ export function smoothRegionNormals(
   //
   // Surfaces rather than regions, because the Engine splits a surface where
   // that makes a better machining plan and shading each half separately creases
-  // a floor that is flat. See `visualSurfaces` — features still see the split.
-  const surfaces = visualSurfaces(geometry, regions)
+  // it. Features still see the post-split region IDs.
+  const surfaces = visualSurfaces(regions)
   const regionOf = new Int32Array(triangleCount).fill(-1)
   for (const region of regions) {
     const end = Math.min(region.triangles.end, triangleCount)

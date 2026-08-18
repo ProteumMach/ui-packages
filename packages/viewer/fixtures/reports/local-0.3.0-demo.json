@@ -36,6 +36,7 @@
   "regions": [
     {
       "idx": 0,
+      "splitOrigin": 0,
       "shapeKind": "Plane",
       "area": 1200,
       "triangleStart": 0,
@@ -43,6 +44,7 @@
     },
     {
       "idx": 1,
+      "splitOrigin": 1,
       "shapeKind": "Cylinder",
       "area": 314.16,
       "triangleStart": 40,
@@ -50,6 +52,7 @@
     },
     {
       "idx": 2,
+      "splitOrigin": 2,
       "shapeKind": "Plane",
       "area": 78.54,
       "triangleStart": 72,

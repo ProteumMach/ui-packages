@@ -1,18 +1,19 @@
 import { BufferGeometry, Float32BufferAttribute } from 'three'
 import { describe, expect, it } from 'vitest'
-import { visualSurfaces } from '../src/model/surfaces.js'
-import { regionEdgesGeometry } from '../src/render/edges.js'
 import { smoothRegionNormals } from '../src/engine/normals.js'
+import { visualSurfaces } from '../src/model/surfaces.js'
 import type { PartModelRegion } from '../src/model/types.js'
+import { regionEdgesGeometry } from '../src/render/edges.js'
 
-/**
- * The Engine splits a surface where that makes a better machining plan. Those
- * splits are real to a feature and invisible to an eye: a flat floor cut in two
- * is still flat, and the part should not grow a crease down it.
- */
-
-const region = (idx: number, start: number, end: number, shapeKind = 'Plane'): PartModelRegion => ({
+const region = (
+  idx: number,
+  splitOrigin: number,
+  start: number,
+  end: number,
+  shapeKind = 'Plane',
+): PartModelRegion => ({
   idx,
+  splitOrigin,
   shapeKind,
   area: 1,
   triangles: { start, end },
@@ -28,7 +29,7 @@ function splitSquare(): BufferGeometry {
   return geometry
 }
 
-/** Two triangles meeting at 90°, which is an edge whatever the report says. */
+/** Two triangles meeting at 90°, useful for proving a boundary stays hard. */
 function corner(): BufferGeometry {
   const geometry = new BufferGeometry()
   geometry.setAttribute(
@@ -39,64 +40,46 @@ function corner(): BufferGeometry {
 }
 
 describe('visualSurfaces', () => {
-  it('joins two regions that continue each other', () => {
-    const surfaces = visualSurfaces(splitSquare(), [region(0, 0, 1), region(1, 1, 2)])
+  it('groups regions solely by their kernel split origin', () => {
+    const surfaces = visualSurfaces([
+      region(3, 12, 0, 1, 'Cylinder'),
+      region(9, 12, 1, 2, 'Cylinder'),
+      region(4, 23, 2, 3, 'Cylinder'),
+    ])
 
-    // One flat square, however the Engine chose to divide it.
-    expect(surfaces.get(0)).toBe(surfaces.get(1))
-  })
-
-  it('keeps two regions apart where the part actually turns', () => {
-    const surfaces = visualSurfaces(corner(), [region(0, 0, 1), region(1, 1, 2)])
-
-    expect(surfaces.get(0)).not.toBe(surfaces.get(1))
-  })
-
-  it('keeps two kinds of surface apart even where they meet smoothly', () => {
-    // A fillet running tangentially into a wall is still a fillet meeting a
-    // wall. Same-kind is the conservative half of this: it merges splits and
-    // nothing else.
-    const surfaces = visualSurfaces(splitSquare(), [region(0, 0, 1), region(1, 1, 2, 'Torus')])
-
-    expect(surfaces.get(0)).not.toBe(surfaces.get(1))
-  })
-
-  it('leaves an indexed mesh alone, where it cannot key an edge', () => {
-    const geometry = splitSquare()
-    geometry.setIndex([0, 1, 2, 3, 4, 5])
-
-    const surfaces = visualSurfaces(geometry, [region(0, 0, 1), region(1, 1, 2)])
-
-    expect(surfaces.get(0)).not.toBe(surfaces.get(1))
+    expect(surfaces.get(3)).toBe(12)
+    expect(surfaces.get(9)).toBe(12)
+    expect(surfaces.get(4)).toBe(23)
   })
 })
 
 describe('what the split stops costing', () => {
-  it('draws no line down a split surface', () => {
+  it('draws no line down a curved split surface', () => {
     const geometry = splitSquare()
-    const model = { regions: [region(0, 0, 1), region(1, 1, 2)], regionIndex: null as never }
+    const model = {
+      regions: [region(0, 7, 0, 1, 'Cylinder'), region(1, 7, 1, 2, 'Cylinder')],
+      regionIndex: null as never,
+    }
 
-    // The one shared edge is the split, and a split is not an edge of the part.
+    // The one shared edge is an analysis split, so only the four outer edges remain.
     expect(regionEdgesGeometry(geometry, model).getAttribute('position').count).toBe(4 * 2)
   })
 
-  it('still draws the line where the part turns', () => {
+  it('keeps a boundary between distinct original faces', () => {
     const geometry = corner()
-    const model = { regions: [region(0, 0, 1), region(1, 1, 2)], regionIndex: null as never }
+    const model = {
+      regions: [region(0, 7, 0, 1), region(1, 8, 1, 2)],
+      regionIndex: null as never,
+    }
 
-    // Five distinct edges between two triangles that share one, and the shared
-    // one stays because the part turns through it.
     expect(regionEdgesGeometry(geometry, model).getAttribute('position').count).toBe(5 * 2)
   })
 
-  it('shades a split surface as one, with no crease down it', () => {
+  it('shades curved split siblings with no crease', () => {
     const geometry = splitSquare()
 
-    smoothRegionNormals(geometry, [region(0, 0, 1), region(1, 1, 2)])
+    smoothRegionNormals(geometry, [region(0, 7, 0, 1, 'Cylinder'), region(1, 7, 1, 2, 'Cylinder')])
 
-    // Every vertex facing the same way is a flat square; one normal per half
-    // would crease it down the middle. Compared component-wise because a
-    // signed zero is still zero.
     const normal = geometry.getAttribute('normal')
     for (let vertex = 0; vertex < normal.count; vertex += 1) {
       expect(normal.getX(vertex)).toBeCloseTo(0, 12)
@@ -104,39 +87,13 @@ describe('what the split stops costing', () => {
       expect(normal.getZ(vertex)).toBeCloseTo(1, 12)
     }
   })
-})
 
-describe('how much disagreement is a split', () => {
-  /** Two planes meeting at a shallow angle — a chamfer, not a split. */
-  function shallow(): BufferGeometry {
-    const geometry = new BufferGeometry()
-    // The second triangle rises 0.15 over 1, which is about 8°.
-    geometry.setAttribute(
-      'position',
-      new Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0.15, 0, 1, 0], 3),
-    )
-    return geometry
-  }
+  it('keeps normals hard between distinct original faces', () => {
+    const geometry = corner()
 
-  it('keeps two planes apart at an angle a chamfer could be', () => {
-    // The window that lets a tessellated bore merge would swallow this, which
-    // is why a plane gets a tighter one: a plane is flat, so a split in one is
-    // exactly coplanar and anything else is an edge.
-    const surfaces = visualSurfaces(shallow(), [region(0, 0, 1), region(1, 1, 2)])
+    smoothRegionNormals(geometry, [region(0, 7, 0, 1), region(1, 8, 1, 2)])
 
-    expect(surfaces.get(0)).not.toBe(surfaces.get(1))
-  })
-
-  it('draws every boundary between curved regions, split or not', () => {
-    // Nothing in the report says which surface a region was cut from, and a
-    // fillet running tangentially into a shaft looks exactly like a fillet
-    // split down the middle. Losing a line the part has is the worse mistake,
-    // so curved boundaries are all kept.
-    const surfaces = visualSurfaces(splitSquare(), [
-      region(0, 0, 1, 'Cylinder'),
-      region(1, 1, 2, 'Cylinder'),
-    ])
-
-    expect(surfaces.get(0)).not.toBe(surfaces.get(1))
+    expect(geometry.getAttribute('normal').getZ(0)).toBe(1)
+    expect(geometry.getAttribute('normal').getY(3)).toBe(1)
   })
 })
