@@ -141,9 +141,14 @@ describe('how much disagreement is a split', () => {
   })
 })
 
-describe('when the report says which surface a region came from', () => {
-  const stated = (idx: number, start: number, end: number, surface: number, shapeKind = 'Torus') =>
-    ({ idx, shapeKind, area: 1, triangles: { start, end }, surface }) as PartModelRegion
+describe('when the report names the face a region was cut from', () => {
+  const stated = (
+    idx: number,
+    start: number,
+    end: number,
+    splitOrigin: number,
+    shapeKind = 'Torus',
+  ) => ({ idx, shapeKind, area: 1, triangles: { start, end }, splitOrigin }) as PartModelRegion
 
   it('groups by what the Engine said, for a kind the facets cannot settle', () => {
     // A fillet split down the middle. Geometry alone cannot tell this from a

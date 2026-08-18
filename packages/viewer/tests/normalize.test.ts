@@ -367,3 +367,35 @@ describe('fixture integrity', () => {
     expect(report['meshTriangleCount']).toBe(12)
   })
 })
+
+describe('splitOrigin', () => {
+  /** The demo report's own region table, with a face named on every region. */
+  const withFaces = (faceOf: (idx: number) => number) => {
+    const report = demo() as { regions: Array<Record<string, unknown>> }
+
+    return withOverride(demo(), {
+      regions: report.regions.map((region) => ({
+        ...region,
+        splitOrigin: faceOf(region['idx'] as number),
+      })),
+    })
+  }
+
+  it('carries the face a region was cut from into the model', () => {
+    // Equal values are one B-rep face. It is what the viewer used to try to
+    // reconstruct from facet normals, and could only manage for planes.
+    const model = normalizePartReport(withFaces((idx) => (idx < 2 ? 4 : idx)))
+
+    expect(model.regions[0]?.splitOrigin).toBe(4)
+    expect(model.regions[1]?.splitOrigin).toBe(4)
+  })
+
+  it('opens a report captured before the field existed', () => {
+    // The schema requires it now. A report taken before it did is not a broken
+    // report, and the viewer has a fallback for exactly this.
+    const model = normalizePartReport(demo())
+
+    expect(model.regions.length).toBeGreaterThan(0)
+    expect(model.regions.every((region) => region.splitOrigin === undefined)).toBe(true)
+  })
+})

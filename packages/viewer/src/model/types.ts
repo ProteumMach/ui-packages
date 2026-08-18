@@ -122,19 +122,19 @@ export interface PartModelRegion {
   readonly area: number
   readonly triangles: TriangleRange
   /**
-   * Which analytic surface this region was cut from, where the Engine says.
+   * The B-rep face this region was cut from: equal values are one face.
    *
-   * The Engine divides a surface when that makes a better machining plan, and
-   * two halves of one face then arrive as two regions. Only the Engine knows
-   * they were one: nothing else in a region says so, and from the facets alone
-   * a split down a fillet and a fillet running tangentially into a shaft are
-   * identical.
+   * The Engine divides a face when that makes a better machining plan, and its
+   * halves then arrive as separate regions. Only the Engine knows they were
+   * one — from the facets alone a split down a fillet and a fillet running
+   * tangentially into a shaft are identical, which is why the viewer could only
+   * ever infer this for planes.
    *
-   * Optional because reports today do not carry it. Where it is absent the
-   * viewer falls back to inferring, which it can only do safely for planes —
-   * see `visualSurfaces`.
+   * Optional here though the schema requires it, because a report captured
+   * before the field existed is still a report worth opening. Where it is
+   * missing `visualSurfaces` falls back to inferring.
    */
-  readonly surface?: number
+  readonly splitOrigin?: number
 }
 
 export interface PartModelFeature {

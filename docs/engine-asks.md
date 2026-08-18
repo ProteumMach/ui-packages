@@ -1,58 +1,26 @@
 # What the viewer needs from the Engine
 
-Two fields. Both are things the Engine knows and does not say, and in both cases
-the viewer currently guesses — badly enough to be visible on a real part.
+Things the Engine knows and does not say, where the viewer is left guessing —
+badly enough to be visible on a real part. Written from the consuming side: what
+the field is, what we do with it, and what it costs to be without it.
 
-Written from the consuming side: what the field is, what we do with it, and what
-it costs to be without it.
+One of the two below has since shipped, and is kept here with what it fixed.
 
-## 1. Which surface a region was cut from
+## 1. Which surface a region was cut from — **delivered**
 
-**Ask:** one optional integer on `Region`, stable within a report.
+Shipped as `splitOrigin` on `Region`, required, described as a "report-local
+source-face group; equal values identify regions split from one B-rep face".
 
-```jsonc
-{
-  "idx": 41,
-  "shapeKind": "Torus",
-  "area": 118.4,
-  "triangleStart": 9032,
-  "triangleEnd": 9104,
-  "surfaceIdx": 17, // ← the analytic surface this region belongs to
-}
-```
+`visualSurfaces` groups by it wherever a report carries one, which is exact for
+every kind of surface. The inference below still runs for a report captured
+before the field existed — and only for planes, for the reason given there.
 
-Two regions sharing a `surfaceIdx` are two parts of one surface. Regions with
-different ones are different surfaces, however smoothly they meet.
-
-### Why
-
-The Engine splits a surface where that makes a better machining plan — a floor
-cut in two so each half can be reached from a different direction. Features
-depend on those splits and we would not want them undone.
-
-But a split is not an edge of the part, and the viewer draws its lines and
-shades its facets from the region table. So every split drew a line down a flat
-floor and creased the shading along it, and a part with good machining data
-looked like a part modelled badly.
-
-### What we do without it
-
-Infer, from the facets: two regions merge if they meet along an edge, are the
-same `shapeKind`, and their facets there face within a degree.
-
-**Planes only.** On a curved surface the inference cannot be made safely, because
-a fillet split down the middle and a fillet running tangentially into a shaft are
-identical from the facets alone — the disagreement across the boundary is one
-tessellation step in both cases. Any window wide enough to merge the split rubs
-out the junction, and losing a line the part has is the worse mistake. So curved
-splits still show their lines today.
-
-### What it would buy
-
-Exactness, and for every kind. `visualSurfaces` already prefers the stated
-grouping where a report carries one — the code is in and tested, so the field
-arriving is the whole change. It would also let the highlight cover a split face
-without the "is anyone else claiming this?" check it needs today.
+What it fixed: the Engine splits a surface where that makes a better machining
+plan, and the viewer drew its lines and shaded its facets from the region table.
+So every split drew a line down a flat floor and creased the shading along it,
+and a part with good machining data looked like a part modelled badly. Curved
+splits could not be merged at all, because from the facets alone a fillet split
+down the middle and a fillet running tangentially into a shaft are identical.
 
 ## 2. A cutter band on the types that report none
 

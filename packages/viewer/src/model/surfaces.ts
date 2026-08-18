@@ -32,9 +32,9 @@ import type { PartModelRegion } from './types.js'
  * A line the part has is the worse of the two to lose, so curved boundaries are
  * all drawn.
  *
- * All of which is the fallback. Where a report states `surfaceIdx` on its
- * regions this stops guessing and groups by what the Engine said, which is
- * exact for every kind of surface.
+ * All of which is the fallback. A report that carries `splitOrigin` — which the
+ * schema now requires — is grouped by what the Engine said instead, exactly,
+ * for every kind of surface.
  */
 
 /**
@@ -76,11 +76,11 @@ export function visualSurfaces(
 }
 
 function computeSurfaces(geometry: BufferGeometry, regions: readonly PartModelRegion[]): SurfaceOf {
-  // Where the Engine says which surface a region came from, there is nothing to
-  // work out: two regions are one surface when they say they are. That answer is
-  // exact for every kind — a split down a fillet merges, and the fillet's
-  // junction with the shaft keeps its line — which is what the geometry below
-  // can only manage for planes.
+  // Where the report names the face a region was cut from, there is nothing to
+  // work out: equal `splitOrigin` is one face. That answer is exact for every
+  // kind — a split down a fillet merges, and the fillet's junction with the
+  // shaft keeps its line — which is what the geometry below can only manage for
+  // planes.
   const stated = statedSurfaces(regions)
   if (stated) return stated
 
@@ -168,8 +168,8 @@ function statedSurfaces(regions: readonly PartModelRegion[]): SurfaceOf | null {
   const surfaces = new Map<number, number>()
 
   for (const region of regions) {
-    if (region.surface === undefined) return null
-    surfaces.set(region.idx, region.surface)
+    if (region.splitOrigin === undefined) return null
+    surfaces.set(region.idx, region.splitOrigin)
   }
 
   return regions.length > 0 ? surfaces : null

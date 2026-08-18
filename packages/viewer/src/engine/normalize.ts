@@ -145,17 +145,17 @@ function readRegions(value: unknown, issues: string[]): PartModelRegion[] {
       issues.push(`regions[${i}] does not match the Region schema`)
       continue
     }
-    // Passed through where a report carries it, ignored where it does not: an
-    // older report is not a broken one, and this is the only thing in the
-    // schema the viewer treats as optional rather than required.
-    const surface = raw['surfaceIdx']
+    // Required by the schema, read as optional: a report captured before the
+    // field existed is still worth opening, and the viewer has a fallback for
+    // exactly that case.
+    const splitOrigin = raw['splitOrigin']
 
     regions.push({
       idx,
       shapeKind,
       area,
       triangles: { start, end },
-      ...(isNonNegativeInteger(surface) ? { surface } : {}),
+      ...(isNonNegativeInteger(splitOrigin) ? { splitOrigin } : {}),
     })
   }
   return regions
