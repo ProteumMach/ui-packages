@@ -1,0 +1,40 @@
+from enum import Enum
+
+
+class FeatureType(str, Enum):
+    BACKCHAMFER = "BackChamfer"
+    BACKSINK = "BackSink"
+    BLINDHOLE = "BlindHole"
+    BOSS = "Boss"
+    CHAMFER = "Chamfer"
+    CONTOURSURFACE = "ContourSurface"
+    FACE = "Face"
+    FILLET = "Fillet"
+    FILLETEDBLINDHOLE = "FilletedBlindHole"
+    FILLETEDBOSS = "FilletedBoss"
+    FILLETEDOPENPOCKET = "FilletedOpenPocket"
+    FILLETEDPOCKET = "FilletedPocket"
+    INNERFILLET = "InnerFillet"
+    OPENPOCKET = "OpenPocket"
+    OUTERFILLET = "OuterFillet"
+    POCKET = "Pocket"
+    PROFILE = "Profile"
+    SINK = "Sink"
+    SLANTEDFACE = "SlantedFace"
+    SYNTHETICHOLE = "SyntheticHole"
+    TAPEREDTHROUGHHOLE = "TaperedThroughHole"
+    THREAD = "Thread"
+    THREADEDBLINDHOLE = "ThreadedBlindHole"
+    THREADEDTHROUGHHOLE = "ThreadedThroughHole"
+    THROUGHHOLE = "ThroughHole"
+    THROUGHPOCKET = "ThroughPocket"
+    UNDERCUTDOVETAIL = "UndercutDovetail"
+    UNDERCUTFILLETEDDOVETAIL = "UndercutFilletedDovetail"
+    UNDERCUTFILLETEDTSLOT = "UndercutFilletedTslot"
+    UNDERCUTTSLOT = "UndercutTslot"
+    UNDERCUTWALL = "UndercutWall"
+    USLOT = "USlot"
+    WALL = "Wall"
+
+    def __str__(self) -> str:
+        return str(self.value)

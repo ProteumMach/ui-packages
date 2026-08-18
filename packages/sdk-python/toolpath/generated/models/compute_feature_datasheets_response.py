@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any, TypeVar
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -15,20 +16,20 @@ T = TypeVar("T", bound="ComputeFeatureDatasheetsResponse")
 class ComputeFeatureDatasheetsResponse:
     """
     Attributes:
-        job_id (str):
-        part_id (str):
-        status (ComputeFeatureDatasheetsResponseStatus):
+        job_id (UUID): Identifier of the queued enrichment job.
+        part_id (UUID): Identifier of the part owning the requested features.
+        status (ComputeFeatureDatasheetsResponseStatus): Initial state of the accepted enrichment job.
     """
 
-    job_id: str
-    part_id: str
+    job_id: UUID
+    part_id: UUID
     status: ComputeFeatureDatasheetsResponseStatus
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        job_id = self.job_id
+        job_id = str(self.job_id)
 
-        part_id = self.part_id
+        part_id = str(self.part_id)
 
         status = self.status.value
 
@@ -47,9 +48,9 @@ class ComputeFeatureDatasheetsResponse:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        job_id = d.pop("jobId")
+        job_id = UUID(d.pop("jobId"))
 
-        part_id = d.pop("partId")
+        part_id = UUID(d.pop("partId"))
 
         status = ComputeFeatureDatasheetsResponseStatus(d.pop("status"))
 

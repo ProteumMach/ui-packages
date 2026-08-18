@@ -11,11 +11,12 @@ T = TypeVar("T", bound="PartFeatureAxis")
 
 @_attrs_define
 class PartFeatureAxis:
-    """
+    """Feature-local machining axis, such as a face normal; null for older reports.
+
     Attributes:
-        x (float):
-        y (float):
-        z (float):
+        x (float): X coordinate or direction component.
+        y (float): Y coordinate or direction component.
+        z (float): Z coordinate or direction component.
     """
 
     x: float

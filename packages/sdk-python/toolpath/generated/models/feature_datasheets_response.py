@@ -17,8 +17,9 @@ T = TypeVar("T", bound="FeatureDatasheetsResponse")
 class FeatureDatasheetsResponse:
     """
     Attributes:
-        datasheets (list[FeatureDatasheetEntry]):
-        not_found (list[str]):
+        datasheets (list[FeatureDatasheetEntry]): Datasheets for requested features that belong to the authorized
+            organization.
+        not_found (list[str]): Requested feature identifiers that were unknown or inaccessible to this organization.
     """
 
     datasheets: list[FeatureDatasheetEntry]

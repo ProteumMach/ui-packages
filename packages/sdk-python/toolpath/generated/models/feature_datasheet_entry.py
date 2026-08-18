@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 from uuid import UUID
 
 from attrs import define as _attrs_define
@@ -20,31 +20,35 @@ T = TypeVar("T", bound="FeatureDatasheetEntry")
 class FeatureDatasheetEntry:
     """
     Attributes:
-        feature_id (UUID):
-        feature_tag (str):
-        feature_type (str):
-        datasheet (FeatureDatasheet | Unset): Per-feature DFM measurement facts. Z bounds in the direction frame
-            (zMin/zMax; local height is zMax − zMin), stock-to-leave, tolerance band, floor/wall flags and areas, plus a
-            per-kind `facts` object (narrow on `facts.kind` for diameters, tool bounds, corner/fillet radius). Lengths are
-            mm, angles degrees. The exact shape is the kernel’s FeatureDatasheet (@toolpath/tp-kernel).
+        feature_id (UUID): Identifier of the resolved feature.
+        feature_tag (str): Stable kernel feature tag, encoded as a lowercase hexadecimal string.
+        feature_type (str): Kernel-recognized feature type; the vocabulary is open-ended.
+        datasheet (FeatureDatasheet | None | Unset): Generated machining datasheet, or null when this feature has no
+            datasheet yet.
     """
 
     feature_id: UUID
     feature_tag: str
     feature_type: str
-    datasheet: FeatureDatasheet | Unset = UNSET
+    datasheet: FeatureDatasheet | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        from ..models.feature_datasheet import FeatureDatasheet
+
         feature_id = str(self.feature_id)
 
         feature_tag = self.feature_tag
 
         feature_type = self.feature_type
 
-        datasheet: dict[str, Any] | Unset = UNSET
-        if not isinstance(self.datasheet, Unset):
+        datasheet: dict[str, Any] | None | Unset
+        if isinstance(self.datasheet, Unset):
+            datasheet = UNSET
+        elif isinstance(self.datasheet, FeatureDatasheet):
             datasheet = self.datasheet.to_dict()
+        else:
+            datasheet = self.datasheet
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -71,12 +75,22 @@ class FeatureDatasheetEntry:
 
         feature_type = d.pop("featureType")
 
-        _datasheet = d.pop("datasheet", UNSET)
-        datasheet: FeatureDatasheet | Unset
-        if isinstance(_datasheet, Unset):
-            datasheet = UNSET
-        else:
-            datasheet = FeatureDatasheet.from_dict(_datasheet)
+        def _parse_datasheet(data: object) -> FeatureDatasheet | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, dict):
+                    raise TypeError()
+                datasheet_type_0 = FeatureDatasheet.from_dict(data)
+
+                return datasheet_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(FeatureDatasheet | None | Unset, data)
+
+        datasheet = _parse_datasheet(d.pop("datasheet", UNSET))
 
         feature_datasheet_entry = cls(
             feature_id=feature_id,

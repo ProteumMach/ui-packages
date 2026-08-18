@@ -16,8 +16,8 @@ T = TypeVar("T", bound="HealthResponse")
 class HealthResponse:
     """
     Attributes:
-        status (HealthResponseStatus):
-        db (HealthResponseDb):
+        status (HealthResponseStatus): Overall Engine API health state.
+        db (HealthResponseDb): PostgreSQL connectivity state.
     """
 
     status: HealthResponseStatus

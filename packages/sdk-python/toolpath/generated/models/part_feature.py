@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar, cast
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 if TYPE_CHECKING:
     from ..models.part_feature_axis import PartFeatureAxis
-    from ..models.vec_3 import Vec3
+    from ..models.part_feature_machining_direction import PartFeatureMachiningDirection
 
 
 T = TypeVar("T", bound="PartFeature")
@@ -18,24 +19,25 @@ T = TypeVar("T", bound="PartFeature")
 class PartFeature:
     """
     Attributes:
-        feature_id (str):
-        feature_tag (str):
-        region_idxs (list[int]):
-        feature_type (str):
-        machining_direction (Vec3):
-        axis (PartFeatureAxis):
+        feature_id (UUID): Globally unique identifier of this feature record within its report.
+        feature_tag (str): Stable kernel feature tag, encoded as a lowercase hexadecimal string.
+        region_idxs (list[int]): Indexes of regions this feature covers; join each value to `regions[].idx`.
+        feature_type (str): Kernel-recognized feature type. This vocabulary is open-ended as the kernel evolves.
+        machining_direction (PartFeatureMachiningDirection): Access direction from which the kernel extracted this
+            feature.
+        axis (PartFeatureAxis): Feature-local machining axis, such as a face normal; null for older reports.
     """
 
-    feature_id: str
+    feature_id: UUID
     feature_tag: str
     region_idxs: list[int]
     feature_type: str
-    machining_direction: Vec3
+    machining_direction: PartFeatureMachiningDirection
     axis: PartFeatureAxis
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        feature_id = self.feature_id
+        feature_id = str(self.feature_id)
 
         feature_tag = self.feature_tag
 
@@ -65,10 +67,10 @@ class PartFeature:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.part_feature_axis import PartFeatureAxis
-        from ..models.vec_3 import Vec3
+        from ..models.part_feature_machining_direction import PartFeatureMachiningDirection
 
         d = dict(src_dict)
-        feature_id = d.pop("featureId")
+        feature_id = UUID(d.pop("featureId"))
 
         feature_tag = d.pop("featureTag")
 
@@ -76,7 +78,7 @@ class PartFeature:
 
         feature_type = d.pop("featureType")
 
-        machining_direction = Vec3.from_dict(d.pop("machiningDirection"))
+        machining_direction = PartFeatureMachiningDirection.from_dict(d.pop("machiningDirection"))
 
         axis = PartFeatureAxis.from_dict(d.pop("axis"))
 

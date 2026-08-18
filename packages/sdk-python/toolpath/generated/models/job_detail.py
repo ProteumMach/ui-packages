@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 from collections.abc import Mapping
 from typing import Any, TypeVar, cast
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -16,30 +17,30 @@ T = TypeVar("T", bound="JobDetail")
 class JobDetail:
     """
     Attributes:
-        part_uuid (str):
-        job_uuid (str):
-        product_type (str):
-        status (JobDetailStatus):
-        progress (int | None):
-        error (None | str):
-        report_id (None | str):
-        created_at (datetime.datetime):
+        part_uuid (UUID): Identifier of the part this job processes.
+        job_uuid (UUID): Identifier of this job.
+        product_type (str): Product operation performed by the job, such as analyze-part or enrich-features.
+        status (JobDetailStatus): Current durable state of the job.
+        progress (int | None): Worker-reported completion percentage, or null before progress is available.
+        error (None | str): Failure reason when the job status is failed; otherwise null.
+        report_id (None | UUID): Identifier of the report produced by a successful analysis, or null until available.
+        created_at (datetime.datetime): Time at which the job was created, in ISO 8601 format.
     """
 
-    part_uuid: str
-    job_uuid: str
+    part_uuid: UUID
+    job_uuid: UUID
     product_type: str
     status: JobDetailStatus
     progress: int | None
     error: None | str
-    report_id: None | str
+    report_id: None | UUID
     created_at: datetime.datetime
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        part_uuid = self.part_uuid
+        part_uuid = str(self.part_uuid)
 
-        job_uuid = self.job_uuid
+        job_uuid = str(self.job_uuid)
 
         product_type = self.product_type
 
@@ -52,7 +53,10 @@ class JobDetail:
         error = self.error
 
         report_id: None | str
-        report_id = self.report_id
+        if isinstance(self.report_id, UUID):
+            report_id = str(self.report_id)
+        else:
+            report_id = self.report_id
 
         created_at = self.created_at.isoformat()
 
@@ -76,9 +80,9 @@ class JobDetail:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        part_uuid = d.pop("partUuid")
+        part_uuid = UUID(d.pop("partUuid"))
 
-        job_uuid = d.pop("jobUuid")
+        job_uuid = UUID(d.pop("jobUuid"))
 
         product_type = d.pop("productType")
 
@@ -98,10 +102,18 @@ class JobDetail:
 
         error = _parse_error(d.pop("error"))
 
-        def _parse_report_id(data: object) -> None | str:
+        def _parse_report_id(data: object) -> None | UUID:
             if data is None:
                 return data
-            return cast(None | str, data)
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                report_id_type_0 = UUID(data)
+
+                return report_id_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(None | UUID, data)
 
         report_id = _parse_report_id(d.pop("reportId"))
 

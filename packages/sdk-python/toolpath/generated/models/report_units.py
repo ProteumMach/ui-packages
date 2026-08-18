@@ -16,8 +16,8 @@ T = TypeVar("T", bound="ReportUnits")
 class ReportUnits:
     """
     Attributes:
-        length (ReportUnitsLength):
-        angle (ReportUnitsAngle):
+        length (ReportUnitsLength): Unit used by every length and area measurement.
+        angle (ReportUnitsAngle): Unit used by every angular measurement.
     """
 
     length: ReportUnitsLength
