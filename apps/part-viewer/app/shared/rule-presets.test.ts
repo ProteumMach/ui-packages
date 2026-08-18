@@ -50,11 +50,14 @@ describe('the shipped set', () => {
     expect(new Set(DEFAULT_RULES.map((rule) => rule.id)).size).toBe(DEFAULT_RULES.length)
   })
 
-  test('cites the set that came off somebody’s published page', () => {
-    const cited = PRESET_SETS.find((set) => set.id === 'preset-sendcutsend')
+  test('ships the vendor set under the shop it is for', () => {
+    const shipped = PRESET_SETS.find((set) => set.id === 'preset-sendcutsend')
 
-    // A set of thresholds is only worth arguing with once it says whose it is.
-    expect(cited?.source).toContain('sendcutsend.com')
+    // The name is the shop the set ships for. Where its numbers started is in
+    // the source comment rather than on the set: a citation on screen is a
+    // claim about whose limits these are.
+    expect(shipped?.name).toBe('Justin Grey Labs')
+    expect(shipped?.source).toBeUndefined()
   })
 })
 
