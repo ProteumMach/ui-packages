@@ -428,14 +428,17 @@ export const DEFAULT_RULE_SET: RuleSet = {
 }
 
 /**
- * SendCutSend's published CNC machining guidelines.
+ * Justin Grey Labs.
  *
- * https://sendcutsend.com/guidelines/cnc-machining/ — read 2026-08-01.
+ * The numbers below started from SendCutSend's published CNC machining
+ * guidelines — https://sendcutsend.com/guidelines/cnc-machining/, read
+ * 2026-08-01 — which is recorded here rather than on the set, because a
+ * citation on screen is a claim about whose limits these are and this set is
+ * shipped as somebody else's.
  *
- * A set of thresholds is only worth arguing with once it says whose it is.
- * These are read off a vendor's own page and cited, so a number can be checked
- * against the source rather than taken on trust — and so a shop setting up its
- * own can start from somebody else's and move what it disagrees with.
+ * The `id` stays `preset-sendcutsend`: it is what a shop's saved copy points
+ * back at, and renaming it would orphan every set copied from this one. What a
+ * set is called is a label; what it is remains its id.
  *
  * Their thread sizes, their ±0.005 in cut and position tolerance, and their
  * note that enclosed hollows and undercuts may not be producible have no rule
@@ -443,8 +446,7 @@ export const DEFAULT_RULE_SET: RuleSet = {
  */
 export const SENDCUTSEND: RuleSet = {
   id: 'preset-sendcutsend',
-  name: 'SendCutSend',
-  source: 'https://sendcutsend.com/guidelines/cnc-machining/',
+  name: 'Justin Grey Labs',
   rules: copyOfDefaults([
     {
       id: 'milling-ld',
