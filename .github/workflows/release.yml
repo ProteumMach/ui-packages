@@ -69,10 +69,6 @@ jobs:
           publish: pnpm release:npm
           commit: 'chore(release): version packages'
           title: 'chore(release): version packages'
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_PROVENANCE: true
 
       # The App-created PR triggers ordinary pull-request CI. GitHub merges it
       # only after the repository's protected-branch requirements succeed.
