@@ -107,7 +107,7 @@ export const getPartReport = async (
   jobId: string | null,
 ): Promise<PartReport | null> => {
   try {
-    return (await createEngineClient(apiKey).parts.getPartReport({
+    return (await createEngineClient(apiKey).parts.getPart({
       id: partId,
       jobId: jobId ?? undefined,
     })) as PartReport
@@ -143,7 +143,7 @@ export const getWholePartReport = async (
   for (let index = 0; index < missingIds.length; index += DATASHEET_BATCH_SIZE) {
     const ids = missingIds.slice(index, index + DATASHEET_BATCH_SIZE)
     const datasheets = await requireData(
-      engine.features.getFeatureDatasheets({ ids: ids.join(',') }),
+      engine.features.getPartFeatures({ id: partId, ids: ids.join(',') }),
       'get feature datasheets',
     )
     for (const entry of datasheets.datasheets) {

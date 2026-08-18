@@ -165,7 +165,7 @@ describe('Part Viewer Hono API', () => {
           { status: 201 },
         )
       }
-      if (request.method === 'POST' && url.pathname === '/v1/parts/part-1/analyze') {
+      if (request.method === 'PATCH' && url.pathname === '/v1/parts/part-1') {
         expect(request.headers.get('Idempotency-Key')).toMatch(/.+/)
         expect(url.searchParams.get('featureDetails')).toBe('true')
         return Response.json(
@@ -265,7 +265,7 @@ describe('Part Viewer Hono API', () => {
       const request = new Request(input, init)
       const url = new URL(request.url)
       if (url.pathname === '/v1/jobs/job-1/events') return analysisStream(analysisJob('succeeded'))
-      if (url.pathname === '/v1/parts/part-1/report')
+      if (request.method === 'GET' && url.pathname === '/v1/parts/part-1')
         return Response.json(report('https://mesh.test/a?signature=secret'))
       throw new Error(`Unexpected request ${request.method} ${request.url}`)
     })
@@ -285,7 +285,7 @@ describe('Part Viewer Hono API', () => {
       const request = new Request(input, init)
       const url = new URL(request.url)
       if (url.pathname === '/v1/jobs/job-1/events') return analysisStream(analysisJob('succeeded'))
-      if (url.pathname === '/v1/parts/part-1/report')
+      if (request.method === 'GET' && url.pathname === '/v1/parts/part-1')
         return Response.json({
           ...report(),
           features: [
@@ -299,7 +299,7 @@ describe('Part Viewer Hono API', () => {
             },
           ],
         })
-      if (url.pathname === '/v1/features/datasheets') {
+      if (request.method === 'GET' && url.pathname === '/v1/parts/part-1/features') {
         expect(url.searchParams.get('ids')).toBe('feature-1')
         return Response.json({
           datasheets: [
@@ -363,7 +363,7 @@ describe('Part Viewer Hono API', () => {
     vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
       const request = new Request(input, init)
       const url = new URL(request.url)
-      if (url.pathname === '/v1/parts/part-1/report') {
+      if (request.method === 'GET' && url.pathname === '/v1/parts/part-1') {
         reportReads += 1
         return Response.json(
           report(`https://mesh.test/${reportReads === 1 ? 'expired' : 'fresh'}.glb`),
