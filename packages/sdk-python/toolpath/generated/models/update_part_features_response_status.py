@@ -1,9 +1,8 @@
 from enum import Enum
 
 
-class AnalyzePartFeatureDetails(str, Enum):
-    FALSE = "false"
-    TRUE = "true"
+class UpdatePartFeaturesResponseStatus(str, Enum):
+    QUEUED = "queued"
 
     def __str__(self) -> str:
         return str(self.value)

@@ -7,11 +7,11 @@ from uuid import UUID
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-T = TypeVar("T", bound="ComputeFeatureDatasheetsRequest")
+T = TypeVar("T", bound="UpdatePartFeaturesRequest")
 
 
 @_attrs_define
-class ComputeFeatureDatasheetsRequest:
+class UpdatePartFeaturesRequest:
     """
     Attributes:
         feature_ids (list[UUID]): Identifiers of features from one part whose datasheets should be computed.
@@ -46,12 +46,12 @@ class ComputeFeatureDatasheetsRequest:
 
             feature_ids.append(feature_ids_item)
 
-        compute_feature_datasheets_request = cls(
+        update_part_features_request = cls(
             feature_ids=feature_ids,
         )
 
-        compute_feature_datasheets_request.additional_properties = d
-        return compute_feature_datasheets_request
+        update_part_features_request.additional_properties = d
+        return update_part_features_request
 
     @property
     def additional_keys(self) -> list[str]:

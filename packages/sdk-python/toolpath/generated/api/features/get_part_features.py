@@ -6,26 +6,26 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.part_report_response import PartReportResponse
+from ...models.part_features_response import PartFeaturesResponse
 from ...models.problem_details import ProblemDetails
-from ...types import UNSET, Response, Unset
+from ...types import UNSET, Response
 
 
 def _get_kwargs(
     id: str,
     *,
-    job_id: str | Unset = UNSET,
+    ids: str,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
 
-    params["jobId"] = job_id
+    params["ids"] = ids
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/v1/parts/{id}/report".format(
+        "url": "/v1/parts/{id}/features".format(
             id=quote(str(id), safe=""),
         ),
         "params": params,
@@ -36,9 +36,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> PartReportResponse | ProblemDetails | None:
+) -> PartFeaturesResponse | ProblemDetails | None:
     if response.status_code == 200:
-        response_200 = PartReportResponse.from_dict(response.json())
+        response_200 = PartFeaturesResponse.from_dict(response.json())
 
         return response_200
 
@@ -75,7 +75,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[PartReportResponse | ProblemDetails]:
+) -> Response[PartFeaturesResponse | ProblemDetails]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -88,26 +88,26 @@ def sync_detailed(
     id: str,
     *,
     client: AuthenticatedClient | Client,
-    job_id: str | Unset = UNSET,
-) -> Response[PartReportResponse | ProblemDetails]:
-    """Get the latest part report
+    ids: str,
+) -> Response[PartFeaturesResponse | ProblemDetails]:
+    """Get selected features for a part
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        job_id (str | Unset): Return the report for this specific analyze run instead of the
-            latest for the part. Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
+        ids (str): Comma-separated feature ids (from a part report) to fetch datasheets for.
+            Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820,0195f02c-4b4a-7b5d-9b6e-8f139d5e2821.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[PartReportResponse | ProblemDetails]
+        Response[PartFeaturesResponse | ProblemDetails]
     """
 
     kwargs = _get_kwargs(
         id=id,
-        job_id=job_id,
+        ids=ids,
     )
 
     response = client.get_httpx_client().request(
@@ -121,27 +121,27 @@ def sync(
     id: str,
     *,
     client: AuthenticatedClient | Client,
-    job_id: str | Unset = UNSET,
-) -> PartReportResponse | ProblemDetails | None:
-    """Get the latest part report
+    ids: str,
+) -> PartFeaturesResponse | ProblemDetails | None:
+    """Get selected features for a part
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        job_id (str | Unset): Return the report for this specific analyze run instead of the
-            latest for the part. Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
+        ids (str): Comma-separated feature ids (from a part report) to fetch datasheets for.
+            Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820,0195f02c-4b4a-7b5d-9b6e-8f139d5e2821.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        PartReportResponse | ProblemDetails
+        PartFeaturesResponse | ProblemDetails
     """
 
     return sync_detailed(
         id=id,
         client=client,
-        job_id=job_id,
+        ids=ids,
     ).parsed
 
 
@@ -149,26 +149,26 @@ async def asyncio_detailed(
     id: str,
     *,
     client: AuthenticatedClient | Client,
-    job_id: str | Unset = UNSET,
-) -> Response[PartReportResponse | ProblemDetails]:
-    """Get the latest part report
+    ids: str,
+) -> Response[PartFeaturesResponse | ProblemDetails]:
+    """Get selected features for a part
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        job_id (str | Unset): Return the report for this specific analyze run instead of the
-            latest for the part. Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
+        ids (str): Comma-separated feature ids (from a part report) to fetch datasheets for.
+            Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820,0195f02c-4b4a-7b5d-9b6e-8f139d5e2821.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[PartReportResponse | ProblemDetails]
+        Response[PartFeaturesResponse | ProblemDetails]
     """
 
     kwargs = _get_kwargs(
         id=id,
-        job_id=job_id,
+        ids=ids,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -180,27 +180,27 @@ async def asyncio(
     id: str,
     *,
     client: AuthenticatedClient | Client,
-    job_id: str | Unset = UNSET,
-) -> PartReportResponse | ProblemDetails | None:
-    """Get the latest part report
+    ids: str,
+) -> PartFeaturesResponse | ProblemDetails | None:
+    """Get selected features for a part
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        job_id (str | Unset): Return the report for this specific analyze run instead of the
-            latest for the part. Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
+        ids (str): Comma-separated feature ids (from a part report) to fetch datasheets for.
+            Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820,0195f02c-4b4a-7b5d-9b6e-8f139d5e2821.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        PartReportResponse | ProblemDetails
+        PartFeaturesResponse | ProblemDetails
     """
 
     return (
         await asyncio_detailed(
             id=id,
             client=client,
-            job_id=job_id,
+            ids=ids,
         )
     ).parsed
