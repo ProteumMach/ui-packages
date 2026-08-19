@@ -30,7 +30,8 @@ import {
 } from './render/camera.js'
 import type { ControlScheme, ExtendedCameraControls } from './render/controls.js'
 import { type ViewerTheme, resolveTheme } from './render/theme.js'
-import type { ViewerControls, ViewerHandle, ViewerView } from './types.js'
+import { squaredUp } from './render/view-cube.js'
+import type { VectorLike, ViewerControls, ViewerHandle, ViewerView } from './types.js'
 
 const ViewerControlsContext = createContext<ViewerControls | null>(null)
 
@@ -80,9 +81,16 @@ const ViewerScene = ({
    *
    * The frustum is derived from the bounds rather than from the camera's
    * distance, so orbiting and dollying afterwards never need it recomputed.
+   *
+   * `up` squares the view: a named view or a cube panel is a request for a
+   * standard orientation, and free orbit re-derives the up vector from the
+   * pose it is leaving, so without one the roll built up by dragging survives
+   * the jump and the part arrives at the right angle but tilted. Which of the
+   * four square rolls to use is the caller's to choose — see `squaredUp`. Fit
+   * and Zoom to omit it on purpose: they keep the orientation they were given.
    */
   const frame = useCallback(
-    (direction: Vector3, transition = false): boolean => {
+    (direction: Vector3, transition = false, up?: VectorLike): boolean => {
       const controls = controlsRef.current
       if (!controls) return false
 
@@ -92,6 +100,13 @@ const ViewerScene = ({
       const distance = fitDistance(projection, size, bounds, DEFAULT_FIT_MARGIN)
       const position = scratchDirection.copy(direction).normalize().multiplyScalar(distance)
       position.add(bounds.center)
+
+      if (up) {
+        // Before the look-at, so its basis is built from the squared up rather
+        // than corrected afterwards by a second camera move.
+        camera.up.set(up.x, up.y, up.z)
+        controls.updateCameraUp()
+      }
 
       void controls.setLookAt(
         position.x,
@@ -168,16 +183,20 @@ const ViewerScene = ({
         resetContent()
       },
       setView: (view) => {
-        frame(cadViewDirections[view], true)
+        frame(cadViewDirections[view], true, squaredUp(cadViewDirections[view], camera.up))
       },
       setViewDirection: (direction) => {
-        frame(scratchView.set(direction.x, direction.y, direction.z), true)
+        frame(
+          scratchView.set(direction.x, direction.y, direction.z),
+          true,
+          squaredUp(direction, camera.up),
+        )
       },
       frameBox: (box) => {
         frameBounds(boundsFromBox(box))
       },
     })
-  }, [fitContent, frame, frameBounds, resetContent, scratchView, setControls])
+  }, [camera, fitContent, frame, frameBounds, resetContent, scratchView, setControls])
 
   // Reframe when the projection changes: a perspective distance and an
   // orthographic frustum are not interchangeable.
