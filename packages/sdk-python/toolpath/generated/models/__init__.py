@@ -31,8 +31,8 @@ from .part_feature_axis import PartFeatureAxis
 from .part_feature_entry import PartFeatureEntry
 from .part_feature_machining_direction import PartFeatureMachiningDirection
 from .part_features_response import PartFeaturesResponse
-from .part_report_response import PartReportResponse
-from .part_report_response_units import PartReportResponseUnits
+from .part_response import PartResponse
+from .part_response_units import PartResponseUnits
 from .pocket_facts import PocketFacts
 from .problem_details import ProblemDetails
 from .profile_facts import ProfileFacts
@@ -90,8 +90,8 @@ __all__ = (
     "PartFeatureEntry",
     "PartFeatureMachiningDirection",
     "PartFeaturesResponse",
-    "PartReportResponse",
-    "PartReportResponseUnits",
+    "PartResponse",
+    "PartResponseUnits",
     "PocketFacts",
     "ProblemDetails",
     "ProfileFacts",

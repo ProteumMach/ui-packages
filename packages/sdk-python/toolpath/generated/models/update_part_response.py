@@ -16,9 +16,9 @@ T = TypeVar("T", bound="UpdatePartResponse")
 class UpdatePartResponse:
     """
     Attributes:
-        job_id (UUID): Identifier of the queued analysis job.
-        part_id (UUID): Identifier of the part submitted for analysis.
-        status (UpdatePartResponseStatus): Initial state of the accepted analysis job.
+        job_id (UUID): Identifier of the queued processing job.
+        part_id (UUID): Identifier of the part submitted for processing.
+        status (UpdatePartResponseStatus): Initial state of the accepted processing job.
     """
 
     job_id: UUID

@@ -6,7 +6,7 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.part_report_response import PartReportResponse
+from ...models.part_response import PartResponse
 from ...models.problem_details import ProblemDetails
 from ...types import UNSET, Response, Unset
 
@@ -36,9 +36,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> PartReportResponse | ProblemDetails | None:
+) -> PartResponse | ProblemDetails | None:
     if response.status_code == 200:
-        response_200 = PartReportResponse.from_dict(response.json())
+        response_200 = PartResponse.from_dict(response.json())
 
         return response_200
 
@@ -75,7 +75,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[PartReportResponse | ProblemDetails]:
+) -> Response[PartResponse | ProblemDetails]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -89,20 +89,20 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
     job_id: str | Unset = UNSET,
-) -> Response[PartReportResponse | ProblemDetails]:
-    """Get the analyzed part
+) -> Response[PartResponse | ProblemDetails]:
+    """Get the part
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        job_id (str | Unset): Return the report for this specific analyze run instead of the
-            latest for the part. Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
+        job_id (str | Unset): Return the part result for this specific processing run instead of
+            the latest result. Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[PartReportResponse | ProblemDetails]
+        Response[PartResponse | ProblemDetails]
     """
 
     kwargs = _get_kwargs(
@@ -122,20 +122,20 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
     job_id: str | Unset = UNSET,
-) -> PartReportResponse | ProblemDetails | None:
-    """Get the analyzed part
+) -> PartResponse | ProblemDetails | None:
+    """Get the part
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        job_id (str | Unset): Return the report for this specific analyze run instead of the
-            latest for the part. Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
+        job_id (str | Unset): Return the part result for this specific processing run instead of
+            the latest result. Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        PartReportResponse | ProblemDetails
+        PartResponse | ProblemDetails
     """
 
     return sync_detailed(
@@ -150,20 +150,20 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
     job_id: str | Unset = UNSET,
-) -> Response[PartReportResponse | ProblemDetails]:
-    """Get the analyzed part
+) -> Response[PartResponse | ProblemDetails]:
+    """Get the part
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        job_id (str | Unset): Return the report for this specific analyze run instead of the
-            latest for the part. Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
+        job_id (str | Unset): Return the part result for this specific processing run instead of
+            the latest result. Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[PartReportResponse | ProblemDetails]
+        Response[PartResponse | ProblemDetails]
     """
 
     kwargs = _get_kwargs(
@@ -181,20 +181,20 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
     job_id: str | Unset = UNSET,
-) -> PartReportResponse | ProblemDetails | None:
-    """Get the analyzed part
+) -> PartResponse | ProblemDetails | None:
+    """Get the part
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        job_id (str | Unset): Return the report for this specific analyze run instead of the
-            latest for the part. Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
+        job_id (str | Unset): Return the part result for this specific processing run instead of
+            the latest result. Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        PartReportResponse | ProblemDetails
+        PartResponse | ProblemDetails
     """
 
     return (

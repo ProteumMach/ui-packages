@@ -9,12 +9,12 @@ from attrs import field as _attrs_field
 from ..models.report_units_angle import ReportUnitsAngle
 from ..models.report_units_length import ReportUnitsLength
 
-T = TypeVar("T", bound="PartReportResponseUnits")
+T = TypeVar("T", bound="PartResponseUnits")
 
 
 @_attrs_define
-class PartReportResponseUnits:
-    """Units used by all dimensional values in this report.
+class PartResponseUnits:
+    """Units used by all dimensional values in this part response.
 
     Attributes:
         length (ReportUnitsLength): Unit used by every length and area measurement.
@@ -48,13 +48,13 @@ class PartReportResponseUnits:
 
         angle = ReportUnitsAngle(d.pop("angle"))
 
-        part_report_response_units = cls(
+        part_response_units = cls(
             length=length,
             angle=angle,
         )
 
-        part_report_response_units.additional_properties = d
-        return part_report_response_units
+        part_response_units.additional_properties = d
+        return part_response_units
 
     @property
     def additional_keys(self) -> list[str]:

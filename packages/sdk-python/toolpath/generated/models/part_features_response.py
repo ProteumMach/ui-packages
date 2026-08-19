@@ -17,9 +17,8 @@ T = TypeVar("T", bound="PartFeaturesResponse")
 class PartFeaturesResponse:
     """
     Attributes:
-        datasheets (list[PartFeatureEntry]): Datasheets for requested features that belong to the authorized
-            organization.
-        not_found (list[str]): Requested feature identifiers that were unknown or inaccessible to this organization.
+        datasheets (list[PartFeatureEntry]): Detailed machining data for requested features.
+        not_found (list[str]): Requested feature identifiers that were unknown.
     """
 
     datasheets: list[PartFeatureEntry]

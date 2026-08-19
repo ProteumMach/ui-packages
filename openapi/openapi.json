@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Toolpath Engine API",
-    "version": "1.0.2",
-    "description": "Public REST API for Toolpath engine operations.\n\n**Units.** All dimensional values — in reports and in feature datasheets — are in\nmillimetres; all angles are in degrees. Each report also states this in its `units` field.\n\n**Browser use.** CORS is per API key: a request only receives an\n`Access-Control-Allow-Origin` header when its `Origin` is in the allowlist configured on the\nkey used (set when creating or editing the key in the portal). A key with no allowed origins\nis server-to-server only. A Bearer API key placed in client-side JavaScript is readable by\nanyone — restrict its origins, prefer a `read_only` key (read_only keys may call GET\noperations only; writes are rejected with 403), or proxy requests through your own server."
+    "version": "1.0.3",
+    "description": "Public REST API for Toolpath engine operations.\n\n**Units.** All dimensional values — in parts and in feature details — are in\nmillimetres; all angles are in degrees. Each part response also states this in its `units` field.\n\n**Browser use.** CORS is per API key: a request only receives an\n`Access-Control-Allow-Origin` header when its `Origin` is in the allowlist configured on the\nkey used (set when creating or editing the key in the portal). A key with no allowed origins\nis server-to-server only. A Bearer API key placed in client-side JavaScript is readable by\nanyone — restrict its origins, prefer a `read_only` key (read_only keys may call GET\noperations only; writes are rejected with 403), or proxy requests through your own server."
   },
   "tags": [
     {
@@ -16,7 +16,7 @@
     },
     {
       "name": "Parts",
-      "description": "Part upload and analysis operations."
+      "description": "Part upload and processing operations."
     },
     {
       "name": "Features",
@@ -188,19 +188,19 @@
           "jobId": {
             "type": "string",
             "format": "uuid",
-            "description": "Identifier of the queued analysis job."
+            "description": "Identifier of the queued processing job."
           },
           "partId": {
             "type": "string",
             "format": "uuid",
-            "description": "Identifier of the part submitted for analysis."
+            "description": "Identifier of the part submitted for processing."
           },
           "status": {
             "type": "string",
             "enum": [
               "queued"
             ],
-            "description": "Initial state of the accepted analysis job."
+            "description": "Initial state of the accepted processing job."
           }
         },
         "required": [
@@ -209,27 +209,27 @@
           "status"
         ]
       },
-      "PartReportResponse": {
+      "PartResponse": {
         "type": "object",
         "properties": {
           "partId": {
             "type": "string",
             "format": "uuid",
-            "description": "Identifier of the part this report describes."
+            "description": "Identifier of this part."
           },
           "reportId": {
             "type": "string",
             "format": "uuid",
-            "description": "Identifier of this immutable analysis report."
+            "description": "Identifier of this immutable part result."
           },
           "jobId": {
             "type": "string",
             "format": "uuid",
-            "description": "Identifier of the analysis job that produced this report."
+            "description": "Identifier of the processing job that produced this part result."
           },
           "kernelVersion": {
             "type": "string",
-            "description": "Version of the Toolpath kernel that produced this report."
+            "description": "Version of the Toolpath kernel that produced this part result."
           },
           "units": {
             "allOf": [
@@ -241,7 +241,7 @@
                 "properties": {}
               }
             ],
-            "description": "Units used by all dimensional values in this report."
+            "description": "Units used by all dimensional values in this part response."
           },
           "regions": {
             "type": "array",
@@ -255,14 +255,14 @@
             "items": {
               "$ref": "#/components/schemas/PartFeature"
             },
-            "description": "Features recognized in this analysis run."
+            "description": "Features recognized during this processing run."
           },
           "candidateDirections": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Vec3"
             },
-            "description": "Directions from which the part can be analyzed or machined."
+            "description": "Directions from which the part can be machined."
           },
           "directionZBounds": {
             "type": [
@@ -316,7 +316,7 @@
           "recognitionMs": {
             "type": "integer",
             "minimum": 0,
-            "description": "Kernel time spent on initial part analysis, in milliseconds."
+            "description": "Kernel time spent on initial part processing, in milliseconds."
           },
           "enrichmentMs": {
             "type": "integer",
@@ -326,7 +326,7 @@
           "totalMs": {
             "type": "integer",
             "minimum": 0,
-            "description": "Total worker processing time for this report, in milliseconds."
+            "description": "Total worker processing time for this part, in milliseconds."
           }
         },
         "required": [
@@ -384,7 +384,7 @@
           "splitOrigin": {
             "type": "integer",
             "minimum": 0,
-            "description": "Report-local source-face group; equal values identify regions split from one B-rep face."
+            "description": "Part-local source-face group; equal values identify regions split from one B-rep face."
           },
           "shapeKind": {
             "type": "string",
@@ -420,7 +420,7 @@
           "featureId": {
             "type": "string",
             "format": "uuid",
-            "description": "Globally unique identifier of this feature record within its report."
+            "description": "Globally unique identifier of this feature record within its part result."
           },
           "featureTag": {
             "type": "string",
@@ -463,7 +463,7 @@
                 "properties": {}
               }
             ],
-            "description": "Feature-local machining axis, such as a face normal; null for older reports."
+            "description": "Feature-local machining axis, such as a face normal; null for older part results."
           }
         },
         "required": [
@@ -564,7 +564,7 @@
               "format": "uuid"
             },
             "minItems": 1,
-            "description": "Identifiers of features from one part whose datasheets should be computed."
+            "description": "Identifiers of features from one part whose detailed machining data should be generated."
           }
         },
         "required": [
@@ -579,14 +579,14 @@
             "items": {
               "$ref": "#/components/schemas/PartFeatureEntry"
             },
-            "description": "Datasheets for requested features that belong to the authorized organization."
+            "description": "Detailed machining data for requested features."
           },
           "notFound": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "Requested feature identifiers that were unknown or inaccessible to this organization."
+            "description": "Requested feature identifiers that were unknown."
           }
         },
         "required": [
@@ -619,7 +619,7 @@
                 "type": "null"
               }
             ],
-            "description": "Generated machining datasheet, or null when this feature has no datasheet yet."
+            "description": "Generated machining detail, or null when this feature has no detail yet."
           }
         },
         "required": [
@@ -797,7 +797,7 @@
           },
           "productType": {
             "type": "string",
-            "description": "Product operation performed by the job, such as analyze-part or enrich-features."
+            "description": "Product operation performed by the job, such as part processing or feature-detail processing."
           },
           "status": {
             "type": "string",
@@ -848,7 +848,7 @@
           },
           "productType": {
             "type": "string",
-            "description": "Product operation performed by the job, such as analyze-part or enrich-features."
+            "description": "Product operation performed by the job, such as part processing or feature-detail processing."
           },
           "status": {
             "type": "string",
@@ -882,7 +882,7 @@
               "null"
             ],
             "format": "uuid",
-            "description": "Identifier of the report produced by a successful analysis, or null until available."
+            "description": "Identifier of the part result produced by successful processing, or null until available."
           },
           "createdAt": {
             "type": "string",
@@ -1796,7 +1796,7 @@
         "tags": [
           "Parts"
         ],
-        "summary": "Queue part analysis",
+        "summary": "Queue part processing",
         "parameters": [
           {
             "schema": {
@@ -1817,10 +1817,10 @@
               ],
               "default": "false",
               "example": "true",
-              "description": "When true, enrich recognized features into per-feature datasheets. Defaults to false."
+              "description": "When true, generate detailed machining data for recognized features. Defaults to false."
             },
             "required": false,
-            "description": "When true, enrich recognized features into per-feature datasheets. Defaults to false.",
+            "description": "When true, generate detailed machining data for recognized features. Defaults to false.",
             "name": "featureDetails",
             "in": "query"
           },
@@ -1838,7 +1838,7 @@
         ],
         "responses": {
           "202": {
-            "description": "The analysis job was accepted.",
+            "description": "The processing job was accepted.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1868,7 +1868,7 @@
             }
           },
           "404": {
-            "description": "The part does not exist in the authorized organization.",
+            "description": "The part does not exist.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1888,7 +1888,7 @@
             }
           },
           "500": {
-            "description": "The analysis job could not be submitted.",
+            "description": "The processing job could not be submitted.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1914,7 +1914,7 @@
         "tags": [
           "Parts"
         ],
-        "summary": "Get the analyzed part",
+        "summary": "Get the part",
         "parameters": [
           {
             "schema": {
@@ -1931,21 +1931,21 @@
               "type": "string",
               "minLength": 1,
               "example": "0195f02c-4b4a-7b5d-9b6e-8f139d5e2820",
-              "description": "Return the report for this specific analyze run instead of the latest for the part."
+              "description": "Return the part result for this specific processing run instead of the latest result."
             },
             "required": false,
-            "description": "Return the report for this specific analyze run instead of the latest for the part.",
+            "description": "Return the part result for this specific processing run instead of the latest result.",
             "name": "jobId",
             "in": "query"
           }
         ],
         "responses": {
           "200": {
-            "description": "The analysis report for the part (the latest, or the requested run).",
+            "description": "The part result for the latest or requested processing run.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PartReportResponse"
+                  "$ref": "#/components/schemas/PartResponse"
                 }
               }
             }
@@ -1971,7 +1971,7 @@
             }
           },
           "404": {
-            "description": "The part or its report was not found.",
+            "description": "The part or its result was not found.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1981,7 +1981,7 @@
             }
           },
           "500": {
-            "description": "The part report could not be retrieved.",
+            "description": "The part could not be retrieved.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2063,7 +2063,7 @@
             }
           },
           "404": {
-            "description": "The part or selected features do not exist in the authorized organization.",
+            "description": "The part or selected features do not exist.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2125,17 +2125,17 @@
             "schema": {
               "type": "string",
               "example": "0195f02c-4b4a-7b5d-9b6e-8f139d5e2820,0195f02c-4b4a-7b5d-9b6e-8f139d5e2821",
-              "description": "Comma-separated feature ids (from a part report) to fetch datasheets for."
+              "description": "Comma-separated feature ids from the part to fetch detailed machining data for."
             },
             "required": true,
-            "description": "Comma-separated feature ids (from a part report) to fetch datasheets for.",
+            "description": "Comma-separated feature ids from the part to fetch detailed machining data for.",
             "name": "ids",
             "in": "query"
           }
         ],
         "responses": {
           "200": {
-            "description": "Datasheets for the resolved features, plus any ids that were not found.",
+            "description": "Detailed machining data for resolved features, plus any ids that were not found.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2165,7 +2165,7 @@
             }
           },
           "404": {
-            "description": "The part does not exist in the authorized organization.",
+            "description": "The part does not exist.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2261,7 +2261,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A page of jobs owned by the authorized organization.",
+            "description": "A page of jobs.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2334,7 +2334,7 @@
         ],
         "responses": {
           "200": {
-            "description": "The job, scoped to the authorized organization.",
+            "description": "The job to get.",
             "content": {
               "application/json": {
                 "schema": {
