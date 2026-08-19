@@ -1,0 +1,95 @@
+name: Production (GovCloud)
+
+# Promote a released commit to GovCloud production. The part-viewer image is built
+# once on `main` (staging.yml) and tagged with the 7-char git sha in the commercial
+# ECR. This workflow runs ONLY when a GitHub Release is published: it verifies
+# commercial staging is already running that exact sha and is healthy, copies the
+# image into the gov ECR, then points the gov ArgoCD part-viewer-production app at
+# the sha and syncs.
+on:
+  release:
+    types: [published]
+
+permissions:
+  id-token: write # assume the commercial + gov AWS OIDC roles
+  packages: read
+  contents: read
+
+jobs:
+  git_sha:
+    uses: toolpath/cicd-workflows/.github/workflows/_git_sha.yaml@latest
+
+  # Gate: commercial part-viewer-staging must already be running the released sha AND
+  # be healthy.
+  ensure_staging:
+    uses: toolpath/cicd-workflows/.github/workflows/_check_current_version.yaml@latest
+    secrets: inherit
+    needs: git_sha
+    with:
+      application: part-viewer
+      environment: staging
+      image_tag: ${{ needs.git_sha.outputs.short-sha-7 }}
+
+  # Copy the released image from the commercial ECR into the gov ECR (the gov cluster
+  # pulls it in-account / in-partition). Registry-to-registry manifest copy, no
+  # rebuild. unset-current-credentials forces a clean web-identity assume for the gov
+  # role (a cross-partition role-chain from the commercial creds would fail).
+  copy_to_gov_ecr:
+    needs: git_sha
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure commercial AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::149536470839:role/system/github_actions
+          role-session-name: GitHub_to_AWS_via_FederatedOIDC
+          aws-region: us-east-1
+
+      - name: Login to commercial Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Configure GovCloud AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws-us-gov:iam::570117457787:role/system/github_actions
+          role-session-name: GitHub_to_GovAWS_via_FederatedOIDC
+          aws-region: us-gov-east-1
+          unset-current-credentials: true
+
+      - name: Login to GovCloud Amazon ECR
+        id: login-ecr-gov
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Copy part-viewer to GovCloud ECR
+        run: |
+          docker buildx imagetools create \
+            --tag "${{ steps.login-ecr-gov.outputs.registry }}/part-viewer:${{ needs.git_sha.outputs.short-sha-7 }}" \
+            "${{ steps.login-ecr.outputs.registry }}/part-viewer:${{ needs.git_sha.outputs.short-sha-7 }}"
+
+  # Point the gov ArgoCD part-viewer-production app at the released sha and sync.
+  # Gated on both the staging check and the image copy. The production-govcloud
+  # environment is the manual-approval hook.
+  deploy_govcloud:
+    needs:
+      - git_sha
+      - ensure_staging
+      - copy_to_gov_ecr
+    runs-on: ubuntu-latest
+    environment: production-govcloud
+    steps:
+      - name: Install Argo CD CLI
+        run: |
+          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          sudo install -m 0555 argocd /usr/local/bin/argocd
+      - name: Set image tag & sync part-viewer-production on GovCloud
+        env:
+          ARGOCD_SERVER: argocd.prod-govcloud.toolpath.com
+          ARGOCD_AUTH_TOKEN: ${{ secrets.GOV_ARGOCD_TOKEN }}
+          ARGOCD_OPTS: --grpc-web
+        run: |
+          argocd app set part-viewer-production --helm-set-string global.image.tag=${{ needs.git_sha.outputs.short-sha-7 }}
+          argocd app sync part-viewer-production --timeout 600
+          argocd app wait part-viewer-production --health --timeout 600

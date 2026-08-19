@@ -57,33 +57,6 @@ jobs:
             --push \
             .
 
-      # GovCloud dual-push. The gov cluster serves part-viewer at dfm.toolpath.com,
-      # so copy the image into the gov ECR (pulled in-account / in-partition). This
-      # is a registry-to-registry manifest copy — no rebuild. The commercial ECR
-      # login above stays in the docker config for the read side; we add the gov ECR
-      # login for the write side. OIDC federates aws -> aws-us-gov;
-      # unset-current-credentials forces a clean web-identity assume (a
-      # cross-partition role-chain from the commercial creds would fail).
-      - name: Configure GovCloud AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws-us-gov:iam::570117457787:role/system/github_actions
-          role-session-name: GitHub_to_GovAWS_via_FederatedOIDC
-          aws-region: us-gov-east-1
-          unset-current-credentials: true
-
-      - name: Login to GovCloud Amazon ECR
-        id: login-ecr-gov
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Copy Part Viewer to GovCloud ECR
-        env:
-          IMAGE_TAG: ${{ steps.git_sha.outputs.short_sha }}
-        run: |
-          docker buildx imagetools create \
-            --tag "${{ steps.login-ecr-gov.outputs.registry }}/part-viewer:$IMAGE_TAG" \
-            "${{ steps.login-ecr.outputs.registry }}/part-viewer:$IMAGE_TAG"
-
   deploy:
     needs: build
     uses: toolpath/cicd-workflows/.github/workflows/_deploy.yaml@latest
