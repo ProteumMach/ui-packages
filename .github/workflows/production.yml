@@ -65,9 +65,12 @@ jobs:
 
       - name: Copy part-viewer to GovCloud ECR
         run: |
+          gov_registry="${{ steps.login-ecr-gov.outputs.registry }}"
+          registry="${{ steps.login-ecr.outputs.registry }}"
+          sha="${{ needs.git_sha.outputs.short-sha-7 }}"
           docker buildx imagetools create \
-            --tag "${{ steps.login-ecr-gov.outputs.registry }}/part-viewer:${{ needs.git_sha.outputs.short-sha-7 }}" \
-            "${{ steps.login-ecr.outputs.registry }}/part-viewer:${{ needs.git_sha.outputs.short-sha-7 }}"
+            --tag "${gov_registry}/part-viewer:${sha}" \
+            "${registry}/part-viewer:${sha}"
 
   # Point the gov ArgoCD part-viewer-production app at the released sha and sync.
   # Gated on both the staging check and the image copy. The production-govcloud
@@ -82,7 +85,8 @@ jobs:
     steps:
       - name: Install Argo CD CLI
         run: |
-          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          curl -sSL -o argocd \
+            https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
           sudo install -m 0555 argocd /usr/local/bin/argocd
       - name: Set image tag & sync part-viewer-production on GovCloud
         env:
@@ -90,6 +94,7 @@ jobs:
           ARGOCD_AUTH_TOKEN: ${{ secrets.GOV_ARGOCD_TOKEN }}
           ARGOCD_OPTS: --grpc-web
         run: |
-          argocd app set part-viewer-production --helm-set-string global.image.tag=${{ needs.git_sha.outputs.short-sha-7 }}
+          argocd app set part-viewer-production \
+            --helm-set-string global.image.tag=${{ needs.git_sha.outputs.short-sha-7 }}
           argocd app sync part-viewer-production --timeout 600
           argocd app wait part-viewer-production --health --timeout 600
