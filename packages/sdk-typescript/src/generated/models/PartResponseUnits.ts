@@ -14,46 +14,47 @@
 
 import { mapValues } from '../runtime.js'
 /**
- *
+ * Units used by all dimensional values in this part response.
  * @export
- * @interface ReportUnits
+ * @interface PartResponseUnits
  */
-export interface ReportUnits {
+export interface PartResponseUnits {
   /**
    * Unit used by every length and area measurement.
-   * @type {ReportUnitsLengthEnum}
-   * @memberof ReportUnits
+   * @type {PartResponseUnitsLengthEnum}
+   * @memberof PartResponseUnits
    */
-  length: ReportUnitsLengthEnum
+  length: PartResponseUnitsLengthEnum
   /**
    * Unit used by every angular measurement.
-   * @type {ReportUnitsAngleEnum}
-   * @memberof ReportUnits
+   * @type {PartResponseUnitsAngleEnum}
+   * @memberof PartResponseUnits
    */
-  angle: ReportUnitsAngleEnum
+  angle: PartResponseUnitsAngleEnum
 }
 
 /**
  * @export
  */
-export const ReportUnitsLengthEnum = {
+export const PartResponseUnitsLengthEnum = {
   Mm: 'mm',
 } as const
-export type ReportUnitsLengthEnum =
-  (typeof ReportUnitsLengthEnum)[keyof typeof ReportUnitsLengthEnum]
+export type PartResponseUnitsLengthEnum =
+  (typeof PartResponseUnitsLengthEnum)[keyof typeof PartResponseUnitsLengthEnum]
 
 /**
  * @export
  */
-export const ReportUnitsAngleEnum = {
+export const PartResponseUnitsAngleEnum = {
   Deg: 'deg',
 } as const
-export type ReportUnitsAngleEnum = (typeof ReportUnitsAngleEnum)[keyof typeof ReportUnitsAngleEnum]
+export type PartResponseUnitsAngleEnum =
+  (typeof PartResponseUnitsAngleEnum)[keyof typeof PartResponseUnitsAngleEnum]
 
 /**
- * Check if a given object implements the ReportUnits interface.
+ * Check if a given object implements the PartResponseUnits interface.
  */
-export function instanceOfReportUnits(value: object): value is ReportUnits {
+export function instanceOfPartResponseUnits(value: object): value is PartResponseUnits {
   if (!('length' in value) || value['length'] === undefined) return false
   if (value['length'] !== 'mm') return false
 
@@ -63,11 +64,14 @@ export function instanceOfReportUnits(value: object): value is ReportUnits {
   return true
 }
 
-export function ReportUnitsFromJSON(json: any): ReportUnits {
-  return ReportUnitsFromJSONTyped(json, false)
+export function PartResponseUnitsFromJSON(json: any): PartResponseUnits {
+  return PartResponseUnitsFromJSONTyped(json, false)
 }
 
-export function ReportUnitsFromJSONTyped(json: any, ignoreDiscriminator: boolean): ReportUnits {
+export function PartResponseUnitsFromJSONTyped(
+  json: any,
+  ignoreDiscriminator: boolean,
+): PartResponseUnits {
   if (json == null) {
     return json
   }
@@ -77,12 +81,12 @@ export function ReportUnitsFromJSONTyped(json: any, ignoreDiscriminator: boolean
   }
 }
 
-export function ReportUnitsToJSON(json: any): ReportUnits {
-  return ReportUnitsToJSONTyped(json, false)
+export function PartResponseUnitsToJSON(json: any): PartResponseUnits {
+  return PartResponseUnitsToJSONTyped(json, false)
 }
 
-export function ReportUnitsToJSONTyped(
-  value?: ReportUnits | null,
+export function PartResponseUnitsToJSONTyped(
+  value?: PartResponseUnits | null,
   ignoreDiscriminator: boolean = false,
 ): any {
   if (value == null) {

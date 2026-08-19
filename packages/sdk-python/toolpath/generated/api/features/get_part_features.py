@@ -94,7 +94,7 @@ def sync_detailed(
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        ids (str): Comma-separated feature ids (from a part report) to fetch datasheets for.
+        ids (str): Comma-separated feature ids from the part to fetch detailed machining data for.
             Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820,0195f02c-4b4a-7b5d-9b6e-8f139d5e2821.
 
     Raises:
@@ -127,7 +127,7 @@ def sync(
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        ids (str): Comma-separated feature ids (from a part report) to fetch datasheets for.
+        ids (str): Comma-separated feature ids from the part to fetch detailed machining data for.
             Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820,0195f02c-4b4a-7b5d-9b6e-8f139d5e2821.
 
     Raises:
@@ -155,7 +155,7 @@ async def asyncio_detailed(
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        ids (str): Comma-separated feature ids (from a part report) to fetch datasheets for.
+        ids (str): Comma-separated feature ids from the part to fetch detailed machining data for.
             Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820,0195f02c-4b4a-7b5d-9b6e-8f139d5e2821.
 
     Raises:
@@ -186,7 +186,7 @@ async def asyncio(
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        ids (str): Comma-separated feature ids (from a part report) to fetch datasheets for.
+        ids (str): Comma-separated feature ids from the part to fetch detailed machining data for.
             Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820,0195f02c-4b4a-7b5d-9b6e-8f139d5e2821.
 
     Raises:

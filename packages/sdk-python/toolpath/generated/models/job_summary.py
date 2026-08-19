@@ -19,7 +19,8 @@ class JobSummary:
     Attributes:
         part_uuid (UUID): Identifier of the part this job processes.
         job_uuid (UUID): Identifier of this job.
-        product_type (str): Product operation performed by the job, such as analyze-part or enrich-features.
+        product_type (str): Product operation performed by the job, such as part processing or feature-detail
+            processing.
         status (JobSummaryStatus): Current durable state of the job.
         progress (int | None): Worker-reported completion percentage, or null before progress is available.
         created_at (datetime.datetime): Time at which the job was created, in ISO 8601 format.

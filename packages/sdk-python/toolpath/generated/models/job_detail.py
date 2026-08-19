@@ -19,11 +19,13 @@ class JobDetail:
     Attributes:
         part_uuid (UUID): Identifier of the part this job processes.
         job_uuid (UUID): Identifier of this job.
-        product_type (str): Product operation performed by the job, such as analyze-part or enrich-features.
+        product_type (str): Product operation performed by the job, such as part processing or feature-detail
+            processing.
         status (JobDetailStatus): Current durable state of the job.
         progress (int | None): Worker-reported completion percentage, or null before progress is available.
         error (None | str): Failure reason when the job status is failed; otherwise null.
-        report_id (None | UUID): Identifier of the report produced by a successful analysis, or null until available.
+        report_id (None | UUID): Identifier of the part result produced by successful processing, or null until
+            available.
         created_at (datetime.datetime): Time at which the job was created, in ISO 8601 format.
     """
 

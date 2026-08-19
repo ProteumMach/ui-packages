@@ -10,26 +10,26 @@ from attrs import field as _attrs_field
 if TYPE_CHECKING:
     from ..models.direction_z_bounds import DirectionZBounds
     from ..models.part_feature import PartFeature
-    from ..models.part_report_response_units import PartReportResponseUnits
+    from ..models.part_response_units import PartResponseUnits
     from ..models.region import Region
     from ..models.vec_3 import Vec3
 
 
-T = TypeVar("T", bound="PartReportResponse")
+T = TypeVar("T", bound="PartResponse")
 
 
 @_attrs_define
-class PartReportResponse:
+class PartResponse:
     """
     Attributes:
-        part_id (UUID): Identifier of the part this report describes.
-        report_id (UUID): Identifier of this immutable analysis report.
-        job_id (UUID): Identifier of the analysis job that produced this report.
-        kernel_version (str): Version of the Toolpath kernel that produced this report.
-        units (PartReportResponseUnits): Units used by all dimensional values in this report.
+        part_id (UUID): Identifier of this part.
+        report_id (UUID): Identifier of this immutable part result.
+        job_id (UUID): Identifier of the processing job that produced this part result.
+        kernel_version (str): Version of the Toolpath kernel that produced this part result.
+        units (PartResponseUnits): Units used by all dimensional values in this part response.
         regions (list[Region]): Recognized B-rep regions, ordered by region index.
-        features (list[PartFeature]): Features recognized in this analysis run.
-        candidate_directions (list[Vec3]): Directions from which the part can be analyzed or machined.
+        features (list[PartFeature]): Features recognized during this processing run.
+        candidate_directions (list[Vec3]): Directions from which the part can be machined.
         direction_z_bounds (list[DirectionZBounds] | None): Part z extents for each candidate direction, or null when
             detail enrichment did not run.
         mesh_point_count (int): Number of points in the generated mesh.
@@ -38,16 +38,16 @@ class PartReportResponse:
         mesh_stl_url (None | str): 15-minute URL for the generated STL mesh, or null when absent.
         mesh_glb_url (None | str): 15-minute URL for the generated GLB mesh, or null when absent.
         download_ms (int): Worker time spent downloading the source CAD file, in milliseconds.
-        recognition_ms (int): Kernel time spent on initial part analysis, in milliseconds.
+        recognition_ms (int): Kernel time spent on initial part processing, in milliseconds.
         enrichment_ms (int): Kernel time spent building per-feature details, in milliseconds.
-        total_ms (int): Total worker processing time for this report, in milliseconds.
+        total_ms (int): Total worker processing time for this part, in milliseconds.
     """
 
     part_id: UUID
     report_id: UUID
     job_id: UUID
     kernel_version: str
-    units: PartReportResponseUnits
+    units: PartResponseUnits
     regions: list[Region]
     features: list[PartFeature]
     candidate_directions: list[Vec3]
@@ -151,7 +151,7 @@ class PartReportResponse:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.direction_z_bounds import DirectionZBounds
         from ..models.part_feature import PartFeature
-        from ..models.part_report_response_units import PartReportResponseUnits
+        from ..models.part_response_units import PartResponseUnits
         from ..models.region import Region
         from ..models.vec_3 import Vec3
 
@@ -164,7 +164,7 @@ class PartReportResponse:
 
         kernel_version = d.pop("kernelVersion")
 
-        units = PartReportResponseUnits.from_dict(d.pop("units"))
+        units = PartResponseUnits.from_dict(d.pop("units"))
 
         regions = []
         _regions = d.pop("regions")
@@ -240,7 +240,7 @@ class PartReportResponse:
 
         total_ms = d.pop("totalMs")
 
-        part_report_response = cls(
+        part_response = cls(
             part_id=part_id,
             report_id=report_id,
             job_id=job_id,
@@ -261,8 +261,8 @@ class PartReportResponse:
             total_ms=total_ms,
         )
 
-        part_report_response.additional_properties = d
-        return part_report_response
+        part_response.additional_properties = d
+        return part_response
 
     @property
     def additional_keys(self) -> list[str]:

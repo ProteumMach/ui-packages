@@ -106,12 +106,12 @@ def sync_detailed(
     feature_details: UpdatePartFeatureDetails | Unset = UpdatePartFeatureDetails.FALSE,
     idempotency_key: str | Unset = UNSET,
 ) -> Response[ProblemDetails | UpdatePartResponse]:
-    """Queue part analysis
+    """Queue part processing
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        feature_details (UpdatePartFeatureDetails | Unset): When true, enrich recognized features
-            into per-feature datasheets. Defaults to false. Default: UpdatePartFeatureDetails.FALSE.
+        feature_details (UpdatePartFeatureDetails | Unset): When true, generate detailed machining
+            data for recognized features. Defaults to false. Default: UpdatePartFeatureDetails.FALSE.
             Example: true.
         idempotency_key (str | Unset):  Example: analysis-request-123.
 
@@ -143,12 +143,12 @@ def sync(
     feature_details: UpdatePartFeatureDetails | Unset = UpdatePartFeatureDetails.FALSE,
     idempotency_key: str | Unset = UNSET,
 ) -> ProblemDetails | UpdatePartResponse | None:
-    """Queue part analysis
+    """Queue part processing
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        feature_details (UpdatePartFeatureDetails | Unset): When true, enrich recognized features
-            into per-feature datasheets. Defaults to false. Default: UpdatePartFeatureDetails.FALSE.
+        feature_details (UpdatePartFeatureDetails | Unset): When true, generate detailed machining
+            data for recognized features. Defaults to false. Default: UpdatePartFeatureDetails.FALSE.
             Example: true.
         idempotency_key (str | Unset):  Example: analysis-request-123.
 
@@ -175,12 +175,12 @@ async def asyncio_detailed(
     feature_details: UpdatePartFeatureDetails | Unset = UpdatePartFeatureDetails.FALSE,
     idempotency_key: str | Unset = UNSET,
 ) -> Response[ProblemDetails | UpdatePartResponse]:
-    """Queue part analysis
+    """Queue part processing
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        feature_details (UpdatePartFeatureDetails | Unset): When true, enrich recognized features
-            into per-feature datasheets. Defaults to false. Default: UpdatePartFeatureDetails.FALSE.
+        feature_details (UpdatePartFeatureDetails | Unset): When true, generate detailed machining
+            data for recognized features. Defaults to false. Default: UpdatePartFeatureDetails.FALSE.
             Example: true.
         idempotency_key (str | Unset):  Example: analysis-request-123.
 
@@ -210,12 +210,12 @@ async def asyncio(
     feature_details: UpdatePartFeatureDetails | Unset = UpdatePartFeatureDetails.FALSE,
     idempotency_key: str | Unset = UNSET,
 ) -> ProblemDetails | UpdatePartResponse | None:
-    """Queue part analysis
+    """Queue part processing
 
     Args:
         id (str):  Example: 0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
-        feature_details (UpdatePartFeatureDetails | Unset): When true, enrich recognized features
-            into per-feature datasheets. Defaults to false. Default: UpdatePartFeatureDetails.FALSE.
+        feature_details (UpdatePartFeatureDetails | Unset): When true, generate detailed machining
+            data for recognized features. Defaults to false. Default: UpdatePartFeatureDetails.FALSE.
             Example: true.
         idempotency_key (str | Unset):  Example: analysis-request-123.
 

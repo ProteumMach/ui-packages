@@ -14,7 +14,8 @@ T = TypeVar("T", bound="UpdatePartFeaturesRequest")
 class UpdatePartFeaturesRequest:
     """
     Attributes:
-        feature_ids (list[UUID]): Identifiers of features from one part whose datasheets should be computed.
+        feature_ids (list[UUID]): Identifiers of features from one part whose detailed machining data should be
+            generated.
     """
 
     feature_ids: list[UUID]
