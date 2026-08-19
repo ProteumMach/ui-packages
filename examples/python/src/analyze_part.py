@@ -16,7 +16,7 @@ from toolpath.generated.models import (
     JobDetail,
     JobDetailStatus,
     PartFeaturesResponse,
-    PartReportResponse,
+    PartResponse,
     UpdatePartFeatureDetails,
     UpdatePartResponse,
 )
@@ -48,7 +48,7 @@ async def wait_for_job(
 
 
 async def add_feature_datasheets(
-    api: AuthenticatedClient, report: PartReportResponse
+    api: AuthenticatedClient, report: PartResponse
 ) -> dict[str, Any]:
     datasheets_by_tag: dict[str, dict[str, Any]] = {}
     feature_ids = list(dict.fromkeys(feature.feature_id for feature in report.features))
@@ -104,7 +104,7 @@ async def analyze(
         raise RuntimeError(job.error or "The Toolpath Engine could not analyze this part.")
 
     report = await get_part.asyncio(client=api, id=str(created.part_id), job_id=str(queued.job_id))
-    if not isinstance(report, PartReportResponse):
+    if not isinstance(report, PartResponse):
         raise TypeError(f"Could not get the report: {report}")
     return await add_feature_datasheets(api, report)
 

@@ -22,7 +22,7 @@ import { EnginePart } from '@toolpath/viewer/engine'
 </Suspense>
 ```
 
-`EnginePart` takes a `PartReportResponse` exactly as `@toolpath/api` returns it and validates it:
+`EnginePart` takes a `PartResponse` exactly as `@toolpath/api` returns it and validates it:
 a malformed report throws `PartReportFormatError` carrying every problem it found, and one from a
 kernel older than `0.3.0` — before `regions[]` and `featureTag` existed — throws
 `UnsupportedKernelVersionError`. It fetches `meshGlbUrl`, falls back to `meshStlUrl`, and refuses a

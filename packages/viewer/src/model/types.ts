@@ -2,7 +2,7 @@
  * The normalized part — the only thing the renderer consumes.
  *
  * `engine/` produces this; nothing under `model/` or `render/` sees a
- * `PartReportResponse`. The renderer therefore survives an API change, and the
+ * `PartResponse`. The renderer therefore survives an API change, and the
  * viewer can be driven from a local file with no API at all, which is also how
  * it gets tested.
  *

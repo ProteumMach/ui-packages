@@ -8,7 +8,7 @@ import {
   createToolpathClient,
   type PartFeatureEntry,
   type JobDetail,
-  type PartReportResponse,
+  type PartResponse,
   JobDetailFromJSON,
   instanceOfJobDetail,
   uploadToPresignedUrl,
@@ -21,9 +21,9 @@ interface AnalyzePartOptions {
   onStatus?: (message: string) => void
 }
 
-type ReportWithDatasheets = Omit<PartReportResponse, 'features'> & {
+type ReportWithDatasheets = Omit<PartResponse, 'features'> & {
   features: Array<
-    PartReportResponse['features'][number] & {
+    PartResponse['features'][number] & {
       datasheet: PartFeatureEntry['datasheet'] | null
     }
   >
@@ -91,7 +91,7 @@ const waitForJob = async (
 
 const getWholePartReport = async (
   api: ReturnType<typeof createToolpathClient>,
-  report: PartReportResponse,
+  report: PartResponse,
 ): Promise<ReportWithDatasheets> => {
   const featureIds = [...new Set(report.features.map((feature) => feature.featureId))]
   const datasheetsByTag = new Map<string, PartFeatureEntry['datasheet']>()
