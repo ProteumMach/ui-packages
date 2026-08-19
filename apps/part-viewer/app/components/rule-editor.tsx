@@ -17,7 +17,7 @@ import {
   toDisplay,
   unitSuffix,
 } from '../shared/rule-text'
-import type { Band, FlagRule, Rule, RuleType, ThresholdRule } from '../shared/rules'
+import type { Band, FlagRule, MatchRule, Rule, RuleType, ThresholdRule } from '../shared/rules'
 import { BANDS, FLAG_TESTS, RULE_TYPES, asType, bandName, plainType } from '../shared/rules'
 import type { Unit } from '../shared/units'
 import { decimalsFor } from '../shared/units'
@@ -35,6 +35,32 @@ import { decimalsFor } from '../shared/units'
 const SELECT =
   'h-7 rounded border border-zinc-700 bg-transparent px-1.5 text-2xs text-zinc-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-info'
 
+/** A number somebody has finished typing: digits, optionally signed, one point. */
+const COMPLETE = /^-?(\d+\.?\d*|\.\d+)$/
+
+/**
+ * The caption over a control.
+ *
+ * Every control in a row of limits carries one, and that is what lines the row
+ * up: mixing a captioned box with a bare one leaves the two sitting at
+ * different heights, and the row reads as a staircase rather than a sentence.
+ *
+ * One line, always. A caption that wrapped would push its own control down and
+ * step the row again, so this truncates instead.
+ */
+const Caption = ({ band, children }: { band?: Band | undefined; children: ReactNode }) => (
+  <span className="flex items-center gap-1 truncate whitespace-nowrap text-2xs text-zinc-400">
+    {band ? (
+      <span
+        aria-hidden="true"
+        className="size-1.5 shrink-0 rounded-full"
+        style={{ background: bandCss(band) }}
+      />
+    ) : null}
+    {children}
+  </span>
+)
+
 /**
  * A number being typed, which is not the same thing as a number.
  *
@@ -47,6 +73,19 @@ const SELECT =
  * So while a box has focus it shows exactly what was typed, and only the parsed
  * value leaves. On blur the draft is dropped and the stored number comes back
  * formatted, which is where rounding belongs.
+ *
+ * Three rules keep that honest:
+ *
+ * - **Only complete numbers leave while typing.** `Number` reads `0.` as 0 and
+ *   `.` as nothing, so propagating every parse writes a 0 into the rule between
+ *   the point and the digits after it — which recolours the part against a
+ *   limit nobody set. A half-typed number is not a change of mind: the stored
+ *   one stands until the next digit lands.
+ * - **Blur commits what is there.** `5.` is 5 to everybody except a parser, so
+ *   leaving the box takes it rather than silently restoring the old number.
+ * - **An emptied box is not a zero.** Clearing one is how retyping it starts.
+ *   Only a box given `onClear` treats empty as an answer; the rest keep the
+ *   stored number, which comes back on blur.
  */
 const NumberBox = ({
   id,
@@ -59,6 +98,7 @@ const NumberBox = ({
   raw = false,
   width = 'w-24',
   onChange,
+  onClear,
 }: {
   id: string
   label: string
@@ -71,7 +111,12 @@ const NumberBox = ({
   /** Unitless — a weight or a count, which no conversion touches. */
   raw?: boolean
   width?: string
-  onChange: (value: number | undefined) => void
+  onChange: (value: number) => void
+  /**
+   * What an emptied box means, where empty is a real answer. Without it,
+   * clearing the box is the first half of retyping it.
+   */
+  onClear?: (() => void) | undefined
 }) => {
   const [draft, setDraft] = useState<string | null>(null)
   const shown = raw ? undefined : metric
@@ -81,20 +126,20 @@ const NumberBox = ({
   const settled =
     value === undefined ? '' : String(Number(toDisplay(value, shown, unit).toFixed(raw ? 0 : 4)))
 
+  /**
+   * A raw box is a weight or a count and is shown to no decimals, so it rounds
+   * on the way in too. Storing 2.5 under a box reading "3" is a number nobody
+   * typed and nobody can see.
+   */
+  const commit = (typed: number) => {
+    onChange(raw ? Math.round(typed) : fromDisplay(typed, shown, unit))
+  }
+
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
       {/* A div rather than a label: the caption names a control that labels
           itself, and two labels on one box is one too many for a screen reader. */}
-      <span className="flex items-center gap-1 truncate text-2xs text-zinc-400">
-        {band ? (
-          <span
-            aria-hidden="true"
-            className="size-1.5 shrink-0 rounded-full"
-            style={{ background: bandCss(band) }}
-          />
-        ) : null}
-        {label}
-      </span>
+      <Caption band={band}>{label}</Caption>
       <Input
         aria-label={label}
         className={`${width} tabular-nums`}
@@ -106,22 +151,78 @@ const NumberBox = ({
         suffix={raw ? undefined : unitSuffix(metric, unit)}
         type="text"
         value={draft ?? settled}
-        onBlur={() => setDraft(null)}
+        onBlur={() => {
+          // `5.` and `.5` are numbers to everybody but a parser, so leaving the
+          // box takes what is in it rather than restoring the old number.
+          const typed = draft?.trim()
+          if (typed && COMPLETE.test(typed)) commit(Number(typed))
+
+          setDraft(null)
+        }}
         onChange={(event) => {
           const typed = event.target.value
           setDraft(typed)
 
-          if (typed.trim() === '') {
-            // An emptied box is "not set", not zero — which would refuse
-            // everything the moment somebody cleared the field to retype it.
-            onChange(undefined)
+          const trimmed = typed.trim()
+
+          if (trimmed === '') {
+            onClear?.()
             return
           }
 
-          const next = Number(typed)
-          // A half-typed number — "0.", "-", "1e" — is not a change of mind, so
-          // the last good value stands until the next digit lands.
-          if (Number.isFinite(next)) onChange(fromDisplay(next, shown, unit))
+          if (COMPLETE.test(trimmed)) commit(Number(trimmed))
+        }}
+      />
+    </div>
+  )
+}
+
+/**
+ * The sizes a shop holds, as one comma-separated line.
+ *
+ * Same draft as {@link NumberBox} and for the same reason: parsing the line on
+ * every keystroke and rendering the result back rewrites what somebody is in
+ * the middle of typing. Without it a decimal point is unreachable — `3, 6, 1.`
+ * parses to `3, 6, 1` and the point is gone before the digit after it arrives —
+ * and a comma cannot be typed either, because a trailing empty piece is
+ * dropped and the separator goes with it.
+ */
+const SizeList = ({
+  rule,
+  unit,
+  onChange,
+}: {
+  rule: MatchRule
+  unit: Unit
+  onChange: (rule: Rule) => void
+}) => {
+  const [draft, setDraft] = useState<string | null>(null)
+
+  const settled = rule.standards
+    .map((size) => Number(toDisplay(size, rule.metric, unit).toFixed(decimalsFor(unit))))
+    .join(', ')
+
+  return (
+    <div className="flex min-w-40 flex-1 flex-col gap-0.5">
+      <Caption>sizes held</Caption>
+      <Input
+        aria-label="Sizes held"
+        className="w-full tabular-nums"
+        id={`${rule.id}-standards`}
+        name={`${rule.id}-standards`}
+        size="md"
+        value={draft ?? settled}
+        onBlur={() => setDraft(null)}
+        onChange={(event) => {
+          setDraft(event.target.value)
+          onChange({
+            ...rule,
+            standards: event.target.value
+              .split(',')
+              .map((piece) => piece.trim())
+              .filter((piece) => COMPLETE.test(piece))
+              .map((piece) => fromDisplay(Number(piece), rule.metric, unit)),
+          })
         }}
       />
     </div>
@@ -183,8 +284,7 @@ const Limits = ({
   onChange: (rule: Rule) => void
 }) => {
   if (rule.type === 'threshold') {
-    const write = (at: number, value: number | undefined) => {
-      if (value === undefined) return
+    const write = (at: number, value: number) => {
       const thresholds = [...rule.thresholds] as ThresholdRule['thresholds']
       thresholds[at] = value
       onChange({ ...rule, thresholds })
@@ -213,9 +313,12 @@ const Limits = ({
             id={`${rule.id}-no-go`}
             label={`${bandName('no go', undefined, rule.bandNames)} past`}
             metric={rule.metric}
-            onChange={(value) => {
+            onChange={(value) => onChange({ ...rule, noGo: value })}
+            // The one limit a rule can go without: emptying it means "nothing
+            // is ever this bad", which is a setting rather than a blank.
+            onClear={() => {
               const { noGo: _dropped, ...rest } = rule
-              onChange(value === undefined ? rest : { ...rule, noGo: value })
+              onChange(rest)
             }}
             placeholder="none"
             unit={unit}
@@ -228,7 +331,7 @@ const Limits = ({
 
   if (rule.type === 'range') {
     return (
-      <div className="flex flex-wrap items-center gap-1">
+      <div className="flex flex-wrap items-end gap-x-2 gap-y-1">
         {rule.spans.map((span, at) =>
           ([0, 1] as const).map((edge) => (
             <NumberBox
@@ -239,7 +342,7 @@ const Limits = ({
               onChange={(value) => {
                 const spans = [...rule.spans] as typeof rule.spans
                 const [from, to] = span
-                spans[at] = edge === 0 ? [value ?? 0, to] : [from, value ?? 0]
+                spans[at] = edge === 0 ? [value, to] : [from, value]
                 onChange({ ...rule, spans })
               }}
               unit={unit}
@@ -253,32 +356,17 @@ const Limits = ({
 
   if (rule.type === 'match') {
     return (
-      <div className="flex flex-wrap items-center gap-1">
-        <Input
-          aria-label="Sizes held"
-          className="min-w-40 flex-1 tabular-nums"
-          id={`${rule.id}-standards`}
-          name={`${rule.id}-standards`}
-          size="md"
-          value={rule.standards
-            .map((size) => Number(toDisplay(size, rule.metric, unit).toFixed(decimalsFor(unit))))
-            .join(', ')}
-          onChange={(event) =>
-            onChange({
-              ...rule,
-              standards: event.target.value
-                .split(',')
-                .map((piece) => Number(piece.trim()))
-                .filter((size) => Number.isFinite(size))
-                .map((size) => fromDisplay(size, rule.metric, unit)),
-            })
-          }
-        />
+      // `items-end` throughout: the controls are what should line up, so they
+      // sit on a common bottom edge and any caption that has to be shorter or
+      // taller than its neighbours grows upwards instead of shunting its own
+      // control down the row.
+      <div className="flex flex-wrap items-end gap-2">
+        <SizeList onChange={onChange} rule={rule} unit={unit} />
         <NumberBox
           id={`${rule.id}-tolerance`}
           label="within"
           metric={rule.metric}
-          onChange={(value) => onChange({ ...rule, tolerance: value ?? 0 })}
+          onChange={(value) => onChange({ ...rule, tolerance: value })}
           unit={unit}
           value={rule.tolerance}
         />
@@ -288,33 +376,37 @@ const Limits = ({
 
   if (rule.type === 'flag') {
     return (
-      <div className="flex flex-wrap items-center gap-1">
-        <select
-          aria-label="Test"
-          className={SELECT}
-          value={rule.op ?? '≠'}
-          onChange={(event) => onChange({ ...rule, op: event.target.value as FlagRule['op'] })}
-        >
-          {FLAG_TESTS.map((test) => (
-            <option key={test} value={test}>
-              {test}
-            </option>
-          ))}
-        </select>
+      <div className="flex flex-wrap items-end gap-2">
+        <Field label="test">
+          <select
+            aria-label="Test"
+            className={SELECT}
+            value={rule.op ?? '≠'}
+            onChange={(event) => onChange({ ...rule, op: event.target.value as FlagRule['op'] })}
+          >
+            {FLAG_TESTS.map((test) => (
+              <option key={test} value={test}>
+                {test}
+              </option>
+            ))}
+          </select>
+        </Field>
         <NumberBox
           id={`${rule.id}-against`}
           label="against"
           metric={rule.metric}
-          onChange={(value) => onChange({ ...rule, against: value ?? 0 })}
+          onChange={(value) => onChange({ ...rule, against: value })}
           unit={unit}
           value={typeof rule.against === 'number' ? rule.against : 0}
         />
-        <BandSelect
-          id={`${rule.id}-raises`}
-          label="raises"
-          onChange={(raises) => onChange({ ...rule, raises })}
-          value={rule.raises}
-        />
+        <Field label="raises">
+          <BandSelect
+            id={`${rule.id}-raises`}
+            label="raises"
+            onChange={(raises) => onChange({ ...rule, raises })}
+            value={rule.raises}
+          />
+        </Field>
       </div>
     )
   }
@@ -378,8 +470,8 @@ const BandSelect = ({
 )
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => (
-  <div className="flex flex-col gap-0.5">
-    <span className="text-2xs text-zinc-400">{label}</span>
+  <div className="flex min-w-0 flex-col gap-0.5">
+    <Caption>{label}</Caption>
     {children}
   </div>
 )
@@ -423,7 +515,7 @@ const Settings = ({
           id={`${rule.id}-weight`}
           label="Weight"
           metric={undefined}
-          onChange={(value) => onChange({ ...rule, weight: value ?? 0 })}
+          onChange={(value) => onChange({ ...rule, weight: value })}
           raw
           unit={unit}
           value={rule.weight}
@@ -510,7 +602,7 @@ const Settings = ({
                 metric={metric}
                 onChange={(value) => {
                   const spans = [...rule.spans] as typeof rule.spans
-                  spans[at] = [value ?? 0, span[1]]
+                  spans[at] = [value, span[1]]
                   onChange({ ...rule, spans })
                 }}
                 unit={unit}
@@ -523,7 +615,7 @@ const Settings = ({
                 metric={metric}
                 onChange={(value) => {
                   const spans = [...rule.spans] as typeof rule.spans
-                  spans[at] = [span[0], value ?? 0]
+                  spans[at] = [span[0], value]
                   onChange({ ...rule, spans })
                 }}
                 unit={unit}
@@ -546,16 +638,23 @@ const Settings = ({
       {rule.type === 'match' ? (
         <div className="flex flex-col gap-2">
           <Field label="Sizes held">
-            <div className="flex flex-wrap items-center gap-1">
+            <div className="flex flex-wrap items-end gap-x-2 gap-y-1">
+              {/* Keyed by position alone. With the size in the key, every edit
+                  changed the key of the box being typed into, so React unmounted
+                  it and mounted a fresh one — dropping the half-typed draft and
+                  the focus with it. The list is positional (`standards[at]`), so
+                  the index is the identity. */}
               {rule.standards.map((size, at) => (
-                <span key={`${size}-${at}`} className="flex items-center gap-0.5">
+                // `items-end` so the remove button sits on the box's own line
+                // rather than centred against the caption above it.
+                <span key={at} className="flex items-end gap-0.5">
                   <NumberBox
                     id={`${rule.id}-size-${at}`}
                     label={`Size ${at + 1}`}
                     metric={metric}
                     onChange={(value) => {
                       const standards = [...rule.standards]
-                      standards[at] = value ?? 0
+                      standards[at] = value
                       onChange({ ...rule, standards })
                     }}
                     unit={unit}
@@ -563,7 +662,7 @@ const Settings = ({
                   />
                   <button
                     aria-label={`Remove size ${at + 1}`}
-                    className="px-0.5 text-2xs text-zinc-500 hover:text-danger"
+                    className="flex h-7 items-center px-0.5 text-2xs text-zinc-500 hover:text-danger"
                     onClick={() =>
                       onChange({ ...rule, standards: rule.standards.filter((_, i) => i !== at) })
                     }
@@ -588,7 +687,7 @@ const Settings = ({
               id={`${rule.id}-tolerance`}
               label="Tolerance"
               metric={metric}
-              onChange={(value) => onChange({ ...rule, tolerance: value ?? 0 })}
+              onChange={(value) => onChange({ ...rule, tolerance: value })}
               unit={unit}
               value={rule.tolerance}
             />
@@ -646,7 +745,7 @@ const Settings = ({
               id={`${rule.id}-against`}
               label="this"
               metric={metric}
-              onChange={(value) => onChange({ ...rule, against: value ?? 0 })}
+              onChange={(value) => onChange({ ...rule, against: value })}
               unit={unit}
               value={typeof rule.against === 'number' ? rule.against : 0}
             />
