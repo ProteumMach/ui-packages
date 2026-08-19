@@ -1,5 +1,11 @@
 # @toolpath/viewer
 
+## 0.3.1
+
+### Patch Changes
+
+- 4cd6dca: Update the Engine response type referenced in viewer documentation.
+
 ## 0.3.0
 
 ### Minor Changes
