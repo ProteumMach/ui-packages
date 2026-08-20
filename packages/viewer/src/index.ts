@@ -36,6 +36,7 @@ export {
   labelGeometry,
   labelTexture,
   panelGeometry,
+  squaredUp,
   viewKind,
   viewUp,
   viewVector,

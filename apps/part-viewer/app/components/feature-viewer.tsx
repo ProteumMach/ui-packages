@@ -58,7 +58,9 @@ const ORIGIN = { x: 0, y: 0, z: 0 }
 const ArrowGlyph = () => (
   <svg
     aria-hidden="true"
-    className="size-3.5 shrink-0"
+    // 16px, like the Phosphor icons beside it. At 14 it read as a smaller
+    // control rather than as a different one.
+    className="size-4 shrink-0"
     fill="none"
     stroke="currentColor"
     strokeLinecap="round"
@@ -231,7 +233,11 @@ export const FeatureViewer = ({
               </button>
             ))}
             {/* In the same shelf as the modes: it is another thing to do to the
-              part in front of you, and it is the arrows' only home. */}
+              part in front of you, and it is the arrows' only home. Divided off
+              them by the toolbar's own separator rather than by a border on the
+              button, which would sit inside its 24px box and push the glyph off
+              centre by the width of the border. */}
+            <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-zinc-700" />
             <button
               type="button"
               aria-pressed={arrows === 'all'}
@@ -242,7 +248,7 @@ export const FeatureViewer = ({
                   : 'All arrows — click to turn them off'
               }
               onClick={() => onArrows(nextArrows(arrows))}
-              className={`ml-0.5 grid size-6 place-items-center rounded border-l border-zinc-800 transition ${
+              className={`grid size-6 place-items-center rounded transition ${
                 arrows === 'all'
                   ? 'bg-info/20 text-info'
                   : 'text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100'
