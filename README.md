@@ -8,12 +8,13 @@ machined, and what it may cost.
 
 ## Where to start
 
-| I want to…                    | Use                             | Documentation                                        |
-| ----------------------------- | ------------------------------- | ---------------------------------------------------- |
-| Call Toolpath from JavaScript | `@toolpath/api`                 | [TypeScript SDK](packages/sdk-typescript)            |
-| Call Toolpath from Python     | `toolpath`                      | [Python SDK](packages/sdk-python)                    |
-| See SDK usage examples        | TypeScript or Python            | [Examples](#part-upload-examples)                    |
-| Call the API without an SDK   | HTTP, cURL, or another language | [API documentation](https://developers.toolpath.com) |
+| I want to…                    | Use                             | Documentation                                                      |
+| ----------------------------- | ------------------------------- | ------------------------------------------------------------------ |
+| Call Toolpath from JavaScript | `@toolpath/api`                 | [TypeScript SDK](packages/sdk-typescript)                          |
+| Call Toolpath from Python     | `toolpath`                      | [Python SDK](packages/sdk-python)                                  |
+| See SDK usage examples        | TypeScript or Python            | [Examples](#part-upload-examples)                                  |
+| Start a customer application  | Part Viewer template            | [toolpath-template](https://github.com/toolpath/toolpath-template) |
+| Call the API without an SDK   | HTTP, cURL, or another language | [API documentation](https://developers.toolpath.com)               |
 
 The SDKs are generated from the same OpenAPI document, so their request and response types match the
 public API contract retained in this repository. They also provide a focused helper for directly
@@ -37,13 +38,6 @@ report retrieval through the generated API bindings:
 - [TypeScript example](examples/typescript/README.md)
 - [Python example](examples/python/README.md)
 - [React viewer example](examples/react-viewer/README.md)
-
-## Example Applications
-
-Part Viewer is a bring-your-own-key reference application for inspecting Toolpath part
-features and meshes.
-
-- [Part Viewer](apps/part-viewer/README.md)
 
 ## Run the examples from source
 
@@ -123,25 +117,6 @@ macOS or Linux:
 ```bash
 uv run --project examples/python python examples/python/src/analyze_part.py "/path/to/part.step"
 ```
-
-### 5. Run the Part Viewer app
-
-Create the app's local environment file, set a stable session secret and your Toolpath API
-URL, then start the development server:
-
-```bash
-cp apps/part-viewer/.env.example apps/part-viewer/.env
-openssl rand -base64 32
-```
-
-Paste the generated value after `APP_SESSION_SECRET=` in `apps/part-viewer/.env`, and set
-`TOOLPATH_API_BASE_URL` to the Toolpath API URL. Then run:
-
-```bash
-pnpm --filter @toolpath/part-viewer dev
-```
-
-Open the local URL printed by the development server, then enter your Toolpath API key to connect.
 
 ## License
 
