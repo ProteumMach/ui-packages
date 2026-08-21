@@ -1,5 +1,4 @@
 packages:
-  - apps/part-viewer
   - examples/typescript
   - examples/react-viewer
   - packages/sdk-typescript
