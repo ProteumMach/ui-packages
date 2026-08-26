@@ -4,7 +4,7 @@ _Written 2026-08-26, from a read of this repo and of `tool_catalog/packages/scra
 (`/Users/justingray/toolpath/new_code/tool_catalog`), against one question: what shape should
 vendor tool scraping take here, and how does the existing code get in._
 
-**Status: steps 1 and 2 landed.** Steps are checked off in "The port" below as they land.
+**Status: steps 1–3 landed.** Steps are checked off in "The port" below as they land.
 
 ## What is being ported
 
@@ -304,10 +304,13 @@ Each step ends green on `pnpm check`.
       readable from the code. `conventions.py` is new: `CAD_COLUMN`, the identity columns and the
       `_mm`/`_in` rule, with a test over each adapter's header so the identity convention Destiny
       Tool broke cannot erode again unnoticed.
-- [ ] **3 — The boundary test, before any vendor.** `test_vendor_boundary.py` with its tree-derived
-      lists and its `test_the_tree_is_the_shape_these_rules_assume` guard. The guard fails at this
-      point for having nothing to iterate over, which is the guard working, and goes green as step 4
-      lands.
+- [x] **3 — The boundary test, before any vendor.** `test_vendor_boundary.py` with its tree-derived
+      lists and its shape guards. The core half is live from this commit: no core module may name a
+      vendor, in an import or in a string. The vendor half has nothing to iterate over, so it
+      **skips with a named reason** — "no vendor adapter has landed yet" — rather than failing,
+      because the rule above is that each step ends green and a skip pytest prints on every run is
+      as loud as a red nobody has been told to expect. Both halves go live without an edit as step
+      4 lands.
 - [ ] **4 — Vendors, one commit each, cheapest first.** Destiny Tool (no core imports, 45
       self-contained tests), then Kennametal (`scrape`, `cad`, `materials`, `thread_column`), then
       REGO-FIX (the 478-line one). Adapter, its tests and its `families/` entries per commit, green
