@@ -40,15 +40,17 @@ Body paragraph, present tense, wrapped at 80 columns.
 ```
 
 Subject:
+
 - Conventional prefix (`feat`, `fix`, `refactor`, `chore`, `test`, `docs`,
   `build`, `ci`) with the package or app as scope when the change belongs to
   one — `fix(viewer):`, `feat(part-viewer):`, `chore(release):`. Repo-wide or
   infrastructural changes may use a bare imperative subject instead.
 - Imperative mood, lowercase after the colon, no trailing period, ≤72 chars.
-- Says what changed, not that something changed. `fix(viewer): square a chosen
-  view to the nearest roll`, not `fix viewer bug`.
+- Says what changed, not that something changed.
+  `fix(viewer): square a chosen view to the nearest roll`, not `fix viewer bug`.
 
 Body:
+
 - Only when the subject cannot carry it — non-obvious behaviour, a fault whose
   mechanism matters, or several related changes that need naming.
 - Present tense, describing the code as it now stands. Name the symbols and
@@ -60,12 +62,12 @@ Body:
 
 ## Procedure
 
-1. `git status`, `git diff --staged`, `git diff`, and `git log -10
-   --pretty=format:'%s'` — read what is actually changing and match the
-   surrounding style.
-2. Stage deliberately. Commit only files belonging to this change; never `git
-   add -A` over a tree you have not inspected. Leave unrelated edits alone and
-   say so.
+1. `git status`, `git diff --staged`, `git diff`, and
+   `git log -10 --pretty=format:'%s'` — read what is actually changing, and
+   match the surrounding style.
+2. Stage deliberately. Commit only files belonging to this change; never
+   `git add -A` over a tree you have not inspected. Leave unrelated edits
+   alone and say so.
 3. Per `AGENTS.md`, a consumer-visible change to a public package needs its
    Changeset in the same commit. Add it before committing, not after.
 4. Write the message to a file and use `git commit -F <file>`, so wrapping and
