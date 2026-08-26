@@ -4,7 +4,7 @@ _Written 2026-08-26, from a read of this repo and of `tool_catalog/packages/scra
 (`/Users/justingray/toolpath/new_code/tool_catalog`), against one question: what shape should
 vendor tool scraping take here, and how does the existing code get in._
 
-**Status: steps 1–5 landed.** Steps are checked off in "The port" below as they land.
+**Status: the port is complete — all seven steps landed.** Steps are checked off in "The port" below as they land.
 
 ## What is being ported
 
@@ -336,14 +336,16 @@ Each step ends green on `pnpm check`.
       and `TOOLPATH_REQUIRE_CORPUS=1`: 341 pass, none skipped — the ported scrapers agree with the
       corpus the originals produced.
 
-- [ ] **6 — CI and documentation.** pytest into `pnpm check` (`_quality.yml` already provisions uv
-      0.11.28 and Python 3.11). The three vendor API notes — `KENNAMETAL_CAD_API.md`,
-      `KENNAMETAL_SPEEDFEED_API.md`, `REGOFIX_PRODUCTFINDER_API.md` — come across as they are; they
-      record how each endpoint was found and are the most expensive thing here to rediscover. A
-      package README and a runbook for adding a vendor.
-- [ ] **7 — Amend `AGENTS.md`.** Its Changeset table names only the three npm packages, and
-      Changesets releases neither `packages/sdk-python` nor this package. The table needs a row or an
-      explicit exclusion, or the next contributor guesses.
+- [x] **6 — CI and documentation.** pytest reached `pnpm check` in step 1 — `pnpm test` already
+      calls `test:scraper`, and `_quality.yml` provisions uv 0.11.28 and Python 3.11 — so CI has
+      been running this suite since the skeleton. The three vendor API notes are in
+      `packages/tool-scraper/docs/`, with the handful of references to the source repo's own layout
+      corrected and nothing else touched. `docs/ADDING-A-VENDOR.md` is the runbook, and the package
+      README covers the vendors, the commands and the record.
+- [x] **7 — Amend `AGENTS.md`.** Its Changeset table names only the three npm packages, and
+      Changesets releases neither `packages/sdk-python` nor this package. Stated as an explicit
+      exclusion rather than a fourth row: a row would imply a bump type for a package the release
+      workflow never versions.
 
 Live-network tests live in `tests/live/` behind an environment variable and stay out of CI. Reaching
 three vendors' endpoints on every pull request is slow and impolite.

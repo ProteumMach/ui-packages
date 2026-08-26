@@ -30,6 +30,11 @@ Use the package and bump that match the change:
 - Do not add a Changeset for docs, examples, app-only work, CI, or test-only changes unless a package
   consumer receives a change.
 
+**The two Python packages are outside Changesets and take no Changeset.** `packages/sdk-python` and
+`packages/tool-scraper` are not npm packages, the release workflow does not version them, and adding
+one for either would put a package name in a changelog that never ships. Their versions live in
+their own `pyproject.toml`.
+
 Do not manually edit package versions or changelogs. The release workflow generates them in its
 auto-merged release-metadata pull request.
 
