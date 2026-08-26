@@ -7,16 +7,18 @@ The test worth having is that a group a family isn't rated for produces an
 *absence* rather than an error, because that is what 32-value sweeps mostly
 return and a crash there would have made the whole approach unusable.
 
-The cases that run over the real committed CSVs are waiting on a data root —
-see the note at the foot of this file.
+The cases at the foot run over a scrape where one exists on the machine, and
+skip with a reason where it does not.
 """
 
 from __future__ import annotations
 
 import csv
 
+import corpus
 import pytest
 
+from toolpath_scraper.families import FAMILIES
 from toolpath_scraper.vendors.kennametal import materials
 
 # The two shapes the endpoint returns, trimmed to what the parser reads.
@@ -209,16 +211,55 @@ def test_a_code_the_vendor_does_not_publish_is_dropped():
     no control could ever offer and nothing could ever match."""
     assert materials.parse_material_groups('P0 Z9 N1') == ['P0', 'N1']
 
-# ── The corpus assertions live with the corpus ─────────────────────────────
-# The source package ends this file with cases that read the committed CSVs.
-# They check the *scraped data* rather than the scraper, so they belong with
-# the data — and there is no data root here yet. Step 5 of
-# `docs/TOOL-SCRAPER-PLAN.md` brings `TOOLPATH_SCRAPE_ROOT` and returns them
-# as skip-with-reason: a machine holding a scrape checks it, and CI skips and
-# says why.
-#
-# Waiting here: that every swept family CSV carries the column, that all
-# three tap families carry it empty — a vendor gap, pinned so a vendor who
-# starts indexing taps fails a test — that every drill and end mill is
-# indexed for something, and that every scraped code is one the sweep
-# knows.
+
+# ── The scraped corpus, where there is one ─────────────────────────────────
+
+#: This module's subject is the Kennametal/WIDIA AEM facet sweep — the
+#: `Material Groups` column it writes and the 32-code vocabulary it sweeps.
+#: Destiny Tool publishes its own `isoMaterialGroups` field per row, with no
+#: facet to sweep and no `Material Groups` column at all: a fact about that
+#: vendor, not a gap this module's tests should be reporting. So these are
+#: scoped to the platform this module actually sweeps rather than to all of
+#: `FAMILIES` — a second vendor breaks every assertion that named the first.
+PLATFORM = sorted(n for n, cfg in FAMILIES.items()
+                  if cfg.get('brand', 'kennametal') in ('kennametal', 'widia'))
+CUTTERS = [n for n in PLATFORM if FAMILIES[n]['kind'] != 'tap']
+TAPS = [n for n in PLATFORM if FAMILIES[n]['kind'] == 'tap']
+
+
+@pytest.mark.parametrize('name', PLATFORM)
+def test_every_family_csv_carries_the_column(name):
+    """Including the taps. A missing column and an empty one mean different
+    things — not swept yet, versus swept and the vendor publishes none — and
+    only the second is a fact about Kennametal."""
+    rows = corpus.rows(name)
+    assert rows, name
+    assert materials.MATERIALS_COLUMN in rows[0], name
+
+
+@pytest.mark.parametrize('name', TAPS)
+def test_taps_carry_no_material_group(name):
+    """A vendor gap, verified 2026-08-05: all three tap families return zero
+    rows for all 32 groups. Pinned rather than assumed, so that a vendor who
+    starts indexing taps fails this and gets the column filled in, instead of
+    every tap going on matching nothing forever."""
+    for row in corpus.rows(name):
+        assert row[materials.MATERIALS_COLUMN] == '', row['Material Number']
+
+
+@pytest.mark.parametrize('name', CUTTERS)
+def test_every_drill_and_endmill_is_indexed_for_something(name):
+    for row in corpus.rows(name):
+        groups = materials.parse_material_groups(
+            row[materials.MATERIALS_COLUMN])
+        assert groups, f"{name}: {row['Material Number']}"
+
+
+@pytest.mark.parametrize('name', CUTTERS)
+def test_every_scraped_code_is_one_the_sweep_knows(name):
+    """`parse_material_groups` filters unknown codes out, so the raw cell is
+    what has to be checked — otherwise a vendor adding a group would be
+    silently discarded rather than prompting an update to MATERIAL_GROUPS."""
+    for row in corpus.rows(name):
+        for code in row[materials.MATERIALS_COLUMN].split():
+            assert code in materials.MATERIAL_GROUPS, f'{name}: {code}'

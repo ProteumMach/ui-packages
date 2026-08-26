@@ -4,7 +4,8 @@ the CSV shape a consumer then reads.
 Network is mocked at the two seams that are network (`fetch.urlopen` for the
 search proxy, `fetch_din4000` for the per-part XML); everything below runs for
 real against saved payloads, because parsing is what breaks when a vendor
-changes shape.
+changes shape. The cases at the foot run over a scrape where one exists on the
+machine, and skip with a reason where it does not.
 
 **The tests worth reading twice are the ones about the three pinned DIN codes
 and about where a collet's size comes from.** Both are places where a
@@ -17,6 +18,7 @@ import csv
 import io
 import json
 
+import corpus
 import pytest
 
 from toolpath_scraper import fetch
@@ -25,6 +27,7 @@ from toolpath_scraper.conventions import (
     DIN_PREFIX,
     check_identity_columns,
 )
+from toolpath_scraper.families import HOLDER_FAMILIES
 from toolpath_scraper.vendors.regofix import scrape as rf
 
 HOLDERS = 'regofix_bt30_pg_holders.csv'
@@ -439,27 +442,6 @@ def test_scrape_holders_takes_only_the_tapers_this_package_can_name(
         assert [r['Material Number'] for r in csv.DictReader(f)] == ['2130.72530']
 
 
-# ── The corpus assertions live with the corpus ─────────────────────────────
-# The source package ends this file with cases that read the committed CSVs.
-# They check the *scraped data* rather than the scraper, so they belong with
-# the data — and there is no data root here yet. Step 5 of
-# `docs/TOOL-SCRAPER-PLAN.md` brings `TOOLPATH_SCRAPE_ROOT` and returns them
-# as skip-with-reason: a machine holding a scrape checks it, and CI skips and
-# says why.
-#
-# Waiting here: that every scraped holder satisfies the 48.4 mm taper
-# arithmetic over the whole family — which is what would catch a re-scrape
-# where the vendor moved `B3` or `B4`, silently redefining every gage length;
-# that every holder's contact mode matches its own designation, so a lost
-# `form_name` shows up as a mismatch rather than as twenty-one plain-taper
-# holders; that all 321 collets round-trip to their own designation; and that
-# the real collet groups hold both unit systems, which is the whole reason
-# `unit` is a per-record fact here.
-#
-# The source file's closing vendor-identity cases are not waiting on anything
-# — they are `test_identity.py`'s subject, and are there.
-
-
 # ── The conventions, against the header this adapter writes ────────────────
 
 def test_a_holder_row_carries_the_identity_columns():
@@ -503,3 +485,68 @@ def test_a_collet_row_carries_both_unit_systems_only_where_it_has_both():
     check_identity_columns('regofix', set(metric))
     assert 'D1_in' not in metric
     assert inch['D1_in'] == '0.25' and inch['D1_mm'] == '6.35'
+
+
+# ── The scraped corpus, where there is one ─────────────────────────────────
+
+HOLDERS = 'regofix_bt30_pg_holders.csv'
+STANDARD = 'regofix_pg_collets_standard.csv'
+TAPPING = 'regofix_pg_collets_tap.csv'
+SHORT_TAIL = 'regofix_pgst_collets.csv'
+
+
+def test_every_scraped_holder_satisfies_the_taper_arithmetic():
+    """The 48.4 mm check, over the whole family rather than one document.
+
+    This is what would catch a re-scrape where the vendor moved `B3` or `B4`,
+    which is the change that would silently redefine every gage length in the
+    family.
+    """
+    rows = corpus.rows(HOLDERS)
+    assert len(rows) == HOLDER_FAMILIES[HOLDERS]['rows']
+    for row in rows:
+        gauge, projection = float(row['L1_mm']), float(row['B3_mm'])
+        assert gauge - projection == pytest.approx(
+            rf.BT30_GAUGE_TO_FLANGE, abs=1e-9), row['ISO Catalog Number']
+
+
+def test_every_scraped_holder_states_a_contact_mode_that_matches_its_name():
+    """Both halves are present in the real family, and the designation is what
+    says which — so a lost `form_name` shows up as a mismatch rather than as
+    twenty-one plain-taper holders."""
+    contacts = {row['ISO Catalog Number']: row['contact']
+                for row in corpus.rows(HOLDERS)}
+
+    assert set(contacts.values()) == {'taper', 'face'}
+    for name, contact in contacts.items():
+        assert (contact == 'face') == name.startswith('BT+'), name
+
+
+def test_every_scraped_collet_round_trips_to_its_own_designation():
+    """The nominal size, re-derived from the title and compared against the
+    column the scraper wrote — over all 321 collets rather than the seven
+    cases above."""
+    for name in (STANDARD, TAPPING, SHORT_TAIL):
+        for row in corpus.rows(name):
+            again = rf.collet_row({'title': [row['ISO Catalog Number']],
+                                   'field_sku_fulltext': [row['Material Number']]})
+            assert again['unit'] == row['unit'], row['ISO Catalog Number']
+            assert again['D1_mm'] == row['D1_mm'], row['ISO Catalog Number']
+
+
+def test_the_real_collet_groups_hold_both_unit_systems():
+    """Which is the whole reason `unit` is a per-record fact here. If a
+    re-scrape ever produced a single-unit group, splitting the CSV would be
+    back on the table and this says so."""
+    assert {row['unit'] for row in corpus.rows(STANDARD)} == {
+        'millimeters', 'inches'}
+
+
+def test_a_tapping_collets_drive_square_is_carried_but_not_a_dimension():
+    """The second number in `Ø 3.5 x 2.7 mm` is the internal square, not a
+    second diameter. It is kept in its own column so nothing reads it as
+    one."""
+    row = corpus.row(TAPPING, 'PG 15-TAP Ø 3.5 x 2.7 mm')
+
+    assert row['Square_mm'] == '2.7'
+    assert row['D1_mm'] == '3.5'

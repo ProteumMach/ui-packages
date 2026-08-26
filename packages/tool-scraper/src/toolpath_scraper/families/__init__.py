@@ -33,6 +33,9 @@ family gaining a row while another loses one sums to no change.
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 from toolpath_scraper.families.destinytool import FAMILIES as DESTINYTOOL
 from toolpath_scraper.families.kennametal import COLLET_FAMILIES as KM_COLLETS
 from toolpath_scraper.families.kennametal import FAMILIES as KENNAMETAL
@@ -91,3 +94,91 @@ def family_id(cfg: dict) -> str:
     encoding and stays one route parameter.
     """
     return f"{cfg.get('brand', 'kennametal')}:{cfg['id']}"
+
+
+# ── Where a scrape lands ───────────────────────────────────────────────────
+# **Scraped output is never committed.** A CSV is a vendor's data and a working
+# file, not source, and this repository is public — which is a second reason,
+# independent of size, to keep it out.
+#
+# Git was carrying the provenance of those CSVs for free. Now that it is not,
+# every scrape writes a `receipts` sidecar beside its file.
+
+#: Where scraped CSVs are read from and written to.
+#:
+#: Set it when the package is installed rather than run from this checkout: the
+#: default below is derived from this file's own location, which is right in a
+#: working tree and meaningless inside `site-packages`. Every command prints
+#: the resolved root for exactly that reason — a scrape that wrote somewhere
+#: surprising should say so on the way, not be discovered later.
+SCRAPE_ROOT_ENV = 'TOOLPATH_SCRAPE_ROOT'
+
+#: `packages/tool-scraper/scrape-out`, which `.gitignore` already covers —
+#: named in the skeleton commit, before anything wrote into it.
+DEFAULT_SCRAPE_ROOT = Path(__file__).resolve().parents[3] / 'scrape-out'
+
+
+def scrape_root() -> Path:
+    """The directory holding every vendor's scraped CSVs."""
+    override = os.environ.get(SCRAPE_ROOT_ENV)
+    return Path(override).expanduser().resolve() if override else DEFAULT_SCRAPE_ROOT
+
+
+def describe_root() -> str:
+    """One line naming the resolved root and how it was resolved.
+
+    Printed by every command. The distinction it carries is the one that
+    matters when a scrape goes somewhere unexpected: whether the path came from
+    the environment or from this package's own location.
+    """
+    how = 'set' if os.environ.get(SCRAPE_ROOT_ENV) else 'default'
+    return f'scrape root: {scrape_root()} ({SCRAPE_ROOT_ENV} {how})'
+
+
+def csv_dir(brand: str) -> Path:
+    """Where one vendor's scraped CSVs live — the receipts.
+
+    Per brand rather than per adapter, and the distinction is worth holding on
+    to: an adapter is a fact about *code*, a scraped table is a fact about who
+    published it. WIDIA's tables are WIDIA's even though Kennametal's adapter
+    is what fetched them.
+    """
+    return scrape_root() / brand / 'csv'
+
+
+def step_dir(brand: str) -> Path:
+    """One vendor's mirrored STEP models.
+
+    Nothing is redistributed from here: these are a local working copy for
+    measuring a holder, and only a derived profile is ever meant to leave.
+    """
+    return scrape_root() / brand / 'step'
+
+
+#: Every family this package knows, by CSV name — tools and toolholding alike.
+#:
+#: Built once rather than searched per call, so `family_csv` can refuse an
+#: unknown name by listing what it does know.
+_ALL: dict[str, dict] = {**FAMILIES, **HOLDER_FAMILIES, **COLLET_FAMILIES}
+
+
+def family_csv(name: str) -> Path:
+    """Where one family's CSV lives, resolved through its own brand.
+
+    Takes a bare CSV name rather than a path, so a caller cannot pass a file
+    from somewhere else and have it silently treated as this family's receipt.
+    """
+    cfg = _ALL.get(name)
+    if cfg is None:
+        raise SystemExit(
+            f'unknown family CSV: {name} (known: {sorted(_ALL)})')
+    return csv_dir(cfg.get('brand', 'kennametal')) / name
+
+
+def family_brand(name: str) -> str:
+    """The brand that published `name`, refusing a name nothing declares."""
+    cfg = _ALL.get(name)
+    if cfg is None:
+        raise SystemExit(
+            f'unknown family CSV: {name} (known: {sorted(_ALL)})')
+    return cfg.get('brand', 'kennametal')

@@ -4,12 +4,16 @@ The network is mocked at the module seam (`cad.fetch_cad`), the same place
 `test_scrape.py` mocks `scrape.fetch` — nothing in this suite makes a request,
 and the fixture below is a real captured response with the irrelevant fields
 dropped.
+
+The last two run over a scrape where one exists on the machine, and skip with
+a reason where it does not.
 """
 
 from __future__ import annotations
 
 import csv
 
+import corpus
 import pytest
 
 from toolpath_scraper.vendors.kennametal import cad
@@ -231,15 +235,38 @@ def test_the_output_directory_is_required_and_never_inferred(tmp_path,
     with pytest.raises(TypeError):
         cad.download_family_steps(path)
 
-# ── The corpus assertions live with the corpus ─────────────────────────────
-# The source package ends this file with cases that read the committed CSVs.
-# They check the *scraped data* rather than the scraper, so they belong with
-# the data — and there is no data root here yet. Step 5 of
-# `docs/TOOL-SCRAPER-PLAN.md` brings `TOOLPATH_SCRAPE_ROOT` and returns them
-# as skip-with-reason: a machine holding a scrape checks it, and CI skips and
-# says why.
-#
-# Waiting here: `test_every_scraped_url_names_the_row_it_sits_on` — the
-# tripwire for a misaligned scrape, where the right shape of answer is
-# attached to the wrong part — and `test_every_holder_scraped_so_far_has_a
-# _model`.
+
+# ── The scraped corpus, where there is one ─────────────────────────────────
+# These check the *data* rather than the scraper, so they skip with a named
+# reason where no scrape exists. See `corpus.py`.
+
+ADAPTERS = 'bt30_er_collet_adapters_metric.csv'
+CHUCKS = 'bt30_hydraulic_chucks_form_ad_metric.csv'
+
+
+@pytest.mark.parametrize('name', [ADAPTERS, CHUCKS])
+def test_every_scraped_url_names_the_row_it_sits_on(name):
+    """The tripwire for a misaligned scrape.
+
+    A per-row scrape's real failure mode is not a bad request, it is the right
+    shape of answer attached to the wrong part — a working download that hands
+    you a different holder's model, which no schema check and no type would
+    catch. Kennametal names the file after the catalog number, so a URL that
+    landed on the wrong row says so: `BT30ER16060M_LWM.stp` beside a row for
+    `BT30ER16100M` is the bug.
+    """
+    rows = corpus.rows(name)
+    assert rows, name
+    for row in rows:
+        url = row[cad.CAD_COLUMN]
+        catalog = row['ISO Catalog Number']
+        assert url.endswith(f'/{catalog}_LWM.stp'), f'{catalog}: {url}'
+
+
+@pytest.mark.parametrize('name', [ADAPTERS, CHUCKS])
+def test_every_holder_scraped_so_far_has_a_model(name):
+    """Not a rule about the vendor — a record of the data as scraped. All
+    twenty have one today; if a future family does not, this failing is the
+    prompt to check that the absence is real rather than a broken run."""
+    for row in corpus.rows(name):
+        assert row[cad.CAD_COLUMN], row['ISO Catalog Number']

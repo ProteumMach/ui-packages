@@ -4,7 +4,7 @@ _Written 2026-08-26, from a read of this repo and of `tool_catalog/packages/scra
 (`/Users/justingray/toolpath/new_code/tool_catalog`), against one question: what shape should
 vendor tool scraping take here, and how does the existing code get in._
 
-**Status: steps 1–4 landed.** Steps are checked off in "The port" below as they land.
+**Status: steps 1–5 landed.** Steps are checked off in "The port" below as they land.
 
 ## What is being ported
 
@@ -323,12 +323,19 @@ Each step ends green on `pnpm check`.
       copy. The corpus-assertion tests in `test_cad.py`, `test_materials.py` and
       `test_scrape_regofix.py` are deferred to step 5, each behind a note in its own file naming
       what is waiting.
-- [ ] **5 — The data root and the sidecar.** `TOOLPATH_SCRAPE_ROOT`, `csv_dir`/`family_csv`
+- [x] **5 — The data root and the sidecar.** `TOOLPATH_SCRAPE_ROOT`, `csv_dir`/`family_csv`
       resolved through it, the per-scrape provenance sidecar that git used to provide, the
       corpus-assertion tests converted to skip-with-reason, and `cli.py` narrowed to the scrape
-      subcommands. `cli.py` and `registry.py` are the two names in
-      `test_vendor_boundary.COMPOSITION_ROOTS`, and the second is the only one that exists yet.
-      Gate: the full suite green on a fresh clone with no corpus anywhere on the machine.
+      subcommands. The sidecar is `receipts.py` — one module more than the layout above lists,
+      because a scrape receipt and a `Fact` answer different questions and only one of them is a
+      per-family constant. `receipts.check_rows` is what the hand-counted `rows` buys: the CLI
+      refuses a scrape whose row count disagrees with the declared one.
+
+      Both gates hold. On a fresh clone with no corpus: 296 pass, 45 skip, each naming the family
+      and the resolved root. With `TOOLPATH_SCRAPE_ROOT` pointed at the source package's `data/`
+      and `TOOLPATH_REQUIRE_CORPUS=1`: 341 pass, none skipped — the ported scrapers agree with the
+      corpus the originals produced.
+
 - [ ] **6 — CI and documentation.** pytest into `pnpm check` (`_quality.yml` already provisions uv
       0.11.28 and Python 3.11). The three vendor API notes — `KENNAMETAL_CAD_API.md`,
       `KENNAMETAL_SPEEDFEED_API.md`, `REGOFIX_PRODUCTFINDER_API.md` — come across as they are; they

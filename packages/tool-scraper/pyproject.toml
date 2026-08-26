@@ -12,6 +12,17 @@ license = { file = "LICENSE" }
 # table.
 dependencies = []
 
+# Acquisition only. There is no convert command here: a Fusion library or an
+# assembly catalog is a different product, and none of it is in this tree.
+[project.scripts]
+toolpath-kennametal-scrape = "toolpath_scraper.cli:scrape_main"
+toolpath-kennametal-thread-pitch = "toolpath_scraper.cli:thread_pitch_main"
+toolpath-kennametal-cad = "toolpath_scraper.cli:scrape_cad_main"
+toolpath-kennametal-materials = "toolpath_scraper.cli:scrape_materials_main"
+toolpath-download-cad = "toolpath_scraper.cli:download_cad_main"
+toolpath-regofix-scrape = "toolpath_scraper.cli:regofix_scrape_main"
+toolpath-destinytool-scrape = "toolpath_scraper.cli:destinytool_scrape_main"
+
 [project.urls]
 Homepage = "https://developers.toolpath.com"
 Repository = "https://github.com/toolpath/toolpath"
