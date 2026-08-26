@@ -1,7 +1,9 @@
 """Destiny Tool: the Firestore pagination client and the description-parsing
 adapter derivations.
 
-Network is mocked at the one seam that is network (`urlopen`). Everything
+Network is mocked at the one seam that is network — `fetch.urlopen`, which is
+imported by name in that module precisely so a test can replace it without
+reaching into `urllib.request` and changing it for the whole interpreter. Everything
 below the fetch — value decoding, the fraction parser, and the three free-text
 derivations (shank diameter, corner radius, neck diameter) — runs against
 literals, and the real ones were all found or corrected running this against
@@ -16,6 +18,7 @@ import json
 
 import pytest
 
+from toolpath_scraper import fetch
 from toolpath_scraper.vendors.destinytool import records as dt_records
 from toolpath_scraper.vendors.destinytool import scrape as dt
 
@@ -79,7 +82,7 @@ def _mock_pages(monkeypatch, pages):
         calls['urls'].append(req.full_url)
         return _Response(json.dumps(next(responses)).encode())
 
-    monkeypatch.setattr(dt.urllib.request, 'urlopen', fake)
+    monkeypatch.setattr(fetch, 'urlopen', fake)
     return calls
 
 

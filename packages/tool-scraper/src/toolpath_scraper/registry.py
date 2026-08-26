@@ -19,29 +19,43 @@ one commit change the record contract and every adapter together.
 
 from __future__ import annotations
 
-from toolpath_scraper.families import FAMILIES
+from toolpath_scraper.families import (
+    COLLET_FAMILIES,
+    FAMILIES,
+    HOLDER_FAMILIES,
+)
 from toolpath_scraper.provenance import check_fact
 from toolpath_scraper.records import check_column_map
 from toolpath_scraper.vendors.destinytool.records import (
     RECORD_MAPPERS as DESTINYTOOL,
 )
+from toolpath_scraper.vendors.kennametal.records import (
+    RECORD_MAPPERS as KENNAMETAL,
+)
 
 #: Brand -> its CSV-row-to-`ToolRecord` mappers, by tool kind.
 #:
-#: One entry can serve two brands: Kennametal and WIDIA are the same AEM
-#: platform and the same table vocabulary, so one adapter covers both, exactly
-#: as one scraper does. A brand absent from here can still be scraped — it
-#: simply ships no cutting tools that go through a column map.
+#: One entry serves two brands: Kennametal and WIDIA are the same AEM platform
+#: and the same table vocabulary, so one adapter covers both, exactly as one
+#: scraper does. A brand absent from here can still be scraped — REGO-FIX ships
+#: toolholding and no cutting tools, and only cutting tools go through a column
+#: map.
 ADAPTERS: dict[str, dict] = {
+    'kennametal': KENNAMETAL,
+    'widia': KENNAMETAL,
     'destinytool': DESTINYTOOL,
 }
 
 #: The config tables, by the name `provenance.assumptions` labels rows with.
 #:
-#: One today. Toolholding families are a second table with the same shape, and
-#: they land with the vendor that publishes them.
+#: Only `tool` binds an adapter. Holders and collets are here because their
+#: facts pass the same provenance gate — a taper or a clamping mode is a
+#: per-family constant no variant table states, exactly like a drill's flute
+#: count.
 TABLES: dict[str, dict] = {
     'tool': FAMILIES,
+    'holder': HOLDER_FAMILIES,
+    'collet': COLLET_FAMILIES,
 }
 
 

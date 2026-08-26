@@ -43,17 +43,15 @@ the field *is* the vendor's own label.
 from __future__ import annotations
 
 import csv
-import json
 import urllib.parse
-import urllib.request
 from pathlib import Path
+
+from toolpath_scraper.fetch import get_json
 
 PROJECT = 'studio-6030841929-4a1a2'
 DOCUMENTS_URL = (
     f'https://firestore.googleapis.com/v1/projects/{PROJECT}/databases/'
     f'(default)/documents/products')
-
-USER_AGENT = 'Mozilla/5.0'
 
 #: Fields pulled from the `products` collection — everything `records.py`
 #: reads, plus `series` and `angle` for the record (unused today, but the
@@ -77,10 +75,7 @@ def _fetch_page(token: str | None) -> dict:
     params += [('mask.fieldPaths', f) for f in FIELDS]
     if token:
         params.append(('pageToken', token))
-    url = f'{DOCUMENTS_URL}?{urllib.parse.urlencode(params)}'
-    req = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        return json.load(resp)
+    return get_json(f'{DOCUMENTS_URL}?{urllib.parse.urlencode(params)}')
 
 
 def decode_value(value: dict) -> object:

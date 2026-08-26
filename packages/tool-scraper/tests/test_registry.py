@@ -14,7 +14,13 @@ from urllib.parse import quote
 import pytest
 
 import toolpath_scraper  # noqa: F401  — the import is what runs bind_adapters
-from toolpath_scraper.families import FAMILIES, family_id
+from toolpath_scraper.families import (
+    COLLET_FAMILIES,
+    FAMILIES,
+    HOLDER_FAMILIES,
+    _merge,
+    family_id,
+)
 from toolpath_scraper.provenance import Fact
 from toolpath_scraper.records import REQUIRED_GEOMETRY, ColumnMap
 from toolpath_scraper.registry import (
@@ -101,13 +107,42 @@ def test_a_fact_that_fails_its_own_check_is_refused_by_family_and_key():
 
 
 def test_every_family_sources_the_constants_no_table_states():
-    """An endmill family's unit system, its substrate and whether it runs
-    coolant through are facts no vendor's variant table publishes, so each one
-    has to carry provenance rather than a bare value somebody typed."""
-    required = {'endmill': {'unit', 'coolant_through', 'bmc'}}
+    """The facts a vendor table never publishes must each carry provenance.
+
+    Listed per kind rather than as one set, because what a table omits differs:
+    a tap has no `unit` — its rows carry their own `Thread System` — and no
+    `flutes` constant, because it publishes a `Z` column.
+    """
+    required = {
+        'drill': {'unit', 'flutes', 'point_angle', 'coolant_through',
+                  'non_ferrous', 'bmc'},
+        'endmill': {'unit', 'coolant_through', 'bmc'},
+        'tap': {'bmc'},
+    }
     for name, cfg in FAMILIES.items():
         missing = required[cfg['kind']] - set(cfg.get('facts', {}))
         assert not missing, f'{name}: missing {missing}'
+
+
+def test_every_holder_and_collet_sources_its_discriminants():
+    """`taper`, `clamping` and `style` are facts the variant table never states
+    — which is why they are config, and therefore why each needs a source."""
+    assert HOLDER_FAMILIES and COLLET_FAMILIES
+    for name, cfg in HOLDER_FAMILIES.items():
+        assert {'taper', 'clamping', 'style'} <= set(cfg['facts']), name
+    for name, cfg in COLLET_FAMILIES.items():
+        assert 'style' in cfg['facts'], name
+
+
+def test_a_holder_family_states_how_it_meets_the_spindle():
+    """`contact` has no default on purpose. BTKV30 is the same JIS B 6339 cone
+    as BT30 and seats on the spindle face as well, so a family added without it
+    would be recorded as plain-taper on no evidence."""
+    for name, cfg in HOLDER_FAMILIES.items():
+        assert (('contact' in cfg['facts']) == ('contact' in cfg)), name
+    contacts = {cfg['facts']['contact'].value for cfg in HOLDER_FAMILIES.values()
+                if 'contact' in cfg['facts']}
+    assert contacts <= {'taper', 'face'}, contacts
 
 
 # ── Family ids ─────────────────────────────────────────────────────────────
@@ -133,13 +168,18 @@ def test_every_family_id_is_unique_and_url_safe():
         assert quote(identifier, safe=':-') == identifier
 
 
-def test_a_csv_name_carries_the_brand_that_scraped_it():
-    """The CSV name is the key of the table and is expected to be
-    vendor-unique on its own — two vendors shipping `end_mills_inch.csv` would
-    collide in a flat dict, and the second would silently win."""
-    for name, cfg in FAMILIES.items():
-        assert name.startswith(f"{cfg.get('brand', 'kennametal')}_"), name
-        assert name.endswith('.csv'), name
+def test_two_vendors_cannot_claim_one_csv_name():
+    """`{**a, **b}` would let the second win silently, and the collision would
+    surface as a family scraping into a file already holding someone else's
+    rows. `end_mills_inch.csv` is the first name either vendor would pick."""
+    with pytest.raises(SystemExit, match='claimed by two vendors'):
+        _merge({'end_mills_inch.csv': {}}, {'end_mills_inch.csv': {}})
+
+
+def test_every_family_name_is_the_csv_it_is_scraped_into():
+    for table in (FAMILIES, HOLDER_FAMILIES, COLLET_FAMILIES):
+        for name in table:
+            assert name.endswith('.csv'), name
 
 
 def test_the_hand_counted_row_total_is_stated_per_family():

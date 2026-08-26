@@ -34,13 +34,43 @@ family gaining a row while another loses one sums to no change.
 from __future__ import annotations
 
 from toolpath_scraper.families.destinytool import FAMILIES as DESTINYTOOL
+from toolpath_scraper.families.kennametal import COLLET_FAMILIES as KM_COLLETS
+from toolpath_scraper.families.kennametal import FAMILIES as KENNAMETAL
+from toolpath_scraper.families.kennametal import HOLDER_FAMILIES as KM_HOLDERS
+
+
+def _merge(*tables: dict[str, dict]) -> dict[str, dict]:
+    """One flat table, refusing a CSV name two vendors both claim.
+
+    A flat dict is what every reader wants, and `{**a, **b}` is how it would
+    normally be built — which is exactly the problem: the second vendor's entry
+    would silently replace the first's, and the collision would surface as a
+    family that scrapes into a file already holding someone else's rows. Two
+    vendors shipping `end_mills_inch.csv` is not far-fetched; it is the first
+    name either of them would pick.
+    """
+    merged: dict[str, dict] = {}
+    for table in tables:
+        for name, cfg in table.items():
+            if name in merged:
+                raise SystemExit(
+                    f'{name}: claimed by two vendors — a CSV name is the key of '
+                    f'this table and has to be unique across all of them')
+            merged[name] = cfg
+    return merged
+
 
 #: Every cutting-tool family, keyed by the CSV it is scraped into.
+FAMILIES: dict[str, dict] = _merge(KENNAMETAL, DESTINYTOOL)
+
+#: Every toolholding family — holders, and the collets that go in them.
 #:
-#: A flat dict rather than a per-vendor mapping because the CSV name is already
-#: vendor-unique — it carries the brand as its prefix — and every reader wants
-#: the whole set.
-FAMILIES: dict[str, dict] = {**DESTINYTOOL}
+#: Separate tables rather than a `kind` on one, because a holder and a collet
+#: are not variants of a thing: they carry different discriminants (a holder
+#: states a taper and a clamping mode; a collet states a series and a capacity
+#: band) and a scrape of one is not a scrape of the other.
+HOLDER_FAMILIES: dict[str, dict] = _merge(KM_HOLDERS)
+COLLET_FAMILIES: dict[str, dict] = _merge(KM_COLLETS)
 
 
 def family_id(cfg: dict) -> str:
