@@ -4,7 +4,7 @@ _Written 2026-08-26, from a read of this repo and of `tool_catalog/packages/scra
 (`/Users/justingray/toolpath/new_code/tool_catalog`), against one question: what shape should
 vendor tool scraping take here, and how does the existing code get in._
 
-**Status: step 1 in progress.** Steps are checked off in "The port" below as they land.
+**Status: steps 1 and 2 landed.** Steps are checked off in "The port" below as they land.
 
 ## What is being ported
 
@@ -294,11 +294,11 @@ scraper version. Cheap now, and effectively impossible to backfill.
 
 Each step ends green on `pnpm check`.
 
-- [ ] **1 — Skeleton.** `packages/tool-scraper/` with its `pyproject.toml`, `.gitignore` and
+- [x] **1 — Skeleton.** `packages/tool-scraper/` with its `pyproject.toml`, `.gitignore` and
       `.prettierignore` entries, and the root `lint`/`test` scripts extended to reach it. One
       packaging test that imports the package, so the gate is live from the first commit rather than
       passing over an empty directory.
-- [ ] **2 — The core, unchanged.** `identity`, `records`, `provenance`, `thread` move as-is, with
+- [x] **2 — The core, unchanged.** `identity`, `records`, `provenance`, `thread` move as-is, with
       their tests. `records.GEOMETRY_FIELDS` gains the ISO 13399 definition beside each code and
       names the three that are Autodesk's rather than the standard's, so the vocabulary's source is
       readable from the code. `conventions.py` is new: `CAD_COLUMN`, the identity columns and the
