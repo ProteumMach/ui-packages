@@ -14,6 +14,15 @@ export interface CadCameraControlsProps {
    * about an orbit control.
    */
   freeOrbit?: boolean
+  /**
+   * What the wheel zooms toward: the pointer, or the middle of the view.
+   *
+   * Fusion and SolidWorks zoom to the cursor and most people expect it — you
+   * point at the corner you want and lean in. It is not universally liked: on a
+   * trackpad it can walk the model off screen, which is why the other one
+   * stays.
+   */
+  zoomTo?: 'cursor' | 'centre'
 }
 
 /**
@@ -29,6 +38,7 @@ export const CadCameraControls = ({
   controlsRef,
   scheme = 'toolpath',
   freeOrbit = true,
+  zoomTo = 'cursor',
 }: CadCameraControlsProps) => {
   const camera = useThree((state) => state.camera)
   const domElement = useThree((state) => state.gl.domElement)
@@ -80,6 +90,15 @@ export const CadCameraControls = ({
   useEffect(() => {
     controls.setFreeOrbit(freeOrbit)
   }, [controls, freeOrbit])
+
+  useEffect(() => {
+    /*
+     * `camera-controls` reads this on the next wheel event rather than caching
+     * it, so setting it on the live controls is enough — no rebuild, and the
+     * pose survives the switch.
+     */
+    controls.dollyToCursor = zoomTo === 'cursor'
+  }, [controls, zoomTo])
 
   useFrame((_, delta) => {
     controls.update(delta)
