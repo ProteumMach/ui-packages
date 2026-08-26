@@ -3,6 +3,7 @@
 // re-exports the adapter's entry points for callers that only ever render a
 // report.
 export { EnginePart, normalizePartReport, smoothRegionNormals } from './engine/index.js'
+export { regionAdjacency } from './render/adjacency.js'
 export { PartMesh } from './part-mesh.js'
 export { Axes, Grid, ViewCube } from './primitives.js'
 export { DirectionArrows } from './direction-arrows.js'
@@ -26,7 +27,7 @@ export {
 export { arrowPlacement } from './render/directions.js'
 export { useContentBox } from './content-box.js'
 export { useTapGuard } from './tap.js'
-export { TAP_SLOP, movedFar, trackTaps } from './render/tap.js'
+export { DOUBLE_TAP_MS, TAP_SLOP, movedFar, trackDoubleTaps, trackTaps } from './render/tap.js'
 export {
   CHAMFER,
   VIEW_NAMES,
@@ -129,7 +130,7 @@ export type { ArrowPlacement } from './render/directions.js'
 export type { SectionOptions, SectionState } from './section-view.js'
 export type { SectionAnchor, SectionBounds, SectionPlacement } from './render/section.js'
 export type { GridSpec } from './render/grid.js'
-export type { TapPoint, TapTracker } from './render/tap.js'
+export type { DoubleTapPoint, DoubleTapTracker, TapPoint, TapTracker } from './render/tap.js'
 export type { CadCameraControlsProps } from './camera.js'
 export type { Projection, SceneBounds, ViewerCamera, ViewportSize } from './render/camera.js'
 export type { ControlScheme, ExtendedCameraControlsOptions } from './render/controls.js'

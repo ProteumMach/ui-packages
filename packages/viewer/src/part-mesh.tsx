@@ -8,6 +8,7 @@ import { applyHighlightLayers } from './render/paint.js'
 import { sectionBounds, sectionDepth, sectionOffset } from './render/section.js'
 import { useTapGuard } from './tap.js'
 import { createPart } from './render/part.js'
+import { regionAdjacency } from './render/adjacency.js'
 import { type PartPick, buildPick, viewDirection } from './render/picking.js'
 import { useViewerControls } from './viewer.js'
 import {
@@ -76,6 +77,15 @@ export interface PartMeshProps {
    */
   onSectionChange?: (state: SectionState) => void
   /**
+   * Which faces touch which, once the mesh is in.
+   *
+   * The consumer cannot work this out: it has a region table with areas and
+   * shape kinds, and the topology only exists in the geometry. Handed over
+   * rather than queried, because it is computed once per mesh and the consumer
+   * needs it to answer questions about faces it has not clicked yet.
+   */
+  onAdjacency?: (adjacency: ReadonlyMap<number, ReadonlySet<number>>) => void
+  /**
    * A feature to frame. Framed when it changes, so setting it to the feature
    * already framed does nothing — a zoom is a request, not a state to hold.
    */
@@ -117,6 +127,7 @@ export const PartMesh = ({
   activeDirection = null,
   section,
   onSectionChange,
+  onAdjacency,
   focusFeature = null,
   onHover,
   onPick,
@@ -165,6 +176,13 @@ export const PartMesh = ({
   }, [invalidate, part])
 
   useEffect(() => () => part.dispose(), [part])
+
+  // Once per mesh: the topology is a property of the geometry, and a report
+  // gaining a feature does not move a single triangle.
+  const adjacency = useMemo(() => regionAdjacency(model, geometry), [model, geometry])
+  useEffect(() => {
+    onAdjacency?.(adjacency)
+  }, [adjacency, onAdjacency])
 
   const framed = useRef<FeatureTag | null>(null)
   useEffect(() => {
@@ -288,6 +306,31 @@ export const PartMesh = ({
 
           const pick = pickFor(event)
           if (pick) onPick?.(pick)
+        }}
+        /*
+         * The right button is judged on **release**, not on `contextmenu`.
+         *
+         * `contextmenu` fires on right *mouse-down*, so the tap guard sees a
+         * gesture that has not moved yet and lets every one of them through —
+         * and right-drag is how the camera pans. Every pan therefore emitted a
+         * pick at the point it started from, which reads as the part answering
+         * a question nobody asked.
+         *
+         * `pointerup` is where the gesture has actually finished and the guard
+         * can do its job. `contextmenu` is left with the one thing it is still
+         * needed for: suppressing the browser's own menu over geometry.
+         */
+        onPointerUp={(event: ThreeEvent<PointerEvent>) => {
+          if (event.nativeEvent.button !== 2) return
+          if (!isTap(event.nativeEvent)) return
+
+          const pick = pickFor(event)
+          if (pick) onPick?.(pick)
+        }}
+        onContextMenu={(event: ThreeEvent<MouseEvent>) => {
+          // Only over geometry, so a right click that hits nothing still gets
+          // the browser's own menu.
+          if (pickFor(event)) event.nativeEvent.preventDefault()
         }}
       />
       {cut ? (

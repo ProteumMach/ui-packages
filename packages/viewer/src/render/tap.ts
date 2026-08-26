@@ -54,3 +54,53 @@ export function trackTaps(element: HTMLElement): TapTracker {
     dispose: () => element.removeEventListener('pointerdown', down, { capture: true }),
   }
 }
+
+/**
+ * How long between two presses still reads as one gesture, in milliseconds.
+ *
+ * The browser's own `dblclick` threshold is a platform setting and is not
+ * readable from script, so a hand-paired gesture has to pick a number. 400ms is
+ * inside every default and outside a deliberate pair of separate clicks.
+ */
+export const DOUBLE_TAP_MS = 400
+
+export interface DoubleTapPoint extends TapPoint {
+  readonly timeStamp: number
+}
+
+export interface DoubleTapTracker {
+  /** Whether this press completes a double tap begun by the last one. */
+  isDouble(event: DoubleTapPoint): boolean
+}
+
+/**
+ * Pairing presses into a double tap by hand.
+ *
+ * Needed because `dblclick` fires for the **primary button only** — there is no
+ * such event for the middle button, however many times it is pressed. So a
+ * middle-button gesture has to be assembled from single presses.
+ *
+ * Position matters as well as time: two presses at opposite corners inside the
+ * window are two clicks that happened to be quick, not one gesture, and
+ * treating them as a double would re-frame the view out from under somebody
+ * who was doing something else. The same {@link TAP_SLOP} the click guard uses.
+ *
+ * A completed double clears the state rather than leaving it, so three presses
+ * are one double and one single rather than two overlapping doubles.
+ */
+export function trackDoubleTaps(
+  within: number = DOUBLE_TAP_MS,
+  slop: number = TAP_SLOP,
+): DoubleTapTracker {
+  let last: DoubleTapPoint | null = null
+
+  return {
+    isDouble: (event: DoubleTapPoint) => {
+      const paired =
+        last !== null && event.timeStamp - last.timeStamp <= within && !movedFar(last, event, slop)
+
+      last = paired ? null : event
+      return paired
+    },
+  }
+}
