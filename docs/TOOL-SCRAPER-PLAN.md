@@ -65,7 +65,7 @@ packages/tool-scraper/
     records.py              ToolRecord, ColumnMap, canonical geometry, ISO groups
     provenance.py           Fact, and the assumed/derived/vendor-stated gate
     thread.py               thread designation parsing — a standard, not a vendor's
-    conventions.py          NEW — CAD_COLUMN and the _mm/_in CSV conventions
+    conventions.py          NEW — CAD_COLUMN, the identity columns, the _mm/_in rule
     fetch.py                NEW — the polite stdlib GET all three transports copy today
     registry.py             brand -> adapter
     families/               scrape targets and column maps, one module per vendor
@@ -122,6 +122,118 @@ environment variable already exists for _outputs_; this package mirrors it for i
 `TOOLPATH_SCRAPE_ROOT`, defaults to a gitignored directory, prints the resolved root on every run,
 and carries the ignore rules that keep a scrape out of `git status`.
 
+## What gets stored, and in whose vocabulary
+
+Two artifacts per family, and only one of them is an interchange format.
+
+### The CSV is a receipt, not a schema
+
+Each vendor's CSV keeps **that vendor's own column labels**. Relabelling them into a shared
+vocabulary on the way into the file would put a lie in the file whose whole job is to record what
+the vendor published. The real headers show how little the three have in common:
+
+```
+Kennametal    Material Number,ISO Catalog Number,ANSI Catalog Number,Grade,D1_mm,D1_in,L_mm,…
+REGO-FIX      Material Number,ISO Catalog Number,CST,contact,L1_mm,D2_mm,B3_mm,CAD_STEP_URL,DIN_A2,…
+Destiny Tool  itemNumber,type,description,series,cutDia_in,loc_in,oal_in,rad_in,flutes,…
+```
+
+`D1_mm` and `cutDia_in` are the same measurement. Nothing parses a vendor's CSV but that vendor's
+own adapter, and the CSV is what gets diffed when a vendor silently changes their table.
+
+### The conventions the CSVs do share, and the one already broken
+
+Not a schema — five rules. `conventions.py` is where they become explicit and testable, and the
+reason to make them explicit is that vendor #3 already drifted from one:
+
+| Convention                                                                          | Held by                       |
+| ----------------------------------------------------------------------------------- | ----------------------------- |
+| `_mm`/`_in` suffix carries the unit on every dimensional column                     | all three                     |
+| Multi-value cells are space-separated (`Material Groups`, `isoMaterialGroups`)      | all three                     |
+| One row per orderable part                                                          | all three                     |
+| `CAD_STEP_URL` names a CAD model where one exists                                   | Kennametal holders, REGO-FIX  |
+| Unmapped vendor codes kept under a `DIN_` prefix, so they cannot read as dimensions | REGO-FIX; the rule is general |
+| **The identity column**                                                             | **broken** — see below        |
+
+REGO-FIX writes `Material Number`/`ISO Catalog Number` because its adapter adopted Kennametal's
+identity labels. Destiny Tool passes Firestore's `itemNumber` straight through. The convention was
+real but informal, and it eroded the first time a vendor did not resemble the first two. Identity
+and units are the two worth enforcing; the rest stay advisory.
+
+### The canonical record borrows Fusion's names
+
+`ToolRecord` uses `DC`, `SFDM`, `OAL`, `LCF`, `RE`, `NOF`, `SIG`, `TP` — Fusion's tool-JSON field
+names, verbatim. Inventing a neutral vocabulary on top would mean two translations instead of one,
+and a name nothing downstream recognises. This holds even though Fusion library generation is out of
+scope here: the names are **borrowed, not a coupling**. Nothing about `DC` requires Fusion's file
+format, and the alternative is writing and defending a glossary of one's own.
+
+Two Fusion field names are deliberately excluded. `LB` and `assemblyGaugeLength` are `OAL` under
+another name on a bare tool, and a field that is always a copy is not a second measurement — an
+adapter able to supply them separately could supply a tool claiming a holder it does not have.
+
+**A canonical name says nothing about units.** An adapter declares `'DC': 'D1'`, and the core
+appends `_mm`/`_in` from the family's declared `unit`. Choosing that suffix inside an adapter is
+exactly the mistake `unit` exists to prevent, and silent unit assumptions are the likeliest way this
+data shows someone a wrong number.
+
+### Holders: Fusion's format is first-class, and geometry-only
+
+`FusionHolder` is a real type in the same document as `FusionTool` — see
+`BetterToolLib/webapp/src/schema/types/fusion.ts` — and both live in one `data[]` array, which is
+why a holder and a tool share a guid space. Its whole vocabulary is identity, one scalar, and a
+stack of truncated cones:
+
+```json
+{
+  "type": "holder",
+  "unit": "millimeters",
+  "description": "BT40 ER32 BTKV",
+  "vendor": "KMT",
+  "product-id": "7195561",
+  "gaugeLength": 90.0,
+  "segments": [{ "height": 10.0, "upper-diameter": 50.0, "lower-diameter": 44.0 }]
+}
+```
+
+`FusionSegment` is shared with `FusionTool.shaft`, and `holder_profile.profile_to_segments` is the
+one-way conversion from an ascending `(z, r)` profile.
+
+**It carries no spindle interface.** BetterToolLib recovers a size class by fitting the 7:24 cone
+against gauge diameters (31.75 / 44.45 / 69.85 mm for 30/40/50) and then has to hold the rest —
+`BT40`, `BT40-DC`, `HSK63A`, `Capto` — in an out-of-band `augmented.taper` field that is not part of
+Fusion's document at all. `taper_catalog.py` states the limit directly: geometry can report a size
+class, never the flavor or dual contact.
+
+The scrape has that information as stated fact. REGO-FIX publishes a literal `contact` column
+(face versus cone) alongside the PG series and the `CST` designation; Kennametal sells the
+dual-contact variant as BTKV. Writing a scrape straight into Fusion's holder shape would discard
+precisely what the scrape is best at.
+
+### Fusion is a sink, not a source
+
+So the same rule governs both halves, for the same reason: **the record is a superset and Fusion is
+one projection of it.** For cutting tools the dropped material is the unlabelled `DIN_A2`/`B1`/`B2`
+codes, which have no canonical name and must not be given one — the standing rule is to leave a
+vendor code unlabelled rather than guess at what it measures. For holders it is the stated
+interface. Different content, identical shape of argument, and both are reasons a shared CSV schema
+would have to either drop data or force someone to invent a name for it.
+
+Where Fusion's vocabulary is adopted wholesale is the **geometry half of a holder**, because a
+holder profile genuinely is a stack of truncated cones. Even there the measurement is stored as
+`(z, r)` points and segments are treated as an encoding of it, not the other way round — the source
+repo's `test_points_round_trip_through_fusion_segments` is what pins the two as equivalent.
+
+### Provenance moves out of git
+
+Git was doing this job for the corpus. Once the CSVs are not tracked, "when was this scraped, from
+which URL, under which family code, how many rows" has nowhere to live — and the pipeline leans on
+exactly those facts: the hand-counted `rows` per family exists so that a scrape which silently lost
+rows cannot agree with itself.
+
+So each scrape writes a sidecar beside its CSV: source URL, family code, timestamp, row count and
+scraper version. Cheap now, and effectively impossible to backfill.
+
 ## The port
 
 Each step ends green on `pnpm check`.
@@ -130,8 +242,10 @@ Each step ends green on `pnpm check`.
       `.prettierignore` entries, and the root `lint`/`test` scripts extended to reach it. One
       packaging test that imports the package, so the gate is live from the first commit rather than
       passing over an empty directory.
-- [ ] **2 — The core, unchanged.** `identity`, `records`, `provenance`, `thread` move as-is;
-      `CAD_COLUMN` lands in `conventions.py`. Their tests come with them.
+- [ ] **2 — The core, unchanged.** `identity`, `records`, `provenance`, `thread` move as-is, with
+      their tests. `conventions.py` is new: `CAD_COLUMN`, the identity columns and the `_mm`/`_in`
+      rule, with a test over each adapter's header so the identity convention Destiny Tool broke
+      cannot erode again unnoticed.
 - [ ] **3 — The boundary test, before any vendor.** `test_vendor_boundary.py` with its tree-derived
       lists and its `test_the_tree_is_the_shape_these_rules_assume` guard. The guard fails at this
       point for having nothing to iterate over, which is the guard working, and goes green as step 4
@@ -140,9 +254,10 @@ Each step ends green on `pnpm check`.
       self-contained tests), then Kennametal (`scrape`, `cad`, `materials`, `thread_column`), then
       REGO-FIX (the 478-line one). Adapter, its tests and its `families/` entries per commit, green
       before the next starts.
-- [ ] **5 — The data root.** `TOOLPATH_SCRAPE_ROOT`, the 11 corpus-assertion tests converted to
-      skip-with-reason, and `cli.py` narrowed to the scrape subcommands. Gate: the full suite green
-      on a fresh clone with no corpus anywhere on the machine.
+- [ ] **5 — The data root and the sidecar.** `TOOLPATH_SCRAPE_ROOT`, the per-scrape provenance
+      sidecar that git used to provide, the 11 corpus-assertion tests converted to skip-with-reason,
+      and `cli.py` narrowed to the scrape subcommands. Gate: the full suite green on a fresh clone
+      with no corpus anywhere on the machine.
 - [ ] **6 — CI and documentation.** pytest into `pnpm check` (`_quality.yml` already provisions uv
       0.11.28 and Python 3.11). The three vendor API notes — `KENNAMETAL_CAD_API.md`,
       `KENNAMETAL_SPEEDFEED_API.md`, `REGOFIX_PRODUCTFINDER_API.md` — come across as they are; they
@@ -155,14 +270,14 @@ Each step ends green on `pnpm check`.
 Live-network tests live in `tests/live/` behind an environment variable and stay out of CI. Reaching
 three vendors' endpoints on every pull request is slow and impolite.
 
-## Two open decisions
+## Decisions
 
-Neither blocks a start; both change later work.
-
-1. **Scope.** This plan ports the acquisition half only. Adding the conversion half roughly doubles
-   the work, brings the vendored BetterToolLib copy and its drift tripwire, and reintroduces the
-   corpus dependence measured above.
-2. **Public exposure.** This repository is public, MIT, and publishes to npm. These scrapers encode
+1. **Scope — decided 2026-08-26: acquisition only.** No presets, no Fusion library generation. That
+   half roughly doubles the work, brings the vendored BetterToolLib copy and its drift tripwire, and
+   reintroduces the corpus dependence measured above. Fusion's field names are still borrowed as the
+   canonical vocabulary, for the reasons under "What gets stored" — a naming choice, not a
+   dependency.
+2. **Public exposure — open, and it does not block a start.** This repository is public, MIT, and publishes to npm. These scrapers encode
    endpoints found by reading vendors' application bundles, and the REGO-FIX module documents three
    data faults on the vendor's own site. That is a different exposure than the private monorepo they
    live in today, and it is worth a deliberate yes. It is also a second reason, independent of size,
