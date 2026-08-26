@@ -12,7 +12,7 @@ import {
 import type { CSSProperties, PropsWithChildren, ReactNode } from 'react'
 import { Box3, Group, Vector3 } from 'three'
 import { CadCameraControls } from './camera.js'
-import { type TapTracker, trackTaps } from './render/tap.js'
+import { type TapTracker, trackDoubleTaps, trackTaps } from './render/tap.js'
 import {
   DEFAULT_FIT_MARGIN,
   PERSPECTIVE_FOV,
@@ -30,7 +30,8 @@ import {
 } from './render/camera.js'
 import type { ControlScheme, ExtendedCameraControls } from './render/controls.js'
 import { type ViewerTheme, resolveTheme } from './render/theme.js'
-import type { ViewerControls, ViewerHandle, ViewerView } from './types.js'
+import { squaredUp } from './render/view-cube.js'
+import type { VectorLike, ViewerControls, ViewerHandle, ViewerView } from './types.js'
 
 const ViewerControlsContext = createContext<ViewerControls | null>(null)
 
@@ -45,6 +46,8 @@ interface SceneProps extends PropsWithChildren {
   projection: Projection
   scheme: ControlScheme
   freeOrbit: boolean
+  zoomTo: 'cursor' | 'centre'
+  recentreOnDoubleClick: boolean
   theme: ViewerTheme
 }
 
@@ -54,11 +57,14 @@ const ViewerScene = ({
   projection,
   scheme,
   freeOrbit,
+  zoomTo,
+  recentreOnDoubleClick,
   theme,
 }: SceneProps) => {
   const camera = useThree((state) => state.camera) as ViewerCamera
   const size = useThree((state) => state.size)
   const invalidate = useThree((state) => state.invalidate)
+  const domElement = useThree((state) => state.gl.domElement)
   const controlsRef = useRef<ExtendedCameraControls | null>(null)
   const contentRef = useRef<Group>(null)
   const lightsRef = useRef<Group>(null)
@@ -80,9 +86,16 @@ const ViewerScene = ({
    *
    * The frustum is derived from the bounds rather than from the camera's
    * distance, so orbiting and dollying afterwards never need it recomputed.
+   *
+   * `up` squares the view: a named view or a cube panel is a request for a
+   * standard orientation, and free orbit re-derives the up vector from the
+   * pose it is leaving, so without one the roll built up by dragging survives
+   * the jump and the part arrives at the right angle but tilted. Which of the
+   * four square rolls to use is the caller's to choose — see `squaredUp`. Fit
+   * and Zoom to omit it on purpose: they keep the orientation they were given.
    */
   const frame = useCallback(
-    (direction: Vector3, transition = false): boolean => {
+    (direction: Vector3, transition = false, up?: VectorLike): boolean => {
       const controls = controlsRef.current
       if (!controls) return false
 
@@ -92,6 +105,13 @@ const ViewerScene = ({
       const distance = fitDistance(projection, size, bounds, DEFAULT_FIT_MARGIN)
       const position = scratchDirection.copy(direction).normalize().multiplyScalar(distance)
       position.add(bounds.center)
+
+      if (up) {
+        // Before the look-at, so its basis is built from the squared up rather
+        // than corrected afterwards by a second camera move.
+        camera.up.set(up.x, up.y, up.z)
+        controls.updateCameraUp()
+      }
 
       void controls.setLookAt(
         position.x,
@@ -159,6 +179,36 @@ const ViewerScene = ({
     return frame(start, true)
   }, [frame, measure, projection, size])
 
+  /**
+   * Double **middle** click puts the part back in the middle.
+   *
+   * The way out of having zoomed into a corner and lost the rest of it — which
+   * zooming to the cursor makes easy to do, so the two belong together. It
+   * keeps the view direction and only re-frames, because it is "show me all of
+   * this", not "start again".
+   *
+   * On the middle button, which leaves the left one free. Double left click is
+   * where a viewer usually puts "orbit about this from now on", and that is
+   * still to come — putting re-framing there would only have to move again.
+   * Assembled from `auxclick` by hand, because `dblclick` fires for the primary
+   * button only, so there is no middle-button double-click event to listen to.
+   *
+   * On the canvas rather than on the mesh: the gesture has to work on empty
+   * space too, which is exactly where somebody reaches for it.
+   */
+  useEffect(() => {
+    if (!recentreOnDoubleClick) return undefined
+
+    const doubles = trackDoubleTaps()
+    const recentre = (event: MouseEvent) => {
+      if (event.button !== 1) return
+      if (doubles.isDouble(event)) fitContent()
+    }
+
+    domElement.addEventListener('auxclick', recentre)
+    return () => domElement.removeEventListener('auxclick', recentre)
+  }, [domElement, fitContent, recentreOnDoubleClick])
+
   useEffect(() => {
     setControls({
       fit: () => {
@@ -168,16 +218,20 @@ const ViewerScene = ({
         resetContent()
       },
       setView: (view) => {
-        frame(cadViewDirections[view], true)
+        frame(cadViewDirections[view], true, squaredUp(cadViewDirections[view], camera.up))
       },
       setViewDirection: (direction) => {
-        frame(scratchView.set(direction.x, direction.y, direction.z), true)
+        frame(
+          scratchView.set(direction.x, direction.y, direction.z),
+          true,
+          squaredUp(direction, camera.up),
+        )
       },
       frameBox: (box) => {
         frameBounds(boundsFromBox(box))
       },
     })
-  }, [fitContent, frame, frameBounds, resetContent, scratchView, setControls])
+  }, [camera, fitContent, frame, frameBounds, resetContent, scratchView, setControls])
 
   // Reframe when the projection changes: a perspective distance and an
   // orthographic frustum are not interchangeable.
@@ -226,7 +280,12 @@ const ViewerScene = ({
         />
       </group>
       <group ref={contentRef}>{children}</group>
-      <CadCameraControls controlsRef={controlsRef} scheme={scheme} freeOrbit={freeOrbit} />
+      <CadCameraControls
+        controlsRef={controlsRef}
+        scheme={scheme}
+        freeOrbit={freeOrbit}
+        zoomTo={zoomTo}
+      />
     </>
   )
 }
@@ -249,6 +308,20 @@ export interface ViewerProps {
   controls?: ControlScheme
   /** Orbit past the poles instead of stopping there. On by default. */
   freeOrbit?: boolean
+  /**
+   * What the wheel zooms toward: the pointer, or the middle of the view.
+   *
+   * `cursor` by default, which is what Fusion does and what most people reach
+   * for. It is a preference rather than a right answer — on a trackpad it can
+   * walk the model off screen.
+   */
+  zoomTo?: 'cursor' | 'centre'
+  /**
+   * Whether a double **middle** click re-frames the part. On by default — it is
+   * the way back from having zoomed into a corner, which zooming to the cursor
+   * makes easy to do.
+   */
+  recentreOnDoubleClick?: boolean
   /** Lighting and background. The part's own colours are tuned against this rig. */
   theme?: Partial<ViewerTheme>
   /**
@@ -266,6 +339,8 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
     projection = 'perspective',
     controls = 'toolpath',
     freeOrbit = true,
+    zoomTo = 'cursor',
+    recentreOnDoubleClick = true,
     theme,
     onPointerMissed,
   },
@@ -298,7 +373,28 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
 
   return (
     <ViewerControlsContext.Provider value={proxy}>
-      <div className={className} ref={hold} style={{ height: '100%', width: '100%', ...style }}>
+      {/*
+        Orbiting the part does not take focus off whatever had it.
+
+        Pressing on a canvas moves focus to the document body, and the lists
+        beside the part are walked with the arrow keys from a focused row — so
+        one orbit to look at what a row was pointing at ended the walk, and the
+        arrows quietly did nothing afterwards.
+
+        `mousedown` rather than `pointerdown`: the default action of a mousedown
+        *is* the focus change, and the controls listen on pointer events, so
+        this takes the focus behaviour without touching the gesture. Nothing
+        here needs the canvas focused — every control is a real element beside
+        it.
+      */}
+      <div
+        className={className}
+        ref={hold}
+        onMouseDown={(event) => {
+          if (event.target instanceof HTMLCanvasElement) event.preventDefault()
+        }}
+        style={{ height: '100%', width: '100%', ...style }}
+      >
         <Canvas
           key={projection}
           orthographic={projection === 'orthographic'}
@@ -329,6 +425,8 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
             projection={projection}
             scheme={controls}
             freeOrbit={freeOrbit}
+            zoomTo={zoomTo}
+            recentreOnDoubleClick={recentreOnDoubleClick}
             theme={resolved}
           >
             {children}

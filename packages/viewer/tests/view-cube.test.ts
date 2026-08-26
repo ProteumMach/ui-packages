@@ -1,11 +1,13 @@
 import { Box3, Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
 import { gridSpec } from '../src/render/grid.js'
+import type { Vec3 } from '../src/model/types.js'
 import {
   CHAMFER,
   VIEW_NAMES,
   cubeZones,
   panelGeometry,
+  squaredUp,
   viewKind,
   viewUp,
   viewVector,
@@ -57,6 +59,83 @@ describe('viewUp', () => {
   it('falls to Y on the two views that look down Z', () => {
     expect(viewUp(viewVector('top'))).toEqual({ x: 0, y: 1, z: 0 })
     expect(viewUp(viewVector('bottom'))).toEqual({ x: 0, y: -1, z: 0 })
+  })
+})
+
+/**
+ * Clicking a panel squares the view, and there are four ways to be square. The
+ * cube picks the one nearest the pose being left, as the Fusion cube does — so
+ * a view is reached without the part spinning on the way to it.
+ */
+describe('squaredUp', () => {
+  const near = (a: Vec3, b: Vec3) => {
+    expect(a.x).toBeCloseTo(b.x, 12)
+    expect(a.y).toBeCloseTo(b.y, 12)
+    expect(a.z).toBeCloseTo(b.z, 12)
+  }
+
+  it('is perpendicular to the view, and one of its four rolls, for all 26 views', () => {
+    // A camera rolled well off any axis, so nothing here passes by accident.
+    const rolled = { x: 0.3, y: -0.42, z: 0.86 }
+
+    for (const name of VIEW_NAMES) {
+      const direction = viewVector(name)
+      const up = squaredUp(direction, rolled)
+      const canonical = viewUp(direction)
+
+      expect(Math.hypot(up.x, up.y, up.z)).toBeCloseTo(1, 12)
+      expect(up.x * direction.x + up.y * direction.y + up.z * direction.z).toBeCloseTo(0, 12)
+
+      // Square, and only square: a quarter turn about the view leaves the up
+      // vector either along the canonical one or square to it, never between.
+      // (Measured against the canonical up with its own view component
+      // removed, which is the 0° roll itself.)
+      const along =
+        canonical.x * direction.x + canonical.y * direction.y + canonical.z * direction.z
+      const zero = {
+        x: canonical.x - along * direction.x,
+        y: canonical.y - along * direction.y,
+        z: canonical.z - along * direction.z,
+      }
+      const length = Math.hypot(zero.x, zero.y, zero.z)
+      const cosine = (up.x * zero.x + up.y * zero.y + up.z * zero.z) / length
+
+      expect(Math.min(Math.abs(cosine), Math.abs(Math.abs(cosine) - 1))).toBeCloseTo(0, 12)
+    }
+  })
+
+  it('keeps a face view on an axis, whichever roll it lands on', () => {
+    for (const name of ['top', 'bottom', 'front', 'back', 'left', 'right'] as const) {
+      const up = squaredUp(viewVector(name), { x: 0.3, y: -0.42, z: 0.86 })
+
+      for (const component of [up.x, up.y, up.z]) {
+        expect(Math.min(Math.abs(component), Math.abs(Math.abs(component) - 1))).toBeCloseTo(0, 12)
+      }
+    }
+  })
+
+  it('takes the canonical roll when the camera is already near it', () => {
+    near(squaredUp(viewVector('front'), { x: 0, y: 0, z: 1 }), { x: 0, y: 0, z: 1 })
+    near(squaredUp(viewVector('top'), { x: 0, y: 1, z: 0 }), { x: 0, y: 1, z: 0 })
+  })
+
+  /**
+   * The point of choosing rather than imposing. Arriving at the bottom view
+   * from a camera rolled a quarter turn, the canonical −Y up is a 90° spin
+   * away and +X is already there, so +X is what it lands on.
+   */
+  it('takes a quarter turn when that is the nearer square', () => {
+    near(squaredUp(viewVector('bottom'), { x: 0.9, y: -0.1, z: 0 }), { x: 1, y: 0, z: 0 })
+    near(squaredUp(viewVector('front'), { x: -0.95, y: 0, z: 0.2 }), { x: -1, y: 0, z: 0 })
+  })
+
+  it('turns all the way over when the camera is upside down', () => {
+    near(squaredUp(viewVector('front'), { x: 0, y: 0, z: -1 }), { x: 0, y: 0, z: -1 })
+  })
+
+  /** Nothing to be near, so it falls to the orientation the labels are drawn for. */
+  it('falls back to the canonical roll for a camera with no up', () => {
+    near(squaredUp(viewVector('front'), { x: 0, y: 0, z: 0 }), { x: 0, y: 0, z: 1 })
   })
 })
 
