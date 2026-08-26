@@ -141,6 +141,14 @@ Destiny Tool  itemNumber,type,description,series,cutDia_in,loc_in,oal_in,rad_in,
 `D1_mm` and `cutDia_in` are the same measurement. Nothing parses a vendor's CSV but that vendor's
 own adapter, and the CSV is what gets diffed when a vendor silently changes their table.
 
+**A vendor's column label can collide with a real ISO 13399 code and mean something else.** ISO
+13399 defines `D1` as _fixing hole diameter_ and `L` as _cutting edge length_; Kennametal's table
+uses `D1` for the cutting diameter and `L` for the overall length. They are that vendor's drawing
+dimensions, not codes from the standard, and the two vocabularies overlap on `D1`, `L`, `B`, `H`,
+`RE`, `SIG` and `TP` among others. So this is not only a convenience rule — anything that reads a
+vendor CSV without going through that vendor's adapter can be confidently wrong rather than
+obviously broken.
+
 ### The conventions the CSVs do share, and the one already broken
 
 Not a schema — five rules. `conventions.py` is where they become explicit and testable, and the
@@ -160,16 +168,53 @@ identity labels. Destiny Tool passes Firestore's `itemNumber` straight through. 
 real but informal, and it eroded the first time a vendor did not resemble the first two. Identity
 and units are the two worth enforcing; the rest stay advisory.
 
-### The canonical record borrows Fusion's names
+### The canonical record is ISO 13399
 
-`ToolRecord` uses `DC`, `SFDM`, `OAL`, `LCF`, `RE`, `NOF`, `SIG`, `TP` — Fusion's tool-JSON field
-names, verbatim. Inventing a neutral vocabulary on top would mean two translations instead of one,
-and a name nothing downstream recognises. This holds even though Fusion library generation is out of
-scope here: the names are **borrowed, not a coupling**. Nothing about `DC` requires Fusion's file
-format, and the alternative is writing and defending a glossary of one's own.
+`ToolRecord` uses `DC`, `OAL`, `LCF`, `RE`, `NOF`, `SIG`, `TP` — and those are not Autodesk's
+invention. They are **ISO 13399** codes, _Cutting tool data representation and exchange_, the
+machine-tool industry's own interchange dictionary. Fusion implements a subset of it; this package
+uses the standard directly.
 
-Two Fusion field names are deliberately excluded. `LB` and `assemblyGaugeLength` are `OAL` under
-another name on a bare tool, and a field that is always a copy is not a second measurement — an
+Checked against the published dictionary, over every `geometry` key present in the 14 generated
+libraries:
+
+| Fusion key | ISO 13399 | ISO definition                        |
+| ---------- | --------- | ------------------------------------- |
+| `DC`       | yes       | Cutting diameter                      |
+| `LCF`      | yes       | Chip flute length                     |
+| `OAL`      | yes       | Overall length                        |
+| `LB`       | yes       | Body length                           |
+| `RE`       | yes       | Corner radius                         |
+| `SIG`      | yes       | Point angle                           |
+| `TP`       | yes       | Thread pitch                          |
+| `NOF`      | yes       | Flute count                           |
+| `HAND`     | yes       | Hand                                  |
+| `TA`       | yes       | Taper angle                           |
+| `BMC`      | yes       | Body material code                    |
+| `GRADE`    | yes       | The brand name for grade              |
+| `SFDM`     | **no**    | Autodesk "Shaft Diameter"; ISO: `DMM` |
+| `CSP`      | **no**    | Autodesk "Coolant Support" (boolean)  |
+| `NT`       | **no**    | Autodesk "Number of Teeth"            |
+
+Twelve of fifteen are the standard's codes with the standard's meanings. The three exceptions each
+have an ISO counterpart Autodesk did not use — `DMM` for shank diameter, `CEDC`/`ZEFP`/`ZEFF` for
+edge count, and the `CNSC`/`CXSC`/`CP` coolant codes rather than a flag. Fusion's hyphenated
+lowercase keys (`shoulder-length`, `tip-diameter`, `tip-offset`, `thread-profile-angle`,
+`assemblyGaugeLength`) are Autodesk's throughout; ISO's nearest are `DN`, `LS`, `PL`, `SDL`/`STA`.
+
+**This is why the vocabulary survives presets going out of scope.** The earlier framing — borrowing
+a CAM vendor's field names — undersold it. The canonical names are an industry standard that a CAM
+vendor happens to implement, so nothing here depends on Fusion, and the three deviations are a
+documented departure from the standard rather than the whole vocabulary being one vendor's choice.
+
+The standard is paid and split across parts (2 and 3 are the reference dictionaries for tool items,
+60 covers connection systems, 61 company codes), so the working reference is a manufacturer's
+published table. Two complete ones:
+[Sandvik Coromant](https://www.sandvik.coromant.com/en-us/knowledge/machining-formulas-definitions/cutting-tool-parameters)
+and [Dormer Pramet](https://dormerpramet.com/ISO-13399/).
+
+Two field names are deliberately excluded. `LB` and `assemblyGaugeLength` are `OAL` under
+another name on a bare tool — ISO code or not, and a field that is always a copy is not a second measurement — an
 adapter able to supply them separately could supply a tool claiming a holder it does not have.
 
 **A canonical name says nothing about units.** An adapter declares `'DC': 'D1'`, and the core
@@ -210,12 +255,23 @@ The scrape has that information as stated fact. REGO-FIX publishes a literal `co
 dual-contact variant as BTKV. Writing a scrape straight into Fusion's holder shape would discard
 precisely what the scrape is best at.
 
+**ISO 13399 has vocabulary for it where Fusion does not**, which keeps the record inside the
+standard rather than inventing names. Candidates, to be confirmed against the dictionary before
+anything is mapped: `CZC MS`/`CZC WS` (connection size code, machine and workpiece side) for the
+`BT 30 / PG 25` interface pair a holder joins, `DCONMS`/`DCONWS` for the diameters at each, and
+`CONARWS` for the arrangement. The whole connection-system half of the standard is Part 60, which is
+also the part Fusion's holder type ignores entirely.
+
 ### Fusion is a sink, not a source
 
 So the same rule governs both halves, for the same reason: **the record is a superset and Fusion is
 one projection of it.** For cutting tools the dropped material is the unlabelled `DIN_A2`/`B1`/`B2`
 codes, which have no canonical name and must not be given one — the standing rule is to leave a
-vendor code unlabelled rather than guess at what it measures. For holders it is the stated
+vendor code unlabelled rather than guess at what it measures. There is now a lead on pinning them
+honestly: REGO-FIX publishes `DXF_ISO13399/DXF` and `DXF_ISO13399/PDF` beside the `XML_DIN4000/XML`
+the scraper reads today, so the standard is already in that vendor's own source material.
+`REGOFIX_PRODUCTFINDER_API.md` anticipates exactly this — "if you get hold of DIN 4000-89 or a
+REGO-FIX ISO 13399 mapping, that is the file to update." For holders it is the stated
 interface. Different content, identical shape of argument, and both are reasons a shared CSV schema
 would have to either drop data or force someone to invent a name for it.
 
@@ -243,9 +299,11 @@ Each step ends green on `pnpm check`.
       packaging test that imports the package, so the gate is live from the first commit rather than
       passing over an empty directory.
 - [ ] **2 — The core, unchanged.** `identity`, `records`, `provenance`, `thread` move as-is, with
-      their tests. `conventions.py` is new: `CAD_COLUMN`, the identity columns and the `_mm`/`_in`
-      rule, with a test over each adapter's header so the identity convention Destiny Tool broke
-      cannot erode again unnoticed.
+      their tests. `records.GEOMETRY_FIELDS` gains the ISO 13399 definition beside each code and
+      names the three that are Autodesk's rather than the standard's, so the vocabulary's source is
+      readable from the code. `conventions.py` is new: `CAD_COLUMN`, the identity columns and the
+      `_mm`/`_in` rule, with a test over each adapter's header so the identity convention Destiny
+      Tool broke cannot erode again unnoticed.
 - [ ] **3 — The boundary test, before any vendor.** `test_vendor_boundary.py` with its tree-derived
       lists and its `test_the_tree_is_the_shape_these_rules_assume` guard. The guard fails at this
       point for having nothing to iterate over, which is the guard working, and goes green as step 4
