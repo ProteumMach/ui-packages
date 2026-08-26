@@ -4,7 +4,7 @@ _Written 2026-08-26, from a read of this repo and of `tool_catalog/packages/scra
 (`/Users/justingray/toolpath/new_code/tool_catalog`), against one question: what shape should
 vendor tool scraping take here, and how does the existing code get in._
 
-**Status: steps 1–3 landed.** Steps are checked off in "The port" below as they land.
+**Status: steps 1–4 landed.** Steps are checked off in "The port" below as they land.
 
 ## What is being ported
 
@@ -315,14 +315,20 @@ Each step ends green on `pnpm check`.
       because the rule above is that each step ends green and a skip pytest prints on every run is
       as loud as a red nobody has been told to expect. Both halves go live without an edit as step
       4 lands.
-- [ ] **4 — Vendors, one commit each, cheapest first.** Destiny Tool (no core imports, 45
+- [x] **4 — Vendors, one commit each, cheapest first.** Destiny Tool (no core imports, 45
       self-contained tests), then Kennametal (`scrape`, `cad`, `materials`, `thread_column`), then
       REGO-FIX (the 478-line one). Adapter, its tests and its `families/` entries per commit, green
-      before the next starts.
-- [ ] **5 — The data root and the sidecar.** `TOOLPATH_SCRAPE_ROOT`, the per-scrape provenance
-      sidecar that git used to provide, the 11 corpus-assertion tests converted to skip-with-reason,
-      and `cli.py` narrowed to the scrape subcommands. Gate: the full suite green on a fresh clone
-      with no corpus anywhere on the machine.
+      before the next starts. `fetch.py` landed with Kennametal, where a second transport made the
+      shared shape visible, and Destiny Tool moved onto it in the same commit rather than staying a
+      copy. The corpus-assertion tests in `test_cad.py`, `test_materials.py` and
+      `test_scrape_regofix.py` are deferred to step 5, each behind a note in its own file naming
+      what is waiting.
+- [ ] **5 — The data root and the sidecar.** `TOOLPATH_SCRAPE_ROOT`, `csv_dir`/`family_csv`
+      resolved through it, the per-scrape provenance sidecar that git used to provide, the
+      corpus-assertion tests converted to skip-with-reason, and `cli.py` narrowed to the scrape
+      subcommands. `cli.py` and `registry.py` are the two names in
+      `test_vendor_boundary.COMPOSITION_ROOTS`, and the second is the only one that exists yet.
+      Gate: the full suite green on a fresh clone with no corpus anywhere on the machine.
 - [ ] **6 — CI and documentation.** pytest into `pnpm check` (`_quality.yml` already provisions uv
       0.11.28 and Python 3.11). The three vendor API notes — `KENNAMETAL_CAD_API.md`,
       `KENNAMETAL_SPEEDFEED_API.md`, `REGOFIX_PRODUCTFINDER_API.md` — come across as they are; they

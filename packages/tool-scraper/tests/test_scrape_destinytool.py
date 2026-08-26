@@ -13,12 +13,14 @@ the actual Firestore collection 2026-08-19; the evidence for each is in
 
 from __future__ import annotations
 
+import csv
 import io
 import json
 
 import pytest
 
 from toolpath_scraper import fetch
+from toolpath_scraper.conventions import check_identity_columns, identity_columns
 from toolpath_scraper.vendors.destinytool import records as dt_records
 from toolpath_scraper.vendors.destinytool import scrape as dt
 
@@ -317,3 +319,37 @@ def test_material_groups_falls_back_to_ferrous_above_three_flutes():
 
 def test_material_groups_missing_cell_is_treated_as_blank():
     assert dt_records._material_groups({}, flutes=2) == ('N',)
+
+
+# ── The conventions, against the header this adapter writes ────────────────
+
+def _header(tmp_path, monkeypatch) -> list[str]:
+    monkeypatch.setattr(dt, 'fetch_products', lambda: [_product('A1')])
+    out = tmp_path / 'out.csv'
+    dt.scrape_end_mills(out)
+    with open(out, newline='') as f:
+        return next(csv.reader(f))
+
+
+def test_the_header_carries_the_identity_this_vendor_is_recorded_as_using(
+        tmp_path, monkeypatch):
+    """The half a quoted header could never check: a deviation naming a column
+    the adapter stopped writing would keep passing, because the check compares
+    the header against the deviation and both would be wrong together."""
+    header = _header(tmp_path, monkeypatch)
+
+    check_identity_columns('destinytool', set(header))
+    assert set(identity_columns('destinytool')) <= set(header)
+
+
+def test_a_dimension_carries_its_unit_and_nothing_else_does(
+        tmp_path, monkeypatch):
+    """Destiny Tool's own field names carry no suffix — the adapter appends
+    one, because `_in` is what makes `cutDia` readable as a length rather than
+    a code."""
+    header = _header(tmp_path, monkeypatch)
+
+    suffixed = {c for c in header if c.endswith(('_mm', '_in'))}
+    assert suffixed == {f'{f}_in' for f in dt.DIMENSIONAL_FIELDS}
+    # Every dimension is inches: the vendor publishes no metric row at all.
+    assert not [c for c in header if c.endswith('_mm')]

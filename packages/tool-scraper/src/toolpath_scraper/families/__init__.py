@@ -37,6 +37,8 @@ from toolpath_scraper.families.destinytool import FAMILIES as DESTINYTOOL
 from toolpath_scraper.families.kennametal import COLLET_FAMILIES as KM_COLLETS
 from toolpath_scraper.families.kennametal import FAMILIES as KENNAMETAL
 from toolpath_scraper.families.kennametal import HOLDER_FAMILIES as KM_HOLDERS
+from toolpath_scraper.families.regofix import COLLET_FAMILIES as RF_COLLETS
+from toolpath_scraper.families.regofix import HOLDER_FAMILIES as RF_HOLDERS
 
 
 def _merge(*tables: dict[str, dict]) -> dict[str, dict]:
@@ -69,8 +71,8 @@ FAMILIES: dict[str, dict] = _merge(KENNAMETAL, DESTINYTOOL)
 #: are not variants of a thing: they carry different discriminants (a holder
 #: states a taper and a clamping mode; a collet states a series and a capacity
 #: band) and a scrape of one is not a scrape of the other.
-HOLDER_FAMILIES: dict[str, dict] = _merge(KM_HOLDERS)
-COLLET_FAMILIES: dict[str, dict] = _merge(KM_COLLETS)
+HOLDER_FAMILIES: dict[str, dict] = _merge(KM_HOLDERS, RF_HOLDERS)
+COLLET_FAMILIES: dict[str, dict] = _merge(KM_COLLETS, RF_COLLETS)
 
 
 def family_id(cfg: dict) -> str:

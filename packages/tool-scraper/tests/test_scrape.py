@@ -12,6 +12,7 @@ import csv
 
 import pytest
 
+from toolpath_scraper.conventions import check_identity_columns
 from toolpath_scraper.identity import BRANDS
 from toolpath_scraper.vendors.kennametal import scrape
 
@@ -173,3 +174,37 @@ def test_empty_table_yields_header_only(tmp_path, monkeypatch):
     assert len(rows) == 1
     assert rows[0][0] == 'Material Number'
     assert rows[0][-1] == 'Thread System'
+
+
+# ── The conventions, against the header this adapter writes ────────────────
+
+def test_the_header_carries_the_identity_columns_every_other_vendor_copied(
+        tmp_path, monkeypatch):
+    """Kennametal came first, so `conventions.IDENTITY_COLUMNS` is its header
+    text. A rename here is not one vendor's problem: it is the convention two
+    other adapters were written against."""
+    monkeypatch.setattr(scrape, 'fetch', lambda code, brand: TABLE_HTML)
+    out = tmp_path / 'f.csv'
+    scrape.scrape_family('1', out)
+
+    with open(out, newline='') as f:
+        header = next(csv.reader(f))
+    check_identity_columns('kennametal', set(header))
+
+
+def test_a_unit_pair_is_the_only_thing_that_takes_a_suffix(
+        tmp_path, monkeypatch):
+    """Column identity here comes from the `<th>` class, and the class is what
+    says a column is a metric/inch pair. A `CatNo` column carries a unit class
+    and is not a dimension — suffixing it would invent a pair the vendor never
+    published."""
+    monkeypatch.setattr(scrape, 'fetch', lambda code, brand: TABLE_HTML)
+    out = tmp_path / 'f.csv'
+    scrape.scrape_family('1', out)
+
+    with open(out, newline='') as f:
+        header = next(csv.reader(f))
+    suffixed = {c for c in header if c.endswith(('_mm', '_in'))}
+    assert 'ISO Catalog Number' in header
+    assert 'ISO Catalog Number_mm' not in header
+    assert suffixed == {'D1_mm', 'D1_in'}
