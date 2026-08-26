@@ -87,8 +87,12 @@ Two moves the layout forces, both of which are corrections rather than costs:
   and two vendors reach into it. `test_vendor_boundary.py`'s own docstring records this leak
   happening once in the other direction, when `toolholding.py` imported the constant from
   `vendors/kennametal/cad.py` for a day.
-- **`families.py` splits.** Its 1258 lines mix scrape targets (`family_code`, `rows`) with
-  conversion config (`columns`, `facts`). Only the first half belongs here.
+- **`families.py` splits**, one module per vendor. Its 1258 lines mix scrape targets
+  (`family_code`, `rows`), the column maps and facts an adapter reads, and conversion config
+  (`library_name`, and the preset routing keys). The first two come; the third does not.
+  `columns` and `facts` looked like conversion config from outside and are not: `vendors/*/records.py`
+  is in the acquisition half, and it reads both — a `ColumnMap` to find a vendor's column and
+  `cfg['bmc']`/`cfg['coolant_through']` to fill a record field no table publishes.
 
 ## Scraped data is not committed
 

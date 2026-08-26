@@ -14,10 +14,17 @@ catalogs comparable.
 **Scraped output is never committed.** A CSV is a vendor's data and a working
 file, not source; see `docs/TOOL-SCRAPER-PLAN.md`.
 
-Nothing is re-exported yet — the port lands module by module, and this file
-grows a supported surface as it does.
+Importing this package binds every family to its adapter, so a column map that
+names a field no vendor publishes is a startup error naming the family rather
+than a `KeyError` from inside a mapper on row 1 of a scrape that already ran.
+Nothing is re-exported: callers import the module they mean, which is what
+keeps `registry` the only place that knows both halves.
 """
 
 from __future__ import annotations
 
+from toolpath_scraper.registry import bind_adapters
+
 __all__: list[str] = []
+
+bind_adapters()

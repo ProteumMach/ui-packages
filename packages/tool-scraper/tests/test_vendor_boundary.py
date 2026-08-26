@@ -80,21 +80,26 @@ VENDOR_PARAMS = VENDOR_MODULES or [pytest.param(
 #: The files whose job **is** to know every vendor, and nothing else.
 #:
 #: A composition root wires the parts together; it is the one place a
-#: dependency on all of them is the point rather than a leak. `__init__.py` is
-#: the package's public surface; `cli.py` is the console entry points, so one
-#: command can drive any adapter; `registry.py` is the one module that maps a
-#: brand to the adapter that serves it. None of the three holds pipeline logic
-#: — they re-export, parse argv, and bind — which is what keeps the exception
-#: narrow.
+#: dependency on all of them is the point rather than a leak. `registry.py` is
+#: the module that maps a brand to the adapter serving it; `cli.py` is the
+#: console entry points, so one command can drive any adapter. Neither holds
+#: pipeline logic — they bind and parse argv — which is what keeps the
+#: exception narrow.
 #:
-#: `families/` is deliberately **not** here. In the source package it briefly
-#: did the binding, which made the config table import a manufacturer, and the
-#: table is read by every test — none of which should drag Kennametal's scraper
-#: in behind it. That test is this one.
+#: **`__init__.py` is deliberately not here.** It calls `bind_adapters` and
+#: re-exports nothing, so it reaches a vendor only through `registry` and is
+#: held to the same rule as any other core module. Listing it would licence a
+#: direct vendor import into the package's front door for no reason anything
+#: needs.
 #:
-#: Named rather than pattern-matched, so adding a fourth is a deliberate edit
+#: `families/` is not here either. In the source package it briefly did the
+#: binding, which made the config table import a manufacturer, and the table is
+#: read by every test — none of which should drag a vendor's scraper in behind
+#: it. That test is this one.
+#:
+#: Named rather than pattern-matched, so adding a third is a deliberate edit
 #: here with a reason beside it.
-COMPOSITION_ROOTS = {'__init__.py', 'cli.py', 'registry.py'}
+COMPOSITION_ROOTS = {'cli.py', 'registry.py'}
 
 
 def test_the_core_is_the_shape_these_rules_assume():
@@ -108,12 +113,20 @@ def test_the_core_is_the_shape_these_rules_assume():
 
 @needs_an_adapter
 def test_the_vendor_tree_is_the_shape_these_rules_assume():
-    """Guards `VENDOR_MODULES`, and it is the guard that is doing its job by
-    skipping today: with no adapters, rule 2 below collects no cases at all."""
-    assert (VENDORS / 'kennametal' / 'scrape.py').is_file()
-    assert (VENDORS / 'regofix' / 'scrape.py').is_file()
-    assert (VENDORS / 'destinytool' / 'scrape.py').is_file()
-    assert len(VENDOR_MODULES) >= 6, [p.name for p in VENDOR_MODULES]
+    """Guards `VENDOR_MODULES`. Derived rather than rostered, for the same
+    reason the module lists are: an adapter that lands in the wrong shape has
+    to fail here, not be absent from a list nobody updated.
+
+    Every directory under `vendors/` is one manufacturer and carries a
+    `scrape.py`, because a directory here that fetches nothing is a vendor's
+    name attached to no transport."""
+    brands = [p for p in VENDORS.iterdir()
+              if p.is_dir() and not p.name.startswith(('_', '.'))]
+
+    assert brands, 'vendors/ holds modules but no manufacturer directory'
+    for brand in brands:
+        assert (brand / '__init__.py').is_file(), brand.name
+        assert (brand / 'scrape.py').is_file(), brand.name
 
 
 @pytest.mark.parametrize('path', CORE, ids=lambda p: str(p.relative_to(PKG)))

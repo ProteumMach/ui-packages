@@ -4,11 +4,10 @@ A CSV keeps its vendor's own column labels, so there is no schema to test.
 What there is: a short list of rules that hold across the CSVs anyway, and
 which of them are enforced. These are the enforcement.
 
-The header literals below are the real first lines of the scraped CSVs as of
-2026-08-26, quoted rather than derived because no adapter is in this package
-yet. **Step 4 of `docs/TOOL-SCRAPER-PLAN.md` replaces them with each adapter's
-own header**, at which point the check runs against what a scrape actually
-writes rather than against what it wrote once.
+Destiny Tool's header is **derived from its adapter**, so the rules below run
+against what a scrape actually writes. The other three are still the real first
+lines of the scraped CSVs as of 2026-08-26, quoted rather than derived because
+those adapters have not landed; each becomes derived as its vendor does.
 """
 
 from __future__ import annotations
@@ -26,10 +25,23 @@ from toolpath_scraper.conventions import (
     identity_columns,
 )
 from toolpath_scraper.identity import BRANDS
+from toolpath_scraper.vendors.destinytool import scrape as destinytool
 
-#: The real headers, one per vendor. Kennametal's is a holder family, which is
-#: why `CAD_STEP_URL` is on it and not on the WIDIA cutting-tool table.
-HEADERS: dict[str, tuple[str, ...]] = {
+
+def _destinytool_header() -> list[str]:
+    """The header `scrape_end_mills` writes, built the way it builds it.
+
+    Derived rather than copied: the point of checking a header against the
+    conventions is lost if the header being checked is a literal somebody
+    updates by hand at the same time as the adapter.
+    """
+    return [f'{f}_in' if f in destinytool.DIMENSIONAL_FIELDS else f
+            for f in destinytool.FIELDS]
+
+
+#: The headers, one per vendor. Kennametal's is a holder family, which is why
+#: `CAD_STEP_URL` is on it and not on the WIDIA cutting-tool table.
+HEADERS: dict[str, list[str]] = {
     'kennametal': (
         'Material Number,ISO Catalog Number,ANSI Catalog Number,CST,D11_mm,'
         'D11_in,L1_mm,L1_in,L9_mm,L9_in,V_mm,V_in,Weight Kilograms,'
@@ -45,10 +57,7 @@ HEADERS: dict[str, tuple[str, ...]] = {
         'Material Number,ISO Catalog Number,CST,contact,L1_mm,D2_mm,B3_mm,'
         'CAD_STEP_URL,DIN_A2,DIN_B1,DIN_B2,DIN_B3_WOA'
     ).split(','),
-    'destinytool': (
-        'itemNumber,type,description,series,cutDia_in,loc_in,oal_in,rad_in,'
-        'flutes,endStyle,angle,material,isoMaterialGroups,coatingId'
-    ).split(','),
+    'destinytool': _destinytool_header(),
 }
 
 
@@ -69,6 +78,14 @@ def test_a_header_missing_its_identity_column_is_refused_by_name():
     assert 'regofix' in str(raised.value)
     assert 'Material Number' in str(raised.value)
     assert 'ISO Catalog Number' in str(raised.value)
+
+
+def test_the_deviation_names_columns_the_adapter_really_writes():
+    """The half a literal header could never check. A deviation that named a
+    column the adapter stopped writing would keep passing
+    `check_identity_columns` — it checks the header against the deviation, and
+    both would be wrong together."""
+    assert set(identity_columns('destinytool')) <= set(_destinytool_header())
 
 
 def test_the_one_vendor_that_broke_the_convention_is_the_one_written_down():
