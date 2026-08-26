@@ -69,8 +69,8 @@ The Node.js version must be `v24.18.0` or newer within the `v24` release line.
 Open PowerShell, Command Prompt, Terminal, or your editor's terminal, then run:
 
 ```bash
-git clone https://github.com/toolpath/toolpath.git
-cd toolpath
+git clone https://github.com/toolpath/ui-packages.git
+cd ui-packages
 corepack enable pnpm
 pnpm install --frozen-lockfile
 ```
