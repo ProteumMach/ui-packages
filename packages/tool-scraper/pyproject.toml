@@ -1,0 +1,61 @@
+[project]
+name = "toolpath-tool-scraper"
+version = "0.0.0"
+description = "Scrape cutting-tool geometry from vendor catalogs into per-vendor CSVs"
+authors = [{ name = "Toolpath" }]
+requires-python = ">=3.11"
+readme = "README.md"
+license = { file = "LICENSE" }
+# Stdlib only, and this is a boundary rather than a preference. A transport
+# that needs httpx, beautifulsoup4 or a browser declares it as its own
+# dependency; nothing shared here may pretend to know how a vendor serves a
+# table.
+dependencies = []
+
+[project.urls]
+Homepage = "https://developers.toolpath.com"
+Repository = "https://github.com/toolpath/toolpath"
+Issues = "https://github.com/toolpath/toolpath/issues"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.16"]
+
+# The import package is `toolpath_scraper`, not the distribution's own
+# `toolpath_tool_scraper` and not `toolpath` — `packages/sdk-python` publishes
+# that one, and a scraper is not part of the API bindings.
+[tool.uv.build-backend]
+module-name = "toolpath_scraper"
+
+[build-system]
+requires = ["uv_build>=0.11.0,<0.12.0"]
+build-backend = "uv_build"
+
+# No `pythonpath` shim: the tests import the installed package, so a green
+# suite means the package is importable the way a consumer gets it.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+
+# Carried from the source package, where the rule sets were chosen for what
+# they would actually have caught rather than for breadth. `E`/`F` are
+# pycodestyle and pyflakes, `I` import order, `UP` the pyupgrade rules that
+# keep `from __future__ import annotations` honest, `B` the bugbear checks,
+# and `ANN` the annotation rules — the Kennametal transport sat entirely
+# unannotated for its whole life because nothing checked.
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ANN"]
+# ANN401 forbids `Any`; this package doesn't use it, and banning an escape
+# hatch nothing reaches for is a rule with nothing to enforce.
+ignore = ["ANN401"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests get the annotation rules everywhere except their own signatures: a
+# pytest test function's return type is always None, its fixtures are typed by
+# pytest, and its local helpers and monkeypatch stubs are read at their one
+# call site. Requiring all three is ceremony that hides real findings.
+"tests/**" = ["ANN001", "ANN003", "ANN201", "ANN202"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["toolpath_scraper"]

@@ -13,12 +13,20 @@ packages/sdk-python/build/
 packages/sdk-python/dist/
 packages/sdk-python/*.egg-info/
 packages/sdk-python/uv.lock
+packages/tool-scraper/uv.lock
+packages/tool-scraper/dist/
+packages/tool-scraper/*.egg-info/
 packages/ui/dist/
 packages/viewer/dist/
 examples/react/dist/
 examples/react-viewer/dist/
 examples/react-viewer/test-results/
 examples/react-viewer/playwright-report/
+
+# Scraped vendor catalogs. The scraper's output is the vendor's data and a working
+# file, not source: what this repository holds is the scraper, never a scrape.
+# `TOOLPATH_SCRAPE_ROOT` moves it elsewhere; this covers the default.
+packages/tool-scraper/scrape-out/
 
 # Never commit environment files. Keep documented templates trackable.
 **/*.env*
