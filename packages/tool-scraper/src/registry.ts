@@ -16,11 +16,10 @@
  *
  * ## Binding is lazy, not an import side effect
  *
- * The Python bound at package import, so a mapping fault was a startup error
- * naming the family rather than a missing-key fault from inside a mapper on
- * row 1 of a scrape that already ran. That guarantee is worth keeping and an
- * import side effect is not the way to keep it in a library — a consumer that
- * imports one helper should not pay for validating a catalog it never reads.
+ * A mapping fault has to surface as an error naming the family, not as a
+ * missing-key fault from inside a mapper on row 1 of a scrape that already
+ * ran. Binding at import would buy that and charge for it: a consumer that
+ * imports one helper should not pay to validate a catalog it never reads.
  *
  * So it is memoised instead: the first call to {@link boundFamilies} validates
  * every family and every fact, and the failure still names the family and the
@@ -61,9 +60,8 @@ export const ADAPTERS: Record<string, RecordMappers> = {
  * right — provenance is evidence for a person and a gate, not an input to
  * arithmetic.
  *
- * The Python also had to refuse a family that set a constant *both* ways.
- * `FamilyDefinition` declares no constant keys, so that is a compile error
- * here and there is nothing left to check at runtime.
+ * `FamilyDefinition` declares no constant keys, so a family that also set the
+ * plain key is a compile error and there is nothing left to check at runtime.
  */
 function project<T extends object>(table: string, name: string, cfg: T): T {
   const facts = (cfg as { facts?: Record<string, Fact> }).facts ?? {}

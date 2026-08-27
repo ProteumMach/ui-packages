@@ -16,11 +16,12 @@ import { dirname, join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { Fetcher } from '../src/fetch.js'
+import { HOLDER_FAMILIES } from '../src/families/index.js'
 import { toCsv } from '../src/node/csv.js'
 import { SCRAPE_ROOT_ENV, describeRoot, familyCsv } from '../src/node/paths.js'
 import * as receipts from '../src/node/receipts.js'
-import { run, type Console_ } from '../src/node/cli.js'
+import { run } from '../src/node/cli.js'
+import { asFetcher, recorder, stub } from './stubs.js'
 
 /** A family whose CSV the in-place commands can be pointed at. */
 const TAPS = 'khsst_spiral_point_plug_inch.csv'
@@ -36,19 +37,8 @@ afterEach(() => {
   delete process.env[SCRAPE_ROOT_ENV]
 })
 
-/** A console that collects instead of printing. */
-function collector() {
-  const out: string[] = []
-  const err: string[] = []
-  const io: Console_ = {
-    log: (m) => out.push(m),
-    error: (m) => err.push(m),
-  }
-  return { io, out, err, all: () => [...out, ...err].join('\n') }
-}
-
 /** A fetcher that refuses every request, for the paths that need none. */
-const noNetwork = {} as Fetcher
+const noNetwork = stub()
 
 describe('every command states where scraped data lands', () => {
   it.each([
@@ -64,7 +54,7 @@ describe('every command states where scraped data lands', () => {
   ])('announces the root for %j', async (...argv) => {
     // Somebody reading the usage text is the person most likely to be about to
     // point a scrape at the wrong place.
-    const { io, out } = collector()
+    const { io, out } = recorder()
 
     await run(argv as string[], io, noNetwork)
 
@@ -89,31 +79,55 @@ describe('the kennametal command', () => {
     <tr><td></td><td>4151624</td><td>B042</td><td>2</td></tr>
   </table>`
 
-  const serving = (html: string) => ({ text: vi.fn(async () => html) }) as unknown as Fetcher
+  const serving = (html: string) => asFetcher({ text: vi.fn(async () => html) })
 
   it('rejects an unknown brand', async () => {
-    const { io, err } = collector()
+    const { io, err } = recorder()
 
     expect(await run(['kennametal', '--brand', 'sandvik', '1', 'x.csv'], io)).toBe(2)
     expect(err.join('\n')).toContain('unknown brand: sandvik')
   })
 
   it('requires a code and an output path', async () => {
-    const { io } = collector()
+    const { io } = recorder()
 
     expect(await run(['kennametal', '100003658'], io)).toBe(2)
   })
 
+  it('rejects a known brand that is not on the AEM platform', async () => {
+    // Checked against every brand, so `--brand regofix` passed and the scraper
+    // built a URL with `undefined` where the AEM component node goes.
+    const { io, err } = recorder()
+
+    expect(await run(['kennametal', '--brand', 'regofix', 'CODE', 'out.csv'], io, noNetwork)).toBe(
+      2,
+    )
+    expect(err.join('\n')).toContain('unknown brand: regofix')
+    expect(err.join('\n')).toContain('kennametal, widia')
+  })
+
   it('needs a value after --brand', async () => {
-    const { io, err } = collector()
+    const { io, err } = recorder()
 
     expect(await run(['kennametal', '--brand'], io)).toBe(2)
     expect(err.join('\n')).toContain('--brand needs a value')
   })
 
+  it('refuses a constant column that is not Name=Value', async () => {
+    // A quoting slip — `"Thread System" metric` — used to be filtered out, so
+    // the scrape wrote a CSV with the column missing and exited 0. Refusing
+    // here is what every other bad input in this package gets.
+    const out = join(root, 'fam.csv')
+    const { io, err } = recorder()
+
+    expect(await run(['kennametal', '100003658', out, 'Thread System'], io, serving(TABLE))).toBe(2)
+    expect(err.join('\n')).toContain('constant column "Thread System" is not Name=Value')
+    expect(existsSync(out)).toBe(false)
+  })
+
   it('defaults to kennametal, and appends tag columns', async () => {
     const out = join(root, 'fam.csv')
-    const { io } = collector()
+    const { io } = recorder()
 
     expect(
       await run(['kennametal', '100003658', out, 'Thread System=metric'], io, serving(TABLE)),
@@ -126,7 +140,7 @@ describe('the kennametal command', () => {
 
   it('leaves a receipt naming what it fetched', async () => {
     const out = join(root, 'fam.csv')
-    const { io, out: logged } = collector()
+    const { io, out: logged } = recorder()
 
     await run(['kennametal', '100003658', out], io, serving(TABLE))
 
@@ -143,7 +157,7 @@ describe('the kennametal command', () => {
 
   it('records WIDIA’s host and not Kennametal’s', async () => {
     const out = join(root, 'w.csv')
-    const { io } = collector()
+    const { io } = recorder()
 
     await run(['kennametal', '--brand', 'widia', '103354322', out], io, serving(TABLE))
 
@@ -158,7 +172,7 @@ describe('the kennametal command', () => {
     // like this is computed from the file it is checking, so a scrape that
     // silently lost rows agrees with itself.
     const out = join(root, 'godrill_3xd_metric.csv')
-    const { io } = collector()
+    const { io } = recorder()
 
     await expect(run(['kennametal', '100003658', out], io, serving(TABLE))).rejects.toThrow(
       /wrote 2 rows where this family declares 259/,
@@ -225,13 +239,25 @@ describe('receipts', () => {
 
 describe('the in-place commands', () => {
   it('rejects a CSV that is not a holder family', async () => {
-    const { io } = collector()
+    const { io } = recorder()
 
     await expect(run(['cad', 'nope.csv'], io, noNetwork)).rejects.toThrow(/unknown holder CSV/)
   })
 
+  it('rejects the cad step on a holder that is not a Kennametal one', async () => {
+    // `annotateCadUrls` posts to Kennametal's CDS and rewrites CAD_STEP_URL on
+    // every row, so running it over the REGO-FIX holders sent that vendor's
+    // SKUs to Kennametal and blanked the URLs its own scrape had filled in.
+    const { io, err } = recorder()
+    const name = Object.keys(HOLDER_FAMILIES).find((n) => n.startsWith('regofix'))
+    expect(name).toBeDefined()
+
+    expect(await run(['cad', name!], io, noNetwork)).toBe(2)
+    expect(err.join('\n')).toContain('cad step is')
+  })
+
   it('rejects a CSV that is not a tool family', async () => {
-    const { io } = collector()
+    const { io } = recorder()
 
     await expect(run(['materials', 'nope.csv'], io, noNetwork)).rejects.toThrow(
       /unknown family CSV/,
@@ -259,7 +285,7 @@ describe('the in-place commands', () => {
       ),
     )
 
-    const { io, out } = collector()
+    const { io, out } = recorder()
     expect(await run(['thread-pitch', TAPS], io, noNetwork)).toBe(0)
 
     const written = readFileSync(path, 'utf8')
@@ -271,7 +297,7 @@ describe('the in-place commands', () => {
 
 describe('unknown input', () => {
   it('refuses an unknown command with a usage message', async () => {
-    const { io, err } = collector()
+    const { io, err } = recorder()
 
     expect(await run(['convert'], io, noNetwork)).toBe(2)
     expect(err.join('\n')).toContain('unknown command "convert"')

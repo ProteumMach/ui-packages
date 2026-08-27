@@ -16,7 +16,7 @@ import { describe, expect, it } from 'vitest'
 
 import { ScraperConfigError } from '../src/errors.js'
 import { familyId } from '../src/family.js'
-import { COLLET_FAMILIES, FAMILIES, HOLDER_FAMILIES } from '../src/families/index.js'
+import { ALL_FAMILIES, COLLET_FAMILIES, FAMILIES, HOLDER_FAMILIES } from '../src/families/index.js'
 import { BRANDS, type BrandName } from '../src/identity.js'
 import { ColumnMap, REQUIRED_GEOMETRY, type ToolKind } from '../src/records.js'
 import { ADAPTERS, boundFamilies, boundFamily, boundToolholding } from '../src/registry.js'
@@ -198,6 +198,21 @@ describe('the tables themselves', () => {
         expect(cfg.rows, name).toBeGreaterThan(0)
       }
     }
+  })
+
+  it('refuses a CSV name two of the three claim', () => {
+    // `merge` exists for exactly this and `ALL_FAMILIES` was built with a
+    // spread, so a shared name resolved silently to whichever came last — and
+    // this is the table that decides which brand's directory a CSV is written
+    // to.
+    const names = [
+      ...Object.keys(FAMILIES),
+      ...Object.keys(HOLDER_FAMILIES),
+      ...Object.keys(COLLET_FAMILIES),
+    ]
+
+    expect(Object.keys(ALL_FAMILIES)).toHaveLength(names.length)
+    expect(new Set(names).size).toBe(names.length)
   })
 
   it('maps every canonical field its kind requires', () => {

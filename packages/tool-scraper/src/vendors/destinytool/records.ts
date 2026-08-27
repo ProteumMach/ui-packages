@@ -24,7 +24,8 @@
  */
 
 import { VendorResponseError } from '../../errors.js'
-import type { BoundFamily, RecordMappers } from '../../family.js'
+import { familyBrand, type BoundFamily, type RecordMappers } from '../../family.js'
+import { BRANDS } from '../../identity.js'
 import {
   ISO_MATERIAL_GROUPS,
   toolRecord,
@@ -282,7 +283,7 @@ export function endmillRecord(
   }
 
   return toolRecord({
-    vendor: 'destinytool',
+    vendor: BRANDS[familyBrand(family)].vendor,
     materialNumber: what,
     catalogNumber: what,
     description,
@@ -301,7 +302,9 @@ export function endmillRecord(
         what,
         dc,
         radCell,
-        options.warn ?? consoleWarn,
+        // `cornerRadius` owns the fallback; defaulting here too would be two
+        // layers deciding the same thing.
+        options.warn,
       ),
       SFDM: shankDiameter(description, dc),
       OAL: oal,

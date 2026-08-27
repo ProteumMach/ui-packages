@@ -14,7 +14,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { CAD_COLUMN } from '../src/conventions.js'
-import type { Fetcher } from '../src/fetch.js'
+import { HttpError } from '../src/fetch.js'
 import type { ScrapeResult } from '../src/scrape.js'
 import {
   LIGHTWEIGHT_STEP,
@@ -22,6 +22,7 @@ import {
   lightweightStepUrl,
   type CadPayload,
 } from '../src/vendors/kennametal/cad.js'
+import { asFetcher, stub } from './stubs.js'
 
 const LWM = 'https://cdn.example.test/kmt/1258023-lwm.stp'
 const GTM = 'https://cdn.example.test/kmt/1258023-gtm.stp'
@@ -29,13 +30,13 @@ const GTM = 'https://cdn.example.test/kmt/1258023-gtm.stp'
 /** A fetcher answering the CAD endpoint from a material -> payload map. */
 function cadApi(payloads: Record<string, unknown>) {
   const asked: string[] = []
-  const fetcher = {
+  const fetcher = asFetcher({
     json: vi.fn(async (url: string) => {
       const id = new URL(url).searchParams.get('id') ?? ''
       asked.push(id)
       return payloads[id] ?? { cadAvailable: false }
     }),
-  } as unknown as Fetcher
+  })
   return { fetcher, asked }
 }
 
@@ -128,6 +129,32 @@ describe('annotating a scrape', () => {
     await annotateCadUrls(fetcher, holders(3), 0)
 
     expect(asked).toEqual(['1', '2', '3'])
+  })
+
+  it('reads a 404 as "the vendor publishes none" and keeps going', async () => {
+    // A row that finds no model keeps an empty cell and is never dropped. A
+    // 404 used to throw out of the loop and abandon the file part-annotated,
+    // past the CLI's catch and onto a stack trace.
+    const fetcher = stub({
+      json: (url: string) =>
+        url.includes('id=1')
+          ? Promise.reject(new HttpError(url, 404))
+          : Promise.resolve({ cadAvailable: true, staticURLs: { [LIGHTWEIGHT_STEP]: LWM } }),
+    })
+
+    const { scrape, found } = await annotateCadUrls(fetcher, holders(2), 0)
+
+    expect(found).toBe(1)
+    expect(scrape.rows).toHaveLength(2)
+    expect(scrape.rows[0]?.[CAD_COLUMN]).toBe('')
+    expect(scrape.rows[1]?.[CAD_COLUMN]).toBe(LWM)
+  })
+
+  it('still stops the run on any other status', async () => {
+    // A 500 is a failed request, not a vendor saying it has no model.
+    const fetcher = stub({ json: (url: string) => Promise.reject(new HttpError(url, 500)) })
+
+    await expect(annotateCadUrls(fetcher, holders(2), 0)).rejects.toThrow(HttpError)
   })
 
   it('does nothing at all to an empty scrape', async () => {

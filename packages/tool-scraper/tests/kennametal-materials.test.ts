@@ -8,7 +8,6 @@
 
 import { describe, expect, it, vi } from 'vitest'
 
-import type { Fetcher } from '../src/fetch.js'
 import type { ScrapeResult } from '../src/scrape.js'
 import {
   MATERIALS_COLUMN,
@@ -19,6 +18,7 @@ import {
   materialsInGroup,
   parseMaterialGroups,
 } from '../src/vendors/kennametal/materials.js'
+import { asFetcher } from './stubs.js'
 
 const NO_RESULTS = '<div class="no-results"></div>'
 
@@ -35,7 +35,7 @@ function table(materialNumbers: string[]): string {
 /** A fetcher answering each facet group with the materials indexed for it. */
 function serve(byGroup: Record<string, string[]>) {
   const queries: string[] = []
-  const fetcher = {
+  const fetcher = asFetcher({
     text: vi.fn(async (url: string) => {
       const query = new URL(url).searchParams.get('query') ?? ''
       queries.push(query)
@@ -43,7 +43,7 @@ function serve(byGroup: Record<string, string[]>) {
       const found = byGroup[group]
       return found ? table(found) : NO_RESULTS
     }),
-  } as unknown as Fetcher
+  })
   return { fetcher, queries }
 }
 

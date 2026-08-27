@@ -17,12 +17,9 @@
  *
  * ## Why this is an interface and not four exported functions
  *
- * The Python imported `urlopen` by name so a test could replace
- * `fetch.urlopen` and stub one module rather than reaching into
- * `urllib.request` and changing it for the whole interpreter. It worked, and
- * it is the wrong shape for a library: a Node backend embedding this has its
- * own opinions about retries, connection pools, proxies and rate limits, and
- * monkey-patching a module global is not how it expresses them.
+ * A Node backend embedding this has its own opinions about retries,
+ * connection pools, proxies and rate limits, and patching a module global is
+ * not how it expresses them.
  *
  * So every scrape takes a {@link Fetcher}. The default is the four lines
  * below; a caller that wants otherwise passes its own, and a test passes a
@@ -71,9 +68,8 @@ export interface FetcherOptions {
   fetch?: typeof globalThis.fetch
 }
 
-/** A response that is not a 2xx, named so the URL is in the message. */
 /**
- * A response that is not a 2xx.
+ * A response that is not a 2xx, named so the URL is in the message.
  *
  * Carries the status because one caller needs to tell 404 from everything
  * else: REGO-FIX publishes no DIN 4000 document for two of its BT+ 30 holders,

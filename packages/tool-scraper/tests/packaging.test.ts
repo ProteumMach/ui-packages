@@ -18,7 +18,19 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
-import { ScraperConfigError, VendorResponseError } from '../src/index.js'
+import {
+  AEM_BRANDS,
+  HttpError,
+  ScraperConfigError,
+  VendorResponseError,
+  createFetcher,
+  statusOf,
+  type BoundFamily,
+  type FetcherOptions,
+  type ScrapeResult,
+  type ScrapedRow,
+  type Warn,
+} from '../src/index.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const manifest = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as {
@@ -35,6 +47,24 @@ describe('the package surface', () => {
   it('exports the two error types', () => {
     expect(ScraperConfigError).toBeTypeOf('function')
     expect(VendorResponseError).toBeTypeOf('function')
+  })
+
+  it('exports the types its own signatures are written in', () => {
+    // The type imports above are the assertion: a consumer that cannot name
+    // `ScrapeResult` cannot type a wrapper around `scrapeFamily`, and the
+    // entry point used to export neither it nor `ScrapedRow` while exporting
+    // every function that takes or returns one. A missing name fails
+    // `check-types` rather than this expectation.
+    const surface: [ScrapeResult | null, ScrapedRow | null, BoundFamily | null] = [null, null, null]
+    const options: FetcherOptions = {}
+    const warn: Warn = () => {}
+
+    expect(surface).toHaveLength(3)
+    expect(warn).toBeTypeOf('function')
+    expect(createFetcher(options)).toBeTypeOf('object')
+    expect(HttpError).toBeTypeOf('function')
+    expect(statusOf(new HttpError('https://example.test', 404))).toBe(404)
+    expect(AEM_BRANDS).toContain('kennametal')
   })
 })
 

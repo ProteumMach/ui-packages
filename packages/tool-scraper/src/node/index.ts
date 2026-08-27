@@ -10,29 +10,8 @@
  * main one stays what a library ought to be: functions in, values out.
  */
 
-export { parseCsv, toCsv, type ParsedCsv } from './csv.js'
-
-export {
-  DEFAULT_SCRAPE_ROOT,
-  SCRAPE_ROOT_ENV,
-  csvDir,
-  describeRoot,
-  familyCsv,
-  scrapeRoot,
-  stepDir,
-} from './paths.js'
-
-export {
-  SUFFIX,
-  checkRows,
-  pathFor,
-  read,
-  scraperVersion,
-  write,
-  type Receipt,
-  type ReceiptInput,
-} from './receipts.js'
-
-export { downloadStep, mirrorFamilySteps, type MirroredStep } from './cad-mirror.js'
-
-export { main, run, type Console_ } from './cli.js'
+export * from './cad-mirror.js'
+export * from './cli.js'
+export * from './csv.js'
+export * from './paths.js'
+export * from './receipts.js'

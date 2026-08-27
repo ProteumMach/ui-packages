@@ -57,7 +57,7 @@ export const HOLDER_FAMILIES = {
       clamping: {
         value: 'collet',
         source: 'vendor-stated',
-        cite: 'the holder publishes a CST collet series, so it gripsthrough a collet',
+        cite: 'the holder publishes a CST collet series, so it grips through a collet',
       },
       style: {
         value: 'pg-collet-chuck',
@@ -67,7 +67,7 @@ export const HOLDER_FAMILIES = {
       unit: {
         value: 'millimeters',
         source: 'vendor-stated',
-        cite: 'the family is titled and catalogued in this system; both unit columns are usually published, so this decides whichis displayed',
+        cite: 'the family is titled and catalogued in this system; both unit columns are usually published, so this decides which is displayed',
       },
     },
   },

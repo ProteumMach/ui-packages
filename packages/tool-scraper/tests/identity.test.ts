@@ -21,6 +21,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  AEM_BRANDS,
   BRANDS,
   productLink,
   recordGuid,
@@ -141,5 +142,8 @@ describe('the brand table', () => {
       .map(([brand]) => brand)
 
     expect(new Set(withNode)).toEqual(new Set(['kennametal', 'widia']))
+    // And `AEM_BRANDS` — which `AemBrandName` is derived from — says the same
+    // two, so the list a caller is checked against cannot drift from the type.
+    expect([...AEM_BRANDS].sort()).toEqual(['kennametal', 'widia'])
   })
 })

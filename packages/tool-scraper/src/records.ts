@@ -232,11 +232,11 @@ export interface ToolRecord {
  * Build a {@link ToolRecord}, defaulting the two fields that have a meaningful
  * absence.
  *
- * The defaults were Python dataclass defaults; an interface cannot carry one,
- * and requiring every adapter to write `materialGroups: []` would put the
- * decision back in the three places least able to notice it was wrong. They
- * stay **required on the type** so a consumer reading a record never handles
- * `undefined` — only the construction is optional.
+ * An interface cannot carry a default, and requiring every adapter to write
+ * `materialGroups: []` would put the decision back in the three places least
+ * able to notice it was wrong. They stay **required on the type** so a
+ * consumer reading a record never handles `undefined` — only the construction
+ * is optional.
  *
  * The result is frozen, geometry and material groups included: a record is an
  * interchange value, and a mapper that mutated one would be reaching back
@@ -331,8 +331,10 @@ export function checkColumnsExist(
 
   for (const unit of familyUnits(cfg)) {
     for (const canonical of cfg.columns.mapped()) {
-      const column = cfg.columns.column(canonical, unit)
-      if (column === null || !present.has(column)) {
+      // Never null: `mapped()` yields only the names that carry a label, which
+      // is the one case `column()` has nothing to return.
+      const column = cfg.columns.column(canonical, unit)!
+      if (!present.has(column)) {
         missing.push(`${canonical} -> ${column}`)
       }
     }

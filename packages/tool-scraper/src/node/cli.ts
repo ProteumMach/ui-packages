@@ -11,11 +11,8 @@
  * toolpath-scrape mirror-cad      download the vendor STEP models
  * ```
  *
- * **One binary with subcommands, where the Python shipped seven console
- * scripts.** Seven names in `node_modules/.bin` for one package is not the
- * idiom, and the seven were only ever a package-manifest artifact of a tool
- * that had grown one command at a time. The subcommand names are the second
- * half of each old script's name, so a runbook line converts by eye.
+ * **One binary with subcommands.** Seven names in `node_modules/.bin` for one
+ * package is not the idiom.
  *
  * **Every command prints the resolved scrape root before it does anything.**
  * The default is derived from this package's own location, which is right in a
@@ -230,13 +227,20 @@ async function kennametal(argv: string[], io: Console_, fetcher: Fetcher): Promi
   }
 
   const [code, out] = args as [string, string, ...string[]]
-  const tags = args
-    .slice(2)
-    .filter((a) => a.includes('='))
-    .map((a) => {
-      const at = a.indexOf('=')
-      return [a.slice(0, at), a.slice(at + 1)] as const
-    })
+  // Refused rather than dropped: a quoting slip like `"Thread System" metric`
+  // used to scrape, write the CSV and exit 0 with the column missing, and the
+  // failure surfaced later in `addThreadPitch` against a file no longer being
+  // written.
+  const constants = args.slice(2)
+  const malformed = constants.find((a) => a.indexOf('=') < 1)
+  if (malformed !== undefined) {
+    io.error(`constant column ${JSON.stringify(malformed)} is not Name=Value\n\n${USAGE}`)
+    return 2
+  }
+  const tags = constants.map((a) => {
+    const at = a.indexOf('=')
+    return [a.slice(0, at), a.slice(at + 1)] as const
+  })
 
   const scrape = await scrapeFamily(fetcher, code, brand as AemBrandName, tags)
   wrote(out, brand as BrandName, scrape, io)

@@ -36,10 +36,9 @@
  *
  * ## What the types do, and what {@link checkFact} still has to
  *
- * In Python this was one dataclass with five optional fields and a runtime
- * gate that refused the combinations that made no sense. Here it is a union
- * discriminated on `source`, so "an assumed fact needs `by`" is a compile
- * error at the point somebody writes the family.
+ * A union discriminated on `source` rather than one shape with five optional
+ * fields, so "an assumed fact needs `by`" is a compile error at the point
+ * somebody writes the family.
  *
  * The gate stays, because a type cannot say a string is non-empty or that it
  * is shaped `YYYY-MM-DD` — and `cite: ''` would otherwise satisfy the
@@ -47,6 +46,7 @@
  */
 
 import { ScraperConfigError } from './errors.js'
+import { compare } from './order.js'
 
 /** What a per-family constant can be. */
 export type FactValue = string | number | boolean
@@ -190,8 +190,9 @@ export function assumptions(tables: Record<string, Record<string, FactBearing>>)
 
   for (const [table, families] of Object.entries(tables)) {
     for (const [family, cfg] of Object.entries(families)) {
-      const facts = Object.entries(cfg.facts ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-      for (const [key, fact] of facts) {
+      // Unsorted: the sort below orders the whole list by source, family and
+      // key, which subsumes any order the facts arrive in.
+      for (const [key, fact] of Object.entries(cfg.facts ?? {})) {
         if (fact.source === 'vendor-stated') continue
         rows.push({
           table,
@@ -210,7 +211,7 @@ export function assumptions(tables: Record<string, Record<string, FactBearing>>)
   return rows.sort(
     (a, b) =>
       SOURCES.indexOf(a.source) - SOURCES.indexOf(b.source) ||
-      (a.family < b.family ? -1 : a.family > b.family ? 1 : 0) ||
-      (a.key < b.key ? -1 : a.key > b.key ? 1 : 0),
+      compare(a.family, b.family) ||
+      compare(a.key, b.key),
   )
 }

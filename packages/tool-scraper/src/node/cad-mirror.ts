@@ -32,16 +32,7 @@ import { dirname, join } from 'node:path'
 
 import { CAD_COLUMN } from '../conventions.js'
 import type { Fetcher } from '../fetch.js'
-import { consoleWarn, pause, type ScrapedRow, type Warn } from '../scrape.js'
-
-/**
- * Milliseconds between downloads. Politeness, not rate-limit avoidance.
- *
- * Its own constant rather than the Kennametal annotate step's: this mirror is
- * vendor-neutral — it reads `conventions.CAD_COLUMN`, which REGO-FIX writes
- * too — and borrowing one manufacturer's number would make it look otherwise.
- */
-export const REQUEST_DELAY_MS = 400
+import { REQUEST_DELAY_MS, consoleWarn, pause, type ScrapedRow, type Warn } from '../scrape.js'
 
 /**
  * A catalog number as one path segment.

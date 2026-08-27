@@ -8,32 +8,5 @@
  * from free-text descriptions that the vendor's structured fields leave blank.
  */
 
-export {
-  DIMENSIONAL_FIELDS,
-  DOCUMENTS_URL,
-  FIELDS,
-  HEADER,
-  PAGE_SIZE,
-  PROJECT,
-  columnFor,
-  csvCell,
-  decodeDocument,
-  decodeValue,
-  fetchProducts,
-  pageUrl,
-  scrapeEndMills,
-  toRow,
-  type FirestoreValue,
-} from './scrape.js'
-
-export {
-  ITEM_NUMBER,
-  NON_FERROUS_MAX_FLUTES,
-  RECORD_MAPPERS,
-  cornerRadius,
-  endmillRecord,
-  materialGroups,
-  parseFractionInches,
-  shankDiameter,
-  shoulderDiameter,
-} from './records.js'
+export * from './records.js'
+export * from './scrape.js'

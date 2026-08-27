@@ -109,13 +109,13 @@ function fact<T>(family: BoundFamily, key: string, value: T | undefined): T {
 /**
  * The `Thread System` tag, refusing anything that is not one of the two.
  *
- * It used to be cast, and the two readers of it defaulted in *opposite*
- * directions: this module took anything that was not `'inch'` as metric, while
- * `thread.threadMajorDiameter` took anything that was not `'metric'` as inch.
- * A row whose tag was missing, empty or capitalised therefore produced a
+ * Read here and nowhere else, because the two readers of a cast tag defaulted
+ * in *opposite* directions: this module took anything that was not `'inch'` as
+ * metric, and `thread.threadMajorDiameter` took anything that was not
+ * `'metric'` as inch. A missing, empty or capitalised tag then produced a
  * record whose `DC` was parsed in inches and whose `TP`/`SFDM`/`OAL`/`LCF`
- * were read from the `_mm` columns — the silent unit mix `conventions`
- * exists to make impossible. One reader, and it refuses.
+ * came from the `_mm` columns — the silent unit mix `conventions` exists to
+ * make impossible.
  */
 function threadSystem(row: ScrapedRow, what: string): ThreadSystem {
   const value = row['Thread System'] ?? ''

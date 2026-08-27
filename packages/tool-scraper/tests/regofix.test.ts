@@ -16,7 +16,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { CAD_COLUMN, checkIdentityColumns } from '../src/conventions.js'
 import { VendorResponseError } from '../src/errors.js'
-import { HttpError, type Fetcher } from '../src/fetch.js'
+import { HttpError } from '../src/fetch.js'
 import {
   BT30_GAUGE_TO_FLANGE,
   colletRow,
@@ -24,11 +24,13 @@ import {
   holderRow,
   one,
   parseDin4000,
+  parseSize,
   scrapeHolders,
   search,
   unionHeader,
   type Source,
 } from '../src/vendors/regofix/scrape.js'
+import { asFetcher } from './stubs.js'
 
 /**
  * The BT 30 / PG 25 x 075 document, trimmed to the properties this package
@@ -89,13 +91,13 @@ function properties(overrides: Record<string, string> = {}) {
 /** A fetcher answering the proxy with `payload`, recording the request body. */
 function proxy(payload: unknown) {
   const sent: { url?: string; body?: unknown } = {}
-  const fetcher = {
+  const fetcher = asFetcher({
     postJson: vi.fn(async (url: string, body: unknown) => {
       sent.url = url
       sent.body = body
       return payload
     }),
-  } as unknown as Fetcher
+  })
   return { fetcher, sent }
 }
 
@@ -166,33 +168,33 @@ describe('the DIN 4000 document', () => {
 
   it('reads a 404 as "the vendor publishes none", not as a failure', async () => {
     // Two of the BT+ 30 holders have DXF and PDF but no XML.
-    const fetcher = {
+    const fetcher = asFetcher({
       text: vi.fn(async () => {
         throw new HttpError('https://static.rego-fix.test/x.xml', 404)
       }),
-    } as unknown as Fetcher
+    })
 
     expect(await fetchDin4000(fetcher, '4130.71506')).toBeNull()
   })
 
   it('lets any other status through as a failure', async () => {
-    const fetcher = {
+    const fetcher = asFetcher({
       text: vi.fn(async () => {
         throw new HttpError('https://static.rego-fix.test/x.xml', 503)
       }),
-    } as unknown as Fetcher
+    })
 
     await expect(fetchDin4000(fetcher, '1')).rejects.toThrow(/answered 503/)
   })
 
   it('strips the dot from the part number to build the filename', async () => {
     const urls: string[] = []
-    const fetcher = {
+    const fetcher = asFetcher({
       text: vi.fn(async (url: string) => {
         urls.push(url)
         return DIN_XML
       }),
-    } as unknown as Fetcher
+    })
 
     await fetchDin4000(fetcher, '2130.72530')
 
@@ -448,7 +450,7 @@ describe('a collet row', () => {
     expect(pg['Collet Series']).toBe('PG15')
   })
 
-  it('carries a tapping collet’s drive square in its own unit', () => {
+  it('carries a tapping collet’s drive square in its own unit, and in mm', () => {
     const inch = colletRow({
       title: ['PG 15-TAP Ø 0.141" x 0.110"'],
       field_sku_fulltext: ['1715.00001'],
@@ -459,9 +461,22 @@ describe('a collet row', () => {
     })
 
     expect(inch['Square_in']).toBe('0.11')
-    expect(inch['Square_mm']).toBe('')
+    // Projected like `D1`: the millimetre cell is what fit arithmetic
+    // compares, so an inch square that lived only in `Square_in` was invisible
+    // to it.
+    expect(inch['Square_mm']).toBe('2.794')
     expect(metric['Square_mm']).toBe('2.7')
     expect(metric['Square_in']).toBe('')
+  })
+})
+
+describe('a size designation', () => {
+  it('is refused rather than returned as NaN', () => {
+    // Same rule `thread.threadMajorDiameter` holds: an unreadable designation
+    // used to fall through to arithmetic on NaN and reach a row as one.
+    expect(() => parseSize('3/')).toThrow(RangeError)
+    expect(() => parseSize('')).toThrow(RangeError)
+    expect(parseSize('1/4')).toBe(0.25)
   })
 })
 
@@ -482,7 +497,7 @@ describe('the header', () => {
 describe('scraping holders', () => {
   /** A fetcher serving one roster and per-part XML from a map. */
   function vendor(sources: Source[], xml: Record<string, string>) {
-    return {
+    return asFetcher({
       postJson: vi.fn(async () => hits(sources)),
       text: vi.fn(async (url: string) => {
         const sku = url.split('/').at(-1)?.replace('.xml', '') ?? ''
@@ -490,7 +505,7 @@ describe('scraping holders', () => {
         if (found === undefined) throw new HttpError(url, 404)
         return found
       }),
-    } as unknown as Fetcher
+    })
   }
 
   it('skips a part with no dimension document, and says so', async () => {

@@ -23,12 +23,10 @@
  *
  * ## Why the download half is not in this module
  *
- * The Python had two functions here: one that writes the URL into a column,
- * and one that reads that column back and mirrors every STEP file onto disk.
- * The second is a maintainer's batch job — it takes an output directory,
- * writes ~54 KB per part with a rate-limit pause between, and has no return
- * value a caller wants. It lives in `node/cad-mirror.ts` and is reachable only
- * from the CLI.
+ * Mirroring every STEP file onto disk is a maintainer's batch job — it takes
+ * an output directory, writes ~54 KB per part with a rate-limit pause between,
+ * and has no return value a caller wants. It lives in `node/cad-mirror.ts` and
+ * is reachable only from the CLI.
  *
  * What a backend consuming this package wants is the permanent URL, which is
  * what {@link lightweightStepUrl} and {@link annotateCadUrls} give it — to
@@ -39,7 +37,7 @@
 
 import { CAD_COLUMN } from '../../conventions.js'
 import { statusOf, type Fetcher } from '../../fetch.js'
-import { pause, type ScrapeResult, type ScrapedRow } from '../../scrape.js'
+import { REQUEST_DELAY_MS, pause, type ScrapeResult, type ScrapedRow } from '../../scrape.js'
 
 export const CAD_API = 'https://www.product-config.net/catalog3/cad?d=kennametal&id={material}'
 
@@ -54,9 +52,6 @@ export const CAD_API = 'https://www.product-config.net/catalog3/cad?d=kennametal
  * this constant, and it stays here.
  */
 export const LIGHTWEIGHT_STEP = 'stp-lwm'
-
-/** Milliseconds between requests. One per holder, twenty holders. */
-export const REQUEST_DELAY_MS = 400
 
 /** The subset of the CDS payload this module reads. */
 export interface CadPayload {

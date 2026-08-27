@@ -1,13 +1,10 @@
 /**
  * What a scrape hands back.
  *
- * The Python's scrape functions each ended in `open(out_path, 'w')` and
- * returned a row count. That is right for a console script and wrong for a
- * library: a Node backend embedding this wants the rows, and writing a CSV is
- * one of several things it might then do with them.
- *
- * So a scrape returns this, and `@toolpath/tool-scraper/node` turns one into a
- * CSV and a receipt beside it. The two pieces of provenance a receipt needs —
+ * Rows rather than a written file and a count: a Node backend embedding this
+ * wants the rows, and writing a CSV is one of several things it might then do
+ * with them. `@toolpath/tool-scraper/node` is what turns one into a CSV and a
+ * receipt beside it. The two pieces of provenance a receipt needs —
  * where the rows came from, and under which vendor family code — travel with
  * the rows rather than being reconstructed by the caller, because finding the
  * request again is the most expensive part of adding a vendor.
@@ -44,9 +41,9 @@ export interface ScrapeResult {
 /**
  * Where a scraper reports something it could not resolve but did not fail on.
  *
- * The Python printed these. A library must not: a backend wants them in its
- * own log, and a CLI wants them on stderr. Defaults to `console.warn` so the
- * CLI keeps behaving as the Python did without every call site passing one.
+ * Injected rather than printed: a backend wants these in its own log, and a
+ * CLI wants them on stderr. Defaults to `console.warn`, so a call site that
+ * does not care passes nothing.
  */
 export type Warn = (message: string) => void
 
@@ -55,10 +52,20 @@ export interface MapperOptions {
   warn?: Warn
 }
 
-/** The default: what the Python's `print` did, on stderr where it belongs. */
+/** The default: stderr, where a message nobody injected a sink for belongs. */
 export const consoleWarn: Warn = (message) => {
   console.warn(message)
 }
+
+/**
+ * Milliseconds between requests, wherever a scrape or a mirror loops.
+ *
+ * Politeness, not rate-limit avoidance, and one number rather than a copy per
+ * loop: the Kennametal CAD annotate step, its material sweep and the
+ * vendor-neutral STEP mirror all wanted the same 400 ms, and three constants
+ * saying so drifted apart the moment one of them was tuned.
+ */
+export const REQUEST_DELAY_MS = 400
 
 /**
  * Wait between requests, skipped entirely at zero.

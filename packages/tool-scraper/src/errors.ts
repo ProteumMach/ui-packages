@@ -1,15 +1,5 @@
 /**
- * The two ways this package refuses, as types rather than as a process exit.
- *
- * The Python this is ported from raised `SystemExit` at 39 sites, 30 of them
- * in library code — `check_column_map`, `check_fact`, `dimensional_column`,
- * `_merge`, `check_rows` and the vendor scrapers. That is right for a package
- * whose only caller is a console script, and wrong for one a Node backend
- * imports: a mapped column that moved would take the host process down inside
- * somebody's request handler.
- *
- * So the exits become throws, and the split is the one the messages already
- * implied:
+ * The two ways this package refuses, split by who has to fix it.
  *
  * - {@link ScraperConfigError} — **this package's own catalog is wrong.** A
  *   family maps a canonical field that does not exist, a fact is missing the
@@ -21,20 +11,15 @@
  *   disagrees with the declared one, a DIN 4000 code that should be pinned is
  *   absent. The catalog is fine; the world moved.
  *
- * Both carry a `subject` — the family, brand or part the failure is about —
- * because the one thing every `SystemExit` message here got right was leading
- * with the name of the thing that broke, and a caller that catches these
- * should not have to parse it back out of a sentence.
+ * They throw rather than exiting the process: a Node backend imports this, and
+ * a mapped column that moved must not take down somebody's request handler.
+ * Both carry a `subject` — the family, brand or part the failure is about — so
+ * a caller that catches one does not parse it back out of a sentence.
  */
 
 /** Common shape: a message that already names its subject, plus the subject. */
 abstract class ScraperError extends Error {
-  /**
-   * The family, brand or part number this is about.
-   *
-   * Always also present at the head of `message`, so a bare `console.error`
-   * of the error reads exactly like the Python's `SystemExit` did.
-   */
+  /** The family, brand or part number this is about, and `message` leads with it. */
   readonly subject: string
 
   constructor(subject: string, message: string) {

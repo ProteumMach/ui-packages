@@ -56,7 +56,11 @@ describe('inch major diameter', () => {
     ['garbage', 'inch'],
     ['M2', 'metric'], // no pitch: not a designation
     ['2-56', 'inch'], // no `#`: not a machine-screw number
+    ['#abc-40', 'inch'], // a `#` with no number behind it
+    ['1/-20', 'inch'], // a fraction with no denominator
   ] as [string, ThreadSystem][])('refuses %s', (tdz, system) => {
+    // The last two used to fall through to arithmetic on NaN and hand back a
+    // diameter of NaN, where every other unreadable shape here throws.
     expect(() => threadMajorDiameter(tdz, system)).toThrow(RangeError)
   })
 })

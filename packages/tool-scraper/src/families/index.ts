@@ -25,10 +25,9 @@
  *   carrying its provenance. The registry checks and projects them, so readers
  *   say `family.unit` and never learn about provenance.
  *
- * **Where a scrape lands is not here.** The Python resolved a data root in
- * this module, off its own file location; that needs `fs` and `process.env`
- * and would make this table unimportable in anything that never writes a file.
- * It is `node/paths.ts` now.
+ * **Where a scrape lands is not here.** Resolving a data root needs `fs` and
+ * `process.env`, which would make this table unimportable in anything that
+ * never writes a file. It is `node/paths.ts`.
  */
 
 import { ScraperConfigError } from '../errors.js'

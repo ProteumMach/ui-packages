@@ -1,13 +1,10 @@
 /**
  * What a scrape did, written beside what it produced.
  *
- * Git used to do this job. In the source package the CSVs were committed, so
- * "when was this scraped, from which URL, under which family code, how many
- * rows" was `git log`. The CSVs are not committed here — they are vendor data,
- * and a public repository is the wrong place for it — and that answer went
- * with them.
- *
- * So each scrape writes a sidecar. It is cheap now and effectively impossible
+ * The CSVs are not committed — they are vendor data, and a public repository
+ * is the wrong place for it — so `git log` cannot answer "when was this
+ * scraped, from which URL, under which family code, how many rows". Each
+ * scrape writes a sidecar instead. It is cheap now and effectively impossible
  * to backfill: nothing in a CSV records the URL it came from, and a re-scrape
  * a month later answers a different question than the one asked.
  *
@@ -24,6 +21,7 @@ import { createRequire } from 'node:module'
 
 import { VendorResponseError } from '../errors.js'
 import type { BrandName } from '../identity.js'
+import { compare } from '../order.js'
 
 /**
  * The suffix a receipt takes, beside the CSV it describes.
@@ -116,7 +114,7 @@ export function write(csvPath: string, input: ReceiptInput): string {
   const out = pathFor(csvPath)
   mkdirSync(dirname(out), { recursive: true })
   // Sorted keys, so a re-scrape's receipt diffs only where it differs.
-  const ordered = Object.fromEntries(Object.entries(receipt).sort(([a], [b]) => (a < b ? -1 : 1)))
+  const ordered = Object.fromEntries(Object.entries(receipt).sort(([a], [b]) => compare(a, b)))
   writeFileSync(out, `${JSON.stringify(ordered, null, 2)}\n`)
   return out
 }

@@ -29,9 +29,8 @@ export const PITCH_COLUMN = 'Thread Pitch'
  * column is always reinserted directly after `D1-TDZ`, so re-running produces
  * a byte-identical result rather than appending a second copy.
  *
- * Returns a new result rather than mutating: the Python rewrote the CSV in
- * place because a CSV was the only thing it had, and a step that returns rows
- * composes with the others instead of needing a file between them.
+ * Returns a new result rather than rewriting a file in place, so this step
+ * composes with the others instead of needing a CSV between them.
  */
 export function addThreadPitch(scrape: ScrapeResult): ScrapeResult {
   const header = scrape.header.filter((name) => name !== PITCH_COLUMN)

@@ -11,7 +11,6 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { checkIdentityColumns } from '../src/conventions.js'
 import { VendorResponseError } from '../src/errors.js'
-import type { Fetcher } from '../src/fetch.js'
 import {
   DESIGNATION_COLUMN,
   PITCH_COLUMN,
@@ -26,6 +25,7 @@ import {
   variantsUrl,
   type Tag,
 } from '../src/vendors/kennametal/scrape.js'
+import { asFetcher } from './stubs.js'
 
 /**
  * Trimmed to the structure that matters: the leading checkbox column, a
@@ -62,12 +62,12 @@ const EMPTY_TABLE_HTML = `${TABLE_HTML.split('  <tr>\n    <td></td><td>4151623')
 /** A fetcher answering every request with `html`, recording the URLs. */
 function serving(html: string) {
   const urls: string[] = []
-  const fetcher = {
+  const fetcher = asFetcher({
     text: vi.fn(async (url: string) => {
       urls.push(url)
       return html
     }),
-  } as unknown as Fetcher
+  })
   return { fetcher, urls }
 }
 
@@ -113,6 +113,23 @@ describe('parsing the variant table', () => {
       'Z',
       null, // sticky CTA column
     ])
+  })
+
+  it('refuses a header whose columns collide', () => {
+    // `scrapeFamily` writes `out[name]`, so two columns that reduce to one
+    // name lose a column's data under a header the CSV still prints twice.
+    // Nothing downstream can tell that happened, so it stops here.
+    const colliding = `
+<table>
+  <tr>
+    <th class="">Material Number</th>
+    <th class="">D1</th>
+    <th class="">D1</th>
+  </tr>
+</table>
+`
+
+    expect(() => columnNames(parse(colliding)[0]!)).toThrow(/both named "D1"/)
   })
 
   it('filters data rows by a numeric material number', () => {

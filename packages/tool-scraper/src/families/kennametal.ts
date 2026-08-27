@@ -19,7 +19,138 @@
  * re-scrape needs the code passed on the command line until somebody records it.
  */
 
+import type { UnitSystem } from '../conventions.js'
 import type { FamilyDefinition, ToolholdingDefinition } from '../family.js'
+import type { Fact } from '../provenance.js'
+
+/**
+ * Facts several families state identically, named once.
+ *
+ * A `cite` is what a person re-reads to check a vendor claim, so the same
+ * claim has to read the same everywhere it is made — and eight copies of one
+ * sentence are eight edits when the vendor's page changes, which is how four
+ * of them acquired word-joining typos before this was extracted. A fact stays
+ * inline where one family states it.
+ */
+const NO_COOLANT_COLUMN = {
+  value: false,
+  source: 'assumed',
+  note: 'the table publishes no coolant column and the family page shows none',
+  checked: '2026-08-05',
+  by: 'JG',
+} as const satisfies Fact<boolean>
+
+const CARBIDE_GRADE_COLUMN = {
+  value: 'carbide',
+  source: 'vendor-stated',
+  cite: 'the Grade column names a Kennametal carbide grade (KC7325, KCU20)',
+} as const satisfies Fact<string>
+
+const TWO_FLUTE_STRAIGHT = {
+  value: 2,
+  source: 'assumed',
+  note: 'no flute-count column; the vendor\'s "Straight Fluted" names the helix, not the count',
+  checked: '2026-08-06',
+  by: 'JG',
+} as const satisfies Fact<number>
+
+const POINT_ANGLE_142 = {
+  value: 142,
+  source: 'derived',
+  note: "no point angle is published on either family, either variant table or a product page. L5 (point length) is, and for a conical point L5 = D1 / (2·tan(SIG/2)). Least squares over all 49 rows gives 142.46° inch and 142.55° metric; at 142° the worst L5 residual is 0.05 mm — the vendor's own rounding — against 0.24 mm at 140°, which is ruled out",
+} as const satisfies Fact<number>
+
+const INTERNAL_COOLANT_TITLE = {
+  value: true,
+  source: 'vendor-stated',
+  cite: '"Internal Coolant" is in the vendor\'s own family title',
+} as const satisfies Fact<boolean>
+
+const PCD_NON_FERROUS = {
+  value: true,
+  source: 'vendor-stated',
+  cite: 'grade KD1415 is "PCD-tip brazed to carbide for … aluminum …, non-ferrous heavy metals, and plastics"; breadcrumb "PCD Tooling / PCD Drills • Aluminum Machining"; the facet returns N1-N4 and nothing else',
+} as const satisfies Fact<boolean>
+
+const PCD_SUBSTRATE = {
+  value: 'diamond',
+  source: 'vendor-stated',
+  cite: 'grade KD1415 is PCD — the cutting material, not the carbide body it is brazed to',
+} as const satisfies Fact<string>
+
+const HSS_ASSUMED = {
+  value: 'hss',
+  source: 'assumed',
+  note: 'no substrate column; carried over from the pre-2026-08-08 config, which recorded no source for it. The KHSST line name implies high-speed steel and the Coating column carries the surface treatment instead of a carbide grade, but neither is a vendor statement of substrate',
+  checked: '2026-08-08',
+  by: 'JG',
+} as const satisfies Fact<string>
+
+const INCH_PLAIN_SHANK = {
+  value: 'inches',
+  source: 'vendor-stated',
+  cite: 'the vendor titles the family "…plain shank inch"; both unit columns are published, so this decides which is displayed',
+} as const satisfies Fact<UnitSystem>
+
+const BT30_SHANK = {
+  value: 'BT30',
+  source: 'vendor-stated',
+  cite: 'the family page states the shank as JIS B 6339 / MAS 403 size 30',
+} as const satisfies Fact<string>
+
+const TAPER_CONTACT = {
+  value: 'taper',
+  source: 'vendor-stated',
+  cite: 'the family page says "Shank - SK BT JIS B 6339" with no face-contact claim',
+} as const satisfies Fact<string>
+
+const CST_COLLET_CLAMPING = {
+  value: 'collet',
+  source: 'vendor-stated',
+  cite: 'the holder publishes a CST collet series, so it grips through a collet',
+} as const satisfies Fact<string>
+
+const ER_COLLET_CHUCK = {
+  value: 'er-collet-chuck',
+  source: 'vendor-stated',
+  cite: 'breadcrumb ".../ER Collet Chucks/ER(tm) Collet Adapter -BT30"',
+} as const satisfies Fact<string>
+
+const METRIC_CATALOG = {
+  value: 'millimeters',
+  source: 'vendor-stated',
+  cite: 'the family is titled and catalogued in this system; both unit columns are usually published, so this decides which is displayed',
+} as const satisfies Fact<UnitSystem>
+
+const BORE_CLAMPING = {
+  value: 'bore',
+  source: 'vendor-stated',
+  cite: 'the holder publishes a D1 bore and no collet series, so it grips the shank directly',
+} as const satisfies Fact<string>
+
+const HYDRAULIC_CHUCK = {
+  value: 'hydraulic-chuck',
+  source: 'vendor-stated',
+  cite: 'breadcrumb ".../Hydraulic Chucks - STANDARD /HP Line"',
+} as const satisfies Fact<string>
+
+const INCH_CATALOG = {
+  value: 'inches',
+  source: 'vendor-stated',
+  cite: 'the family is titled and catalogued in this system; both unit columns are usually published, so this decides which is displayed',
+} as const satisfies Fact<UnitSystem>
+
+const SHRINK_FIT_FC = {
+  value: 'shrink-fit-fc',
+  source: 'vendor-stated',
+  cite: 'breadcrumb ".../Shrink Fit Toolholders"; tagline "Standard Heat Shrink Holders … Face Coolant … BT30 Backend"',
+} as const satisfies Fact<string>
+
+const SHRINK_FIT_GP = {
+  value: 'shrink-fit-gp',
+  source: 'vendor-stated',
+  cite: 'same category; tagline "Shrink Fit Toolholders General Purpose (GP)"',
+} as const satisfies Fact<string>
 
 // ── Cutting tools ──────────────────────────────────────────────────────────
 export const FAMILIES = {
@@ -56,23 +187,13 @@ export const FAMILIES = {
         checked: '2026-07-24',
         by: 'JG',
       },
-      coolantThrough: {
-        value: false,
-        source: 'assumed',
-        note: 'the table publishes no coolant column and the family page shows none',
-        checked: '2026-08-05',
-        by: 'JG',
-      },
+      coolantThrough: NO_COOLANT_COLUMN,
       nonFerrous: {
         value: false,
         source: 'vendor-stated',
         cite: 'the workpiece-material facet returns P M K N S H — ferrous groups included',
       },
-      bmc: {
-        value: 'carbide',
-        source: 'vendor-stated',
-        cite: 'the Grade column names a Kennametal carbide grade (KC7325, KCU20)',
-      },
+      bmc: CARBIDE_GRADE_COLUMN,
     },
   },
   'kenna_universal_3xd_metric.csv': {
@@ -101,23 +222,13 @@ export const FAMILIES = {
         checked: '2026-07-24',
         by: 'JG',
       },
-      coolantThrough: {
-        value: false,
-        source: 'assumed',
-        note: 'the table publishes no coolant column and the family page shows none',
-        checked: '2026-08-05',
-        by: 'JG',
-      },
+      coolantThrough: NO_COOLANT_COLUMN,
       nonFerrous: {
         value: false,
         source: 'vendor-stated',
         cite: 'the workpiece-material facet returns P M K N S (no H) — ferrous groups included',
       },
-      bmc: {
-        value: 'carbide',
-        source: 'vendor-stated',
-        cite: 'the Grade column names a Kennametal carbide grade (KC7325, KCU20)',
-      },
+      bmc: CARBIDE_GRADE_COLUMN,
     },
   },
   // ── KenDrill TXD 5xD, PCD-tipped, internal coolant, straight shank ──
@@ -178,33 +289,11 @@ export const FAMILIES = {
         source: 'vendor-stated',
         cite: 'catalog numbers are K467A… encoding the size in ten-thousandths of an inch (K467A02344SP is 15/64), and the inch column carries the exact value while the metric one is rounded',
       },
-      flutes: {
-        value: 2,
-        source: 'assumed',
-        note: 'no flute-count column; the vendor\'s "Straight Fluted" names the helix, not the count',
-        checked: '2026-08-06',
-        by: 'JG',
-      },
-      pointAngle: {
-        value: 142,
-        source: 'derived',
-        note: "no point angle is published on either family, either variant table or a product page. L5 (point length) is, and for a conical point L5 = D1 / (2·tan(SIG/2)). Least squares over all 49 rows gives 142.46° inch and 142.55° metric; at 142° the worst L5 residual is 0.05 mm — the vendor's own rounding — against 0.24 mm at 140°, which is ruled out",
-      },
-      coolantThrough: {
-        value: true,
-        source: 'vendor-stated',
-        cite: '"Internal Coolant" is in the vendor\'s own family title',
-      },
-      nonFerrous: {
-        value: true,
-        source: 'vendor-stated',
-        cite: 'grade KD1415 is "PCD-tip brazed to carbide for … aluminum …, non-ferrous heavy metals, and plastics"; breadcrumb "PCD Tooling / PCD Drills • Aluminum Machining"; the facet returns N1-N4 and nothing else',
-      },
-      bmc: {
-        value: 'diamond',
-        source: 'vendor-stated',
-        cite: 'grade KD1415 is PCD — the cutting material, not the carbide body it is brazed to',
-      },
+      flutes: TWO_FLUTE_STRAIGHT,
+      pointAngle: POINT_ANGLE_142,
+      coolantThrough: INTERNAL_COOLANT_TITLE,
+      nonFerrous: PCD_NON_FERROUS,
+      bmc: PCD_SUBSTRATE,
     },
   },
   'kendrill_txd_5xd_metric.csv': {
@@ -219,33 +308,11 @@ export const FAMILIES = {
         source: 'vendor-stated',
         cite: 'catalog numbers are B467A… encoding the size in hundredths of a millimetre (B467A06000SP is 6.00 mm), and the metric column carries the exact value while the inch one is rounded',
       },
-      flutes: {
-        value: 2,
-        source: 'assumed',
-        note: 'no flute-count column; the vendor\'s "Straight Fluted" names the helix, not the count',
-        checked: '2026-08-06',
-        by: 'JG',
-      },
-      pointAngle: {
-        value: 142,
-        source: 'derived',
-        note: "no point angle is published on either family, either variant table or a product page. L5 (point length) is, and for a conical point L5 = D1 / (2·tan(SIG/2)). Least squares over all 49 rows gives 142.46° inch and 142.55° metric; at 142° the worst L5 residual is 0.05 mm — the vendor's own rounding — against 0.24 mm at 140°, which is ruled out",
-      },
-      coolantThrough: {
-        value: true,
-        source: 'vendor-stated',
-        cite: '"Internal Coolant" is in the vendor\'s own family title',
-      },
-      nonFerrous: {
-        value: true,
-        source: 'vendor-stated',
-        cite: 'grade KD1415 is "PCD-tip brazed to carbide for … aluminum …, non-ferrous heavy metals, and plastics"; breadcrumb "PCD Tooling / PCD Drills • Aluminum Machining"; the facet returns N1-N4 and nothing else',
-      },
-      bmc: {
-        value: 'diamond',
-        source: 'vendor-stated',
-        cite: 'grade KD1415 is PCD — the cutting material, not the carbide body it is brazed to',
-      },
+      flutes: TWO_FLUTE_STRAIGHT,
+      pointAngle: POINT_ANGLE_142,
+      coolantThrough: INTERNAL_COOLANT_TITLE,
+      nonFerrous: PCD_NON_FERROUS,
+      bmc: PCD_SUBSTRATE,
     },
   },
   'khsst_spiral_point_plug_inch.csv': {
@@ -255,13 +322,7 @@ export const FAMILIES = {
     kind: 'tap',
     columns: { SFDM: 'D', OAL: 'L', LCF: 'L3', TP: 'Thread Pitch' },
     facts: {
-      bmc: {
-        value: 'hss',
-        source: 'assumed',
-        note: 'no substrate column; carried over from the pre-2026-08-08 config, which recorded no source for it. The KHSST line name implies high-speed steel and the Coating column carries the surface treatment instead of a carbide grade, but neither is a vendor statement of substrate',
-        checked: '2026-08-08',
-        by: 'JG',
-      },
+      bmc: HSS_ASSUMED,
     },
   },
   'khsst_hand_metric_plug.csv': {
@@ -271,13 +332,7 @@ export const FAMILIES = {
     kind: 'tap',
     columns: { SFDM: 'D', OAL: 'L', LCF: 'L3', TP: 'Thread Pitch' },
     facts: {
-      bmc: {
-        value: 'hss',
-        source: 'assumed',
-        note: 'no substrate column; carried over from the pre-2026-08-08 config, which recorded no source for it. The KHSST line name implies high-speed steel and the Coating column carries the surface treatment instead of a carbide grade, but neither is a vendor statement of substrate',
-        checked: '2026-08-08',
-        by: 'JG',
-      },
+      bmc: HSS_ASSUMED,
     },
   },
   'spiral_point_metric_plug.csv': {
@@ -287,13 +342,7 @@ export const FAMILIES = {
     kind: 'tap',
     columns: { SFDM: 'D', OAL: 'L', LCF: 'L3', TP: 'Thread Pitch' },
     facts: {
-      bmc: {
-        value: 'hss',
-        source: 'assumed',
-        note: 'no substrate column; carried over from the pre-2026-08-08 config, which recorded no source for it. The KHSST line name implies high-speed steel and the Coating column carries the surface treatment instead of a carbide grade, but neither is a vendor statement of substrate',
-        checked: '2026-08-08',
-        by: 'JG',
-      },
+      bmc: HSS_ASSUMED,
     },
   },
   'gomill_pro_radiused_4fl_necked_metric.csv': {
@@ -314,20 +363,10 @@ export const FAMILIES = {
       unit: {
         value: 'millimeters',
         source: 'vendor-stated',
-        cite: 'the vendor titles the family "…necked plain shank metric"; both unit columns are published, sothis decides which is displayed',
+        cite: 'the vendor titles the family "…necked plain shank metric"; both unit columns are published, so this decides which is displayed',
       },
-      coolantThrough: {
-        value: false,
-        source: 'assumed',
-        note: 'the table publishes no coolant column and the family page shows none',
-        checked: '2026-08-05',
-        by: 'JG',
-      },
-      bmc: {
-        value: 'carbide',
-        source: 'vendor-stated',
-        cite: 'the Grade column names a Kennametal carbide grade (KC7325, KCU20)',
-      },
+      coolantThrough: NO_COOLANT_COLUMN,
+      bmc: CARBIDE_GRADE_COLUMN,
     },
   },
   'gomill_pro_square_4fl_plain_inch.csv': {
@@ -337,23 +376,9 @@ export const FAMILIES = {
     kind: 'endmill',
     columns: { DC: 'D1', SFDM: 'D', OAL: 'L', LCF: 'AP1MAX', 'shoulder-length': 'L3' },
     facts: {
-      unit: {
-        value: 'inches',
-        source: 'vendor-stated',
-        cite: 'the vendor titles the family "…plain shank inch"; both unit columns are published, sothis decides which is displayed',
-      },
-      coolantThrough: {
-        value: false,
-        source: 'assumed',
-        note: 'the table publishes no coolant column and the family page shows none',
-        checked: '2026-08-05',
-        by: 'JG',
-      },
-      bmc: {
-        value: 'carbide',
-        source: 'vendor-stated',
-        cite: 'the Grade column names a Kennametal carbide grade (KC7325, KCU20)',
-      },
+      unit: INCH_PLAIN_SHANK,
+      coolantThrough: NO_COOLANT_COLUMN,
+      bmc: CARBIDE_GRADE_COLUMN,
     },
   },
   'varimill_chip_splitter_radiused_5fl_3xd_plain_metric.csv': {
@@ -367,20 +392,10 @@ export const FAMILIES = {
       unit: {
         value: 'millimeters',
         source: 'vendor-stated',
-        cite: 'the vendor titles the family "…3xD plain shank metric"; both unit columns are published, sothis decides which is displayed',
+        cite: 'the vendor titles the family "…3xD plain shank metric"; both unit columns are published, so this decides which is displayed',
       },
-      coolantThrough: {
-        value: false,
-        source: 'assumed',
-        note: 'the table publishes no coolant column and the family page shows none',
-        checked: '2026-08-05',
-        by: 'JG',
-      },
-      bmc: {
-        value: 'carbide',
-        source: 'vendor-stated',
-        cite: 'the Grade column names a Kennametal carbide grade (KC7325, KCU20)',
-      },
+      coolantThrough: NO_COOLANT_COLUMN,
+      bmc: CARBIDE_GRADE_COLUMN,
     },
   },
   'varimill_chip_splitter_570t_radiused_5fl_cyl_inch.csv': {
@@ -394,20 +409,10 @@ export const FAMILIES = {
       unit: {
         value: 'inches',
         source: 'vendor-stated',
-        cite: 'the vendor titles the family "…cylindrical shank inch"; both unit columns are published, sothis decides which is displayed',
+        cite: 'the vendor titles the family "…cylindrical shank inch"; both unit columns are published, so this decides which is displayed',
       },
-      coolantThrough: {
-        value: false,
-        source: 'assumed',
-        note: 'the table publishes no coolant column and the family page shows none',
-        checked: '2026-08-05',
-        by: 'JG',
-      },
-      bmc: {
-        value: 'carbide',
-        source: 'vendor-stated',
-        cite: 'the Grade column names a Kennametal carbide grade (KC7325, KCU20)',
-      },
+      coolantThrough: NO_COOLANT_COLUMN,
+      bmc: CARBIDE_GRADE_COLUMN,
     },
   },
   // The first sub-4-flute endmill line here, and the first one treated
@@ -433,20 +438,10 @@ export const FAMILIES = {
       unit: {
         value: 'inches',
         source: 'vendor-stated',
-        cite: 'the vendor titles the family "…necked plain shank inch"; both unit columns are published, sothis decides which is displayed',
+        cite: 'the vendor titles the family "…necked plain shank inch"; both unit columns are published, so this decides which is displayed',
       },
-      coolantThrough: {
-        value: false,
-        source: 'assumed',
-        note: 'the table publishes no coolant column and the family page shows none',
-        checked: '2026-08-05',
-        by: 'JG',
-      },
-      bmc: {
-        value: 'carbide',
-        source: 'vendor-stated',
-        cite: 'the Grade column names a Kennametal carbide grade (KC7325, KCU20)',
-      },
+      coolantThrough: NO_COOLANT_COLUMN,
+      bmc: CARBIDE_GRADE_COLUMN,
     },
   },
   'kencut_ff_hpft_square_6fl_plain_inch.csv': {
@@ -456,23 +451,9 @@ export const FAMILIES = {
     kind: 'endmill',
     columns: { DC: 'D1', SFDM: 'D', OAL: 'L', LCF: 'AP1MAX' },
     facts: {
-      unit: {
-        value: 'inches',
-        source: 'vendor-stated',
-        cite: 'the vendor titles the family "…plain shank inch"; both unit columns are published, sothis decides which is displayed',
-      },
-      coolantThrough: {
-        value: false,
-        source: 'assumed',
-        note: 'the table publishes no coolant column and the family page shows none',
-        checked: '2026-08-05',
-        by: 'JG',
-      },
-      bmc: {
-        value: 'carbide',
-        source: 'vendor-stated',
-        cite: 'the Grade column names a Kennametal carbide grade (KC7325, KCU20)',
-      },
+      unit: INCH_PLAIN_SHANK,
+      coolantThrough: NO_COOLANT_COLUMN,
+      bmc: CARBIDE_GRADE_COLUMN,
     },
   },
 } as const satisfies Record<string, FamilyDefinition>
@@ -517,62 +498,22 @@ export const HOLDER_FAMILIES = {
     catalogName: 'Kennametal BT30 ER Collet Adapters Metric',
     rows: 12,
     facts: {
-      taper: {
-        value: 'BT30',
-        source: 'vendor-stated',
-        cite: 'the family page states the shank as JIS B 6339 / MAS 403size 30',
-      },
-      contact: {
-        value: 'taper',
-        source: 'vendor-stated',
-        cite: 'the family page says "Shank - SK BT JIS B 6339" with no face-contact claim',
-      },
-      clamping: {
-        value: 'collet',
-        source: 'vendor-stated',
-        cite: 'the holder publishes a CST collet series, so it gripsthrough a collet',
-      },
-      style: {
-        value: 'er-collet-chuck',
-        source: 'vendor-stated',
-        cite: 'breadcrumb ".../ER Collet Chucks/ER(tm) Collet Adapter -BT30"',
-      },
-      unit: {
-        value: 'millimeters',
-        source: 'vendor-stated',
-        cite: 'the family is titled and catalogued in this system; both unit columns are usually published, so this decides whichis displayed',
-      },
+      taper: BT30_SHANK,
+      contact: TAPER_CONTACT,
+      clamping: CST_COLLET_CLAMPING,
+      style: ER_COLLET_CHUCK,
+      unit: METRIC_CATALOG,
     },
   },
   'bt30_hydraulic_chucks_form_ad_metric.csv': {
     catalogName: 'Kennametal BT30 Hydraulic Chucks Form AD Metric',
     rows: 8,
     facts: {
-      taper: {
-        value: 'BT30',
-        source: 'vendor-stated',
-        cite: 'the family page states the shank as JIS B 6339 / MAS 403size 30',
-      },
-      contact: {
-        value: 'taper',
-        source: 'vendor-stated',
-        cite: 'the family page says "Shank - SK BT JIS B 6339" with no face-contact claim',
-      },
-      clamping: {
-        value: 'bore',
-        source: 'vendor-stated',
-        cite: 'the holder publishes a D1 bore and no collet series, so it grips the shank directly',
-      },
-      style: {
-        value: 'hydraulic-chuck',
-        source: 'vendor-stated',
-        cite: 'breadcrumb ".../Hydraulic Chucks - STANDARD /HP Line"',
-      },
-      unit: {
-        value: 'millimeters',
-        source: 'vendor-stated',
-        cite: 'the family is titled and catalogued in this system; both unit columns are usually published, so this decides whichis displayed',
-      },
+      taper: BT30_SHANK,
+      contact: TAPER_CONTACT,
+      clamping: BORE_CLAMPING,
+      style: HYDRAULIC_CHUCK,
+      unit: METRIC_CATALOG,
     },
   },
   // The inch half of the same Form AD line (family 100127657, "HC IN-BT",
@@ -590,31 +531,11 @@ export const HOLDER_FAMILIES = {
     catalogName: 'Kennametal BT30 Hydraulic Chucks Form AD Inch',
     rows: 3,
     facts: {
-      taper: {
-        value: 'BT30',
-        source: 'vendor-stated',
-        cite: 'the family page states the shank as JIS B 6339 / MAS 403size 30',
-      },
-      contact: {
-        value: 'taper',
-        source: 'vendor-stated',
-        cite: 'the family page says "Shank - SK BT JIS B 6339" with no face-contact claim',
-      },
-      clamping: {
-        value: 'bore',
-        source: 'vendor-stated',
-        cite: 'the holder publishes a D1 bore and no collet series, so it grips the shank directly',
-      },
-      style: {
-        value: 'hydraulic-chuck',
-        source: 'vendor-stated',
-        cite: 'breadcrumb ".../Hydraulic Chucks - STANDARD /HP Line"',
-      },
-      unit: {
-        value: 'inches',
-        source: 'vendor-stated',
-        cite: 'the family is titled and catalogued in this system; both unit columns are usually published, so this decides whichis displayed',
-      },
+      taper: BT30_SHANK,
+      contact: TAPER_CONTACT,
+      clamping: BORE_CLAMPING,
+      style: HYDRAULIC_CHUCK,
+      unit: INCH_CATALOG,
     },
   },
   // Dual-contact BT30. Same cone, same M16 drawbar, same ER collets as the
@@ -634,31 +555,15 @@ export const HOLDER_FAMILIES = {
     catalogName: 'Kennametal BTKV30 ER Collet Chucks Metric',
     rows: 5,
     facts: {
-      taper: {
-        value: 'BT30',
-        source: 'vendor-stated',
-        cite: 'the family page states the shank as JIS B 6339 / MAS 403size 30',
-      },
+      taper: BT30_SHANK,
       contact: {
         value: 'face',
         source: 'vendor-stated',
         cite: 'the product page names the shank "SK BT Taper Face Contact"',
       },
-      clamping: {
-        value: 'collet',
-        source: 'vendor-stated',
-        cite: 'the holder publishes a CST collet series, so it gripsthrough a collet',
-      },
-      style: {
-        value: 'er-collet-chuck',
-        source: 'vendor-stated',
-        cite: 'breadcrumb ".../ER Collet Chucks/ER(tm) Collet Adapter -BT30"',
-      },
-      unit: {
-        value: 'millimeters',
-        source: 'vendor-stated',
-        cite: 'the family is titled and catalogued in this system; both unit columns are usually published, so this decides whichis displayed',
-      },
+      clamping: CST_COLLET_CLAMPING,
+      style: ER_COLLET_CHUCK,
+      unit: METRIC_CATALOG,
     },
   },
   // Shrink-fit chucks, scraped JG 2026-08-05 from the BT category page. Four
@@ -688,62 +593,22 @@ export const HOLDER_FAMILIES = {
     catalogName: 'Kennametal BT30 Shrink Fit FC Line Form AD Metric',
     rows: 6,
     facts: {
-      taper: {
-        value: 'BT30',
-        source: 'vendor-stated',
-        cite: 'the family page states the shank as JIS B 6339 / MAS 403size 30',
-      },
-      contact: {
-        value: 'taper',
-        source: 'vendor-stated',
-        cite: 'the family page says "Shank - SK BT JIS B 6339" with no face-contact claim',
-      },
-      clamping: {
-        value: 'bore',
-        source: 'vendor-stated',
-        cite: 'the holder publishes a D1 bore and no collet series, so it grips the shank directly',
-      },
-      style: {
-        value: 'shrink-fit-fc',
-        source: 'vendor-stated',
-        cite: 'breadcrumb ".../Shrink Fit Toolholders"; tagline "Standard Heat Shrink Holders … Face Coolant … BT30 Backend"',
-      },
-      unit: {
-        value: 'millimeters',
-        source: 'vendor-stated',
-        cite: 'the family is titled and catalogued in this system; both unit columns are usually published, so this decides whichis displayed',
-      },
+      taper: BT30_SHANK,
+      contact: TAPER_CONTACT,
+      clamping: BORE_CLAMPING,
+      style: SHRINK_FIT_FC,
+      unit: METRIC_CATALOG,
     },
   },
   'bt30_shrink_fit_fc_form_ad_inch.csv': {
     catalogName: 'Kennametal BT30 Shrink Fit FC Line Form AD Inch',
     rows: 6,
     facts: {
-      taper: {
-        value: 'BT30',
-        source: 'vendor-stated',
-        cite: 'the family page states the shank as JIS B 6339 / MAS 403size 30',
-      },
-      contact: {
-        value: 'taper',
-        source: 'vendor-stated',
-        cite: 'the family page says "Shank - SK BT JIS B 6339" with no face-contact claim',
-      },
-      clamping: {
-        value: 'bore',
-        source: 'vendor-stated',
-        cite: 'the holder publishes a D1 bore and no collet series, so it grips the shank directly',
-      },
-      style: {
-        value: 'shrink-fit-fc',
-        source: 'vendor-stated',
-        cite: 'breadcrumb ".../Shrink Fit Toolholders"; tagline "Standard Heat Shrink Holders … Face Coolant … BT30 Backend"',
-      },
-      unit: {
-        value: 'inches',
-        source: 'vendor-stated',
-        cite: 'the family is titled and catalogued in this system; both unit columns are usually published, so this decides whichis displayed',
-      },
+      taper: BT30_SHANK,
+      contact: TAPER_CONTACT,
+      clamping: BORE_CLAMPING,
+      style: SHRINK_FIT_FC,
+      unit: INCH_CATALOG,
     },
   },
   // **These two are one vendor family (100017036, "TT HPV-BT Form AD") split
@@ -767,62 +632,22 @@ export const HOLDER_FAMILIES = {
     catalogName: 'Kennametal BT30 Shrink Fit HPV GP Form AD Metric',
     rows: 7,
     facts: {
-      taper: {
-        value: 'BT30',
-        source: 'vendor-stated',
-        cite: 'the family page states the shank as JIS B 6339 / MAS 403size 30',
-      },
-      contact: {
-        value: 'taper',
-        source: 'vendor-stated',
-        cite: 'the family page says "Shank - SK BT JIS B 6339" with no face-contact claim',
-      },
-      clamping: {
-        value: 'bore',
-        source: 'vendor-stated',
-        cite: 'the holder publishes a D1 bore and no collet series, so it grips the shank directly',
-      },
-      style: {
-        value: 'shrink-fit-gp',
-        source: 'vendor-stated',
-        cite: 'same category; tagline "Shrink Fit Toolholders General Purpose (GP)"',
-      },
-      unit: {
-        value: 'millimeters',
-        source: 'vendor-stated',
-        cite: 'the family is titled and catalogued in this system; both unit columns are usually published, so this decides whichis displayed',
-      },
+      taper: BT30_SHANK,
+      contact: TAPER_CONTACT,
+      clamping: BORE_CLAMPING,
+      style: SHRINK_FIT_GP,
+      unit: METRIC_CATALOG,
     },
   },
   'bt30_shrink_fit_hpv_form_ad_inch.csv': {
     catalogName: 'Kennametal BT30 Shrink Fit HPV GP Form AD Inch',
     rows: 6,
     facts: {
-      taper: {
-        value: 'BT30',
-        source: 'vendor-stated',
-        cite: 'the family page states the shank as JIS B 6339 / MAS 403size 30',
-      },
-      contact: {
-        value: 'taper',
-        source: 'vendor-stated',
-        cite: 'the family page says "Shank - SK BT JIS B 6339" with no face-contact claim',
-      },
-      clamping: {
-        value: 'bore',
-        source: 'vendor-stated',
-        cite: 'the holder publishes a D1 bore and no collet series, so it grips the shank directly',
-      },
-      style: {
-        value: 'shrink-fit-gp',
-        source: 'vendor-stated',
-        cite: 'same category; tagline "Shrink Fit Toolholders General Purpose (GP)"',
-      },
-      unit: {
-        value: 'inches',
-        source: 'vendor-stated',
-        cite: 'the family is titled and catalogued in this system; both unit columns are usually published, so this decides whichis displayed',
-      },
+      taper: BT30_SHANK,
+      contact: TAPER_CONTACT,
+      clamping: BORE_CLAMPING,
+      style: SHRINK_FIT_GP,
+      unit: INCH_CATALOG,
     },
   },
 } as const satisfies Record<string, ToolholdingDefinition>
@@ -837,11 +662,7 @@ export const COLLET_FAMILIES = {
         source: 'vendor-stated',
         cite: "the family is Kennametal's plain ER collet line",
       },
-      unit: {
-        value: 'millimeters',
-        source: 'vendor-stated',
-        cite: 'the family is titled and catalogued in this system; both unit columns are usually published, so this decides whichis displayed',
-      },
+      unit: METRIC_CATALOG,
     },
   },
   // Sealed coolant-through collets. `style` separates them from the standard
@@ -859,11 +680,7 @@ export const COLLET_FAMILIES = {
         source: 'vendor-stated',
         cite: 'CCCX == CCCN == D1 on every row; Kennametal specs an H6 shank, so it clamps one exact size',
       },
-      unit: {
-        value: 'inches',
-        source: 'vendor-stated',
-        cite: 'the family is titled and catalogued in this system; both unit columns are usually published, so this decides whichis displayed',
-      },
+      unit: INCH_CATALOG,
     },
   },
 } as const satisfies Record<string, ToolholdingDefinition>

@@ -9,17 +9,12 @@
  *
  * ## Facts are the only place a constant is authored
  *
- * The Python let a family set a constant either as a plain key or as a
- * {@link Fact}, and `project_facts` refused a family that did both — two
- * copies that agree today and drift the first time somebody edits the obvious
- * one. Every family in the catalog authors every constant as a fact, so the
- * plain-key half was a door nobody used.
- *
- * Here it is not a door at all: {@link FamilyDefinition} declares `facts` and
- * no constant keys, so setting one directly does not compile. The projection
- * still happens — {@link BoundFamily} carries the values under their own names,
- * and a mapper says `family.pointAngle` and never learns about provenance —
- * but there is only ever one authored copy to drift from.
+ * A constant is authored as a {@link Fact} and nowhere else:
+ * {@link FamilyDefinition} declares `facts` and no constant keys, so setting
+ * one directly does not compile. The projection still happens —
+ * {@link BoundFamily} carries the values under their own names, and a mapper
+ * says `family.pointAngle` and never learns about provenance — but there is
+ * only ever one authored copy to drift from.
  */
 
 import type { UnitSystem } from './conventions.js'

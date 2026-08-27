@@ -511,6 +511,9 @@ export function colletRow(source: Source, warn: Warn = consoleWarn): ScrapedRow 
   if (parsed['square']) {
     const square = parseSize(parsed['square'])
     row[inches ? 'Square_in' : 'Square_mm'] = plain(square)
+    // Projected for the same reason `D1` is: an inch tapping collet whose
+    // square sits only in `Square_in` is invisible to mm-side fit arithmetic.
+    if (inches) row['Square_mm'] = plain(round(square * MM_PER_INCH, 6))
   }
 
   crossCheckOmm(row, nominalMm, warn)
@@ -599,7 +602,6 @@ export async function scrapeCollets(
   sizes: readonly string[],
   options: RegofixOptions = {},
 ): Promise<ScrapeResult> {
-  const warn = options.warn ?? consoleWarn
   const sources = await search(fetcher, {
     system_name: 'powRgrip',
     type: 'collets',
@@ -613,7 +615,9 @@ export async function scrapeCollets(
     )
 
   return finish(
-    wanted.map((s) => colletRow(s, warn)),
+    // `options.warn` unguarded: `colletRow` owns the fallback, and defaulting
+    // it here too would be two layers deciding the same thing.
+    wanted.map((s) => colletRow(s, options.warn)),
     SEARCH_URL,
   )
 }

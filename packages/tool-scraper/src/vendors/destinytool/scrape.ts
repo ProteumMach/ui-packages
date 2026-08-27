@@ -43,6 +43,7 @@
 
 import { VendorResponseError } from '../../errors.js'
 import type { Fetcher } from '../../fetch.js'
+import { compare } from '../../order.js'
 import type { ScrapeResult, ScrapedRow } from '../../scrape.js'
 
 export const PROJECT = 'studio-6030841929-4a1a2'
@@ -213,13 +214,7 @@ export async function scrapeEndMills(fetcher: Fetcher): Promise<ScrapeResult> {
     )
   }
 
-  matching.sort((a, b) =>
-    String(a['itemNumber']) < String(b['itemNumber'])
-      ? -1
-      : String(a['itemNumber']) > String(b['itemNumber'])
-        ? 1
-        : 0,
-  )
+  matching.sort((a, b) => compare(String(a['itemNumber']), String(b['itemNumber'])))
 
   return {
     header: HEADER,

@@ -15,10 +15,13 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { checkIdentityColumns, identityColumns } from '../src/conventions.js'
 import { VendorResponseError } from '../src/errors.js'
-import type { Fetcher } from '../src/fetch.js'
+import type { BoundFamily } from '../src/family.js'
+import { checkColumnMap } from '../src/records.js'
+import { FAMILIES } from '../src/families/destinytool.js'
 import {
   ITEM_NUMBER,
   cornerRadius,
+  endmillRecord,
   materialGroups,
   parseFractionInches,
   shankDiameter,
@@ -34,17 +37,18 @@ import {
   scrapeEndMills,
   type FirestoreValue,
 } from '../src/vendors/destinytool/scrape.js'
+import { asFetcher } from './stubs.js'
 
 /** A fetcher that answers `documents.list` with one page per call, in order. */
 function pages(...answers: unknown[]) {
   const urls: string[] = []
   const queue = [...answers]
-  const fetcher = {
+  const fetcher = asFetcher({
     json: vi.fn(async (url: string) => {
       urls.push(url)
       return queue.shift()
     }),
-  } as unknown as Fetcher
+  })
   return { fetcher, urls }
 }
 
@@ -418,5 +422,38 @@ describe('the conventions, against the header this adapter writes', () => {
     expect(new Set(suffixed)).toEqual(new Set([...DIMENSIONAL_FIELDS].map((f) => `${f}_in`)))
     // Every dimension is inches: the vendor publishes no metric row at all.
     expect(columns.filter((c) => c.endsWith('_mm'))).toEqual([])
+  })
+})
+
+describe('a record', () => {
+  const definition = FAMILIES['destinytool_end_mills_inch.csv']
+  const cfg: BoundFamily = {
+    id: definition.id,
+    rows: definition.rows,
+    kind: 'endmill',
+    brand: definition.brand,
+    columns: checkColumnMap('destinytool_end_mills_inch.csv', 'endmill', definition.columns),
+    records: () => {
+      throw new Error('unused')
+    },
+    unit: 'inches',
+    bmc: 'carbide',
+    coolantThrough: false,
+  }
+
+  const row = {
+    [ITEM_NUMBER]: '10014',
+    description: '1/4 x 3/4 x 2-1/2 4FL',
+    cutDia_in: '1/4',
+    loc_in: '3/4',
+    oal_in: '2-1/2',
+    flutes: '4',
+  }
+
+  it('names the vendor as the catalog does, not by the brand key', () => {
+    // `record.vendor` is what a consumer groups a merged catalog by, so it
+    // carries the name `identity.ts` publishes — 'Kennametal', 'WIDIA',
+    // 'Destiny Tool' — rather than the internal key the family is filed under.
+    expect(endmillRecord(row, cfg, cfg.columns).vendor).toBe('Destiny Tool')
   })
 })

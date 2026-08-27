@@ -186,6 +186,25 @@ describe('a tap', () => {
     expect(tapRecord(metric, cfg, cfg.columns).description).toBe('T100 M6X1')
   })
 
+  it('refuses a Thread System that is not one of the two', () => {
+    // This module read anything that was not `inch` as metric while
+    // `thread.ts` read anything that was not `metric` as inch, so a blank tag
+    // produced a record whose DC was in inches and whose OAL came from `_mm`.
+    // The row carries both column sets, so the tag is the only thing varying.
+    const tagged = (system: string): ScrapedRow => ({
+      ...metric,
+      'Thread System': system,
+      D_in: '0.25',
+      L_in: '3',
+      L3_in: '1',
+    })
+
+    for (const bad of ['', 'Inch', 'Metric', 'imperial']) {
+      expect(() => tapRecord(tagged(bad), cfg, cfg.columns), bad).toThrow(VendorResponseError)
+    }
+    expect(tapRecord(tagged('metric'), cfg, cfg.columns).unit).toBe('millimeters')
+  })
+
   it('is never coolant-through, and carries no material groups', () => {
     // Kennametal indexes no tap by workpiece material — all 129 carry none —
     // and reading empty as "unconstrained" would put every tap under every
@@ -290,6 +309,28 @@ describe('an end mill', () => {
 })
 
 describe('every mapper', () => {
+  it('names the vendor as the brand publishes it, not by the internal key', () => {
+    // `vendor` is what a downstream consumer displays and joins on; `widia` is
+    // a key in this package's own table and not a thing the vendor calls
+    // itself.
+    const cfg = family('tap', TAP_LABELS, { bmc: 'hss' })
+    const row: ScrapedRow = {
+      'Material Number': '1',
+      'ISO Catalog Number': 'T100',
+      Coating: 'TiN',
+      'D1-TDZ': 'M6X1',
+      'Thread System': 'metric',
+      'Thread Pitch': '1',
+      Z: '3',
+      D_mm: '6.3',
+      L_mm: '80',
+      L3_mm: '20',
+    }
+
+    expect(tapRecord(row, cfg, cfg.columns).vendor).toBe('Kennametal')
+    expect(tapRecord(row, { ...cfg, brand: 'widia' }, cfg.columns).vendor).toBe('WIDIA')
+  })
+
   it('freezes the record it returns', () => {
     const cfg = family('drill', DRILL_LABELS, {
       unit: 'millimeters',

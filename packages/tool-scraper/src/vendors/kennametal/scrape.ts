@@ -13,21 +13,15 @@
  *
  * ## The one dependency in this package, and why it is here
  *
- * Python's `html.parser.HTMLParser` is in its standard library; Node ships no
- * HTML parser at all. `htmlparser2` is the closest analogue — its
- * `onopentag`/`ontext`/`onclosetag` callbacks are the same three methods under
- * different names, so {@link TableParser} is a transliteration rather than a
- * reimplementation.
+ * Node ships no HTML parser, so this module declares `htmlparser2` — and
+ * declares it rather than putting it in the core, on the rule that *a
+ * transport that needs a parser declares it; nothing shared may pretend to
+ * know how a vendor serves a table.* This module is the only importer:
+ * REGO-FIX's XML is read by regex and Destiny Tool's Firestore is JSON.
  *
- * It is declared as this package's dependency rather than smuggled into the
- * core, which is the rule the Python's own manifest set: *a transport that
- * needs a parser declares it; nothing shared may pretend to know how a vendor
- * serves a table.* This module is the only importer. REGO-FIX's XML is read by
- * regex and Destiny Tool's Firestore is JSON.
- *
- * `decodeEntities` is on, matching Python's `convert_charrefs=True` default —
- * these tables carry `&deg;` and `&Oslash;` in cell text, and a raw `&#248;`
- * in a description would reach the CSV as five characters.
+ * `decodeEntities` is on — these tables carry `&deg;` and `&Oslash;` in cell
+ * text, and a raw `&#248;` in a description would reach the CSV as five
+ * characters.
  */
 
 import { Parser } from 'htmlparser2'
@@ -203,7 +197,7 @@ export function columnNames(header: readonly Cell[]): (string | null)[] {
     labelCounts.set(text, (labelCounts.get(text) ?? 0) + 1)
   }
 
-  return header.map(([text, attrs]) => {
+  const names = header.map(([text, attrs]) => {
     const cls = attrs['class'] ?? ''
     if (!text || SKIP_CLASSES.some((skip) => cls.includes(skip))) return null
 
@@ -228,6 +222,24 @@ export function columnNames(header: readonly Cell[]): (string | null)[] {
     }
     return text
   })
+
+  // Refused rather than allowed to collide: `scrapeFamily` writes `out[name]`,
+  // so a repeated name kept the last column's data under a header the CSV
+  // still printed twice — the loss the class-based identity above exists to
+  // prevent.
+  const seen = new Set<string>()
+  for (const name of names) {
+    if (name === null) continue
+    if (seen.has(name)) {
+      throw new VendorResponseError(
+        'variants response',
+        `two columns are both named ${JSON.stringify(name)} — neither a unit ` +
+          `class nor a data-value title tells them apart`,
+      )
+    }
+    seen.add(name)
+  }
+  return names
 }
 
 /**

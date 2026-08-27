@@ -41,7 +41,7 @@
 import type { Fetcher } from '../../fetch.js'
 import type { AemBrandName } from '../../identity.js'
 import { ISO_MATERIAL_GROUPS } from '../../records.js'
-import { pause, type ScrapeResult, type ScrapedRow } from '../../scrape.js'
+import { REQUEST_DELAY_MS, pause, type ScrapeResult, type ScrapedRow } from '../../scrape.js'
 import { ACTIVE_ONLY, fetchVariants, parseVariantTable } from './scrape.js'
 
 /**
@@ -103,12 +103,6 @@ export const MATERIAL_GROUPS = [
   'C3',
   'C4',
 ] as const
-
-/**
- * Milliseconds between requests. 32 per family — politeness, not rate-limit
- * avoidance, same as `cad.REQUEST_DELAY_MS`.
- */
-export const REQUEST_DELAY_MS = 400
 
 /**
  * ISO 513's main groups — the letters, in the vendor's own panel order, which

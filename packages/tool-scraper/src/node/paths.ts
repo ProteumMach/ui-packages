@@ -7,10 +7,10 @@
  * of those CSVs for free; now that it is not, every scrape writes a
  * {@link receipts} sidecar beside its file.
  *
- * This module is in `node/` rather than beside the config tables, which is
- * where the Python had it. Resolving a root needs `process.env` and a path
- * relative to this file's own location, and a family table that needed either
- * would be unimportable in anything that only wants to read records.
+ * This module is in `node/` rather than beside the config tables: resolving a
+ * root needs `process.env` and a path relative to this file's own location,
+ * and a family table that needed either would be unimportable in anything that
+ * only wants to read records.
  */
 
 import { dirname, join, resolve } from 'node:path'

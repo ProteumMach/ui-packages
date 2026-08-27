@@ -9,10 +9,8 @@
  * **Every record's guid is minted in its own brand's namespace.** That is what
  * makes a guid collision across brands structurally impossible rather than
  * merely unlikely: a material number is a vendor-local integer, and nothing
- * reserves `100003658` to Kennametal. Until 2026-08-07 every record — WIDIA's
- * included — was minted under one namespace keyed on Kennametal's home page,
- * which was harmless while the two brands shared a number space by accident
- * and is the wrong shape the moment a third vendor exists.
+ * reserves `100003658` to Kennametal. One namespace for every brand is
+ * harmless only while two brands share a number space by accident.
  *
  * The preset namespace is deliberately absent. Presets are the conversion
  * half, which stays out of this package (see `docs/TOOL-SCRAPER-PLAN.md`,
@@ -29,12 +27,9 @@ export interface Brand {
   /**
    * The brand's home page, and therefore its guid namespace seed.
    *
-   * **Stated rather than derived.** It used to be built as
-   * `https://www.{host}`, which is right for the two AEM brands and wrong for
-   * a host that carries its own subdomain — REGO-FIX would have been minted
-   * under the nonsense URL `https://www.us.rego-fix.com`. Kennametal's and
-   * WIDIA's values are written out verbatim so that making it explicit churns
-   * no existing guid.
+   * **Stated rather than derived.** `https://www.{host}` is right for the two
+   * AEM brands and wrong for a host carrying its own subdomain — it would mint
+   * REGO-FIX under the nonsense URL `https://www.us.rego-fix.com`.
    */
   home: string
   /** What the `vendor` field of a record from this brand says. */
@@ -104,9 +99,9 @@ export const BRANDS = {
 /**
  * The brands this package knows, as a type.
  *
- * Derived from {@link BRANDS} rather than listed, so the two cannot disagree
- * and a new brand needs no second edit. This is what turns the Python's
- * `BRANDS[brand]` — a `KeyError` waiting for a typo — into a compile error.
+ * Derived from {@link BRANDS} rather than listed, so the two cannot disagree,
+ * a new brand needs no second edit, and a typo is a compile error rather than
+ * a missing key at run time.
  */
 export type BrandName = keyof typeof BRANDS
 
@@ -115,8 +110,8 @@ export type BrandName = keyof typeof BRANDS
  *
  * A named type because it is a real constraint rather than a convenience: the
  * Kennametal transport reads {@link Brand.node}, and a brand without one
- * simply cannot be passed to it. In Python that was a docstring; here the
- * scraper's signature says so and REGO-FIX cannot reach it.
+ * simply cannot be passed to it — the scraper's signature says so, and
+ * REGO-FIX cannot reach it.
  *
  * The value exists alongside the type because the CLI has to check a *string*
  * off argv against this set — a type cannot do that, and checking against
