@@ -5,12 +5,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/toolpath/toolpath.git",
+    "url": "https://github.com/toolpath/ui-packages.git",
     "directory": "packages/ui"
   },
   "homepage": "https://developers.toolpath.com",
   "bugs": {
-    "url": "https://github.com/toolpath/toolpath/issues"
+    "url": "https://github.com/toolpath/ui-packages/issues"
   },
   "publishConfig": {
     "access": "public",

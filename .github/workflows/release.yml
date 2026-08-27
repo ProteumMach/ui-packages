@@ -56,7 +56,7 @@ jobs:
           app-id: ${{ secrets.TOOLPATH_ACTIONS_BOT_APP_ID }}
           private-key: ${{ secrets.TOOLPATH_ACTIONS_BOT_PK }}
           owner: toolpath
-          repositories: toolpath
+          repositories: ui-packages
 
       # Pending Changesets create or update the release-metadata PR. Once that
       # PR merges, this action publishes only npm versions absent from npm.
