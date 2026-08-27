@@ -1,0 +1,342 @@
+/**
+ * The interchange seam: the canonical vocabulary, the column map, and where a
+ * bad one is caught.
+ *
+ * The point of the second half is *when* a mapping fault surfaces. Before the
+ * seam existed the mapper read `row['AP1MAX_mm']` directly, so a family that
+ * published no such column failed from inside a loop, on row 1, after a scrape
+ * had already run — and the message named the column, which is the one piece
+ * of information whoever wrote the config already had. Now the map is checked
+ * when the registry binds and the message names the family.
+ *
+ * The "over the real families" cases arrive with `families/`.
+ */
+
+import { describe, expect, it } from 'vitest'
+
+import { ScraperConfigError } from '../src/errors.js'
+import {
+  DIMENSIONAL,
+  DIMENSIONAL_COLUMNS,
+  GEOMETRY_FIELDS,
+  ISO_MATERIAL_GROUPS,
+  NON_ISO_NAMES,
+  REQUIRED_GEOMETRY,
+  type ToolKind,
+  checkColumnMap,
+  checkColumnsExist,
+  familyUnits,
+  toolRecord,
+} from '../src/records.js'
+
+describe('the vocabulary is ISO 13399’s', () => {
+  it('uses the standard’s own codes for seven of the ten', () => {
+    // Not a CAM vendor's invention, which is the claim the package makes and
+    // therefore the one worth pinning. Fusion implements a subset of the same
+    // dictionary, which is why they also appear there.
+    const standard = Object.entries(GEOMETRY_FIELDS)
+      .filter(([name, field]) => field.iso === name)
+      .map(([name]) => name)
+
+    expect(new Set(standard)).toEqual(new Set(['DC', 'OAL', 'LCF', 'RE', 'NOF', 'SIG', 'TP']))
+  })
+
+  it('names the three that are Autodesk’s as such', () => {
+    // A canonical name that is one CAM vendor's invention is a departure from
+    // the standard, and this package's claim to be using the standard is only
+    // as good as the departures being counted. Adding a fourth has to be a
+    // deliberate act rather than a name that slipped in.
+    expect(new Set(NON_ISO_NAMES)).toEqual(
+      new Set(['SFDM', 'shoulder-length', 'shoulder-diameter']),
+    )
+  })
+
+  it('records the ISO counterpart where one is pinned', () => {
+    // `SFDM` is Autodesk's "Shaft Diameter" and ISO's shank diameter is `DMM`
+    // — a name Autodesk did not use, not a measurement ISO lacks. The two
+    // hyphenated keys are left unpinned instead of mapped to their nearest
+    // code, because "nearest" is not "the same".
+    expect(GEOMETRY_FIELDS.SFDM.iso).toBe('DMM')
+    expect(GEOMETRY_FIELDS['shoulder-length'].iso).toBeNull()
+    expect(GEOMETRY_FIELDS['shoulder-diameter'].iso).toBeNull()
+  })
+
+  it('leaves out the length that is always a copy', () => {
+    // `LB` and `assemblyGaugeLength` are `OAL` under another name on a bare
+    // tool. An adapter that could supply them separately could supply a tool
+    // that claims a holder it does not have.
+    expect(GEOMETRY_FIELDS).not.toHaveProperty('LB')
+    expect(GEOMETRY_FIELDS).not.toHaveProperty('assemblyGaugeLength')
+  })
+
+  it('says what every field measures', () => {
+    // The definition is quoted back at whoever mapped a column to the wrong
+    // field, so an empty one turns a useful failure into `LCF ()`.
+    for (const [name, field] of Object.entries(GEOMETRY_FIELDS)) {
+      expect(field.definition.trim(), name).not.toBe('')
+    }
+  })
+
+  it('fixes the material groups as ISO 513’s, in one order', () => {
+    // A vendor publishing its own order — Destiny Tool does — reorders onto
+    // this sequence. A consumer that renders a facet from one array and a
+    // tool's own list from another has no way to notice the two disagree.
+    expect(ISO_MATERIAL_GROUPS).toEqual(['P', 'M', 'K', 'N', 'S', 'H', 'C'])
+  })
+})
+
+describe('the unit suffix is the core’s business', () => {
+  it('suffixes a dimension with the family’s unit system', () => {
+    // A vendor declares `DC: 'D1'` and never `'D1_mm'`. Which suffix to read
+    // is exactly the question `unit` exists to answer, and a map that
+    // hardcoded one would put the answer in the place least able to notice it
+    // was wrong — a wrong `unit` on a family that publishes both columns
+    // converts cleanly and shows 9.525 mm where a machinist ordered 3/8.
+    const columns = checkColumnMap('x', 'drill', {
+      DC: 'D1',
+      SFDM: 'D',
+      OAL: 'L',
+      LCF: 'L3',
+    })
+
+    expect(columns.column('DC', 'millimeters')).toBe('D1_mm')
+    expect(columns.column('DC', 'inches')).toBe('D1_in')
+  })
+
+  it('leaves a count or an angle unsuffixed', () => {
+    // `NOF` and `SIG` are published in one column whatever the unit system, so
+    // suffixing them would look for a column that was never scraped.
+    const columns = checkColumnMap('x', 'drill', {
+      DC: 'D1',
+      SFDM: 'D',
+      OAL: 'L',
+      LCF: 'L3',
+      NOF: 'Z',
+    })
+
+    expect(columns.column('NOF', 'inches')).toBe('Z')
+  })
+
+  it('treats thread pitch as dimensional but unsuffixed', () => {
+    // The one field where the two lists disagree, and it is not an oversight.
+    // A pitch *is* a length — `1/TPI` inches on an inch tap, millimetres on a
+    // metric one — but the Kennametal thread-pitch step derives a single
+    // `Thread Pitch` column already in the tap's native system. Suffixing it
+    // would look for `Thread Pitch_in`.
+    expect(DIMENSIONAL.has('TP')).toBe(true)
+    expect(DIMENSIONAL_COLUMNS.has('TP')).toBe(false)
+
+    const columns = checkColumnMap('x', 'tap', {
+      SFDM: 'D',
+      OAL: 'L',
+      LCF: 'L3',
+      TP: 'Thread Pitch',
+    })
+    expect(columns.column('TP', 'inches')).toBe('Thread Pitch')
+  })
+
+  it('resolves an unmapped field to no column', () => {
+    // Not to a guessed one. An endmill family with no `Re` column is a
+    // square-end family, and the adapter reads that absence as radius 0.
+    const columns = checkColumnMap('x', 'endmill', {
+      DC: 'D1',
+      SFDM: 'D',
+      OAL: 'L',
+      LCF: 'AP1MAX',
+    })
+
+    expect(columns.column('RE', 'millimeters')).toBeNull()
+  })
+
+  it('keeps every dimensional field a canonical one', () => {
+    for (const name of DIMENSIONAL) {
+      expect(GEOMETRY_FIELDS, name).toHaveProperty(name)
+    }
+  })
+})
+
+describe('what the loader refuses, and how it says so', () => {
+  it('names the family and the missing field', () => {
+    expect(() =>
+      checkColumnMap('gomill_pro.csv', 'endmill', {
+        DC: 'D1',
+        SFDM: 'D',
+        OAL: 'L',
+      }),
+    ).toThrow(ScraperConfigError)
+
+    try {
+      checkColumnMap('gomill_pro.csv', 'endmill', {
+        DC: 'D1',
+        SFDM: 'D',
+        OAL: 'L',
+      })
+      expect.unreachable('should have thrown')
+    } catch (error) {
+      const message = (error as Error).message
+      expect(message).toContain('gomill_pro.csv')
+      // The field *and* what it means, because "LCF" alone assumes the reader
+      // already knows the vocabulary they are being asked to map into.
+      expect(message).toContain('LCF')
+      expect(message).toContain('flute length')
+    }
+  })
+
+  it('refuses a typo in a canonical name rather than ignoring it', () => {
+    // `LFC` would otherwise sit in the map doing nothing at all, and the
+    // geometry it was meant to fill would be silently absent from every tool
+    // in the family — a shipped library that is quietly wrong, not a crash.
+    expect(() =>
+      checkColumnMap('x.csv', 'endmill', {
+        DC: 'D1',
+        SFDM: 'D',
+        OAL: 'L',
+        LCF: 'AP1MAX',
+        LFC: 'oops',
+      }),
+    ).toThrow(/maps LFC/)
+  })
+
+  it('refuses an unknown kind rather than skipping the check', () => {
+    // A kind absent from `REQUIRED_GEOMETRY` would look up an empty list of
+    // required fields and pass every map, including an empty one.
+    expect(() => checkColumnMap('x.csv', 'reamer', {})).toThrow(/unknown tool kind/)
+  })
+
+  it('does not treat an inherited property as a tool kind', () => {
+    // `Object.hasOwn` rather than `in`: `'constructor' in REQUIRED_GEOMETRY`
+    // is true, and would reach a `.filter` on a function.
+    expect(() => checkColumnMap('x.csv', 'constructor', {})).toThrow(/unknown tool kind/)
+  })
+
+  it('requires of every kind the fields that have no other source', () => {
+    // `REQUIRED_GEOMETRY` is a claim about what a vendor must publish, so it
+    // is asserted rather than left to whatever the current families happen to
+    // map. A tap requires no `DC` because its major diameter is *derived* from
+    // the thread designation; an endmill requires no `RE` because a square-end
+    // family publishes none and zero is the right answer.
+    expect(REQUIRED_GEOMETRY.tap).not.toContain('DC')
+    expect(REQUIRED_GEOMETRY.endmill).not.toContain('RE')
+
+    for (const [kind, required] of Object.entries(REQUIRED_GEOMETRY)) {
+      for (const name of required) {
+        expect(GEOMETRY_FIELDS, kind).toHaveProperty(name)
+      }
+      expect(required, kind).toEqual(expect.arrayContaining(['SFDM', 'OAL', 'LCF']))
+    }
+  })
+
+  it('returns a map that cannot be confused with the raw object', () => {
+    // So a caller cannot accidentally use the unvalidated literal it was
+    // handed — and a later mutation of that literal cannot reach the map.
+    const labels = { DC: 'D1', SFDM: 'D', OAL: 'L', LCF: 'L3' }
+    const columns = checkColumnMap('x', 'drill', labels)
+
+    expect(columns.labels).toEqual(labels)
+    expect(columns.labels).not.toBe(labels)
+  })
+})
+
+describe('the column check that needs the CSV', () => {
+  it('names the family and the field for a column absent from the header', () => {
+    // The other half of "fails at load, not at row 1". `checkColumnMap` can
+    // only see the map; this sees the header. A family that maps
+    // `LCF: 'AP1MAX'` against a table publishing `AP1MAX_in` alone, and is
+    // tagged metric, resolves to a column that is not there — and a per-row
+    // failure would name one row out of ninety-three.
+    const cfg = {
+      unit: 'millimeters' as const,
+      columns: checkColumnMap('x', 'endmill', {
+        DC: 'D1',
+        SFDM: 'D',
+        OAL: 'L',
+        LCF: 'AP1MAX',
+      }),
+    }
+
+    expect(() =>
+      checkColumnsExist('gomill_pro.csv', cfg, ['D1_mm', 'D_mm', 'L_mm', 'AP1MAX_in']),
+    ).toThrow(/gomill_pro\.csv/)
+    expect(() =>
+      checkColumnsExist('gomill_pro.csv', cfg, ['D1_mm', 'D_mm', 'L_mm', 'AP1MAX_in']),
+    ).toThrow(/LCF -> AP1MAX_mm/)
+  })
+
+  it('checks both column sets for a family that declares no unit', () => {
+    // The asymmetry is real rather than an omission: a tap's system comes from
+    // its own `Thread System` column, so one family holds metric and inch taps
+    // and anything checking its columns has to check both.
+    expect(familyUnits({ unit: 'inches' })).toEqual(['inches'])
+    expect(familyUnits({})).toEqual(['millimeters', 'inches'])
+
+    const cfg = {
+      columns: checkColumnMap('x', 'tap', { SFDM: 'D', OAL: 'L', LCF: 'L3' }),
+    }
+    expect(() => checkColumnsExist('taps.csv', cfg, ['D_mm', 'L_mm', 'L3_mm'])).toThrow(
+      /SFDM -> D_in/,
+    )
+  })
+
+  it('passes a header that carries every mapped column', () => {
+    const cfg = {
+      unit: 'millimeters' as const,
+      columns: checkColumnMap('x', 'drill', {
+        DC: 'D1',
+        SFDM: 'D',
+        OAL: 'L',
+        LCF: 'L3',
+        NOF: 'Z',
+      }),
+    }
+
+    expect(() =>
+      checkColumnsExist('x.csv', cfg, ['D1_mm', 'D_mm', 'L_mm', 'L3_mm', 'Z']),
+    ).not.toThrow()
+  })
+})
+
+describe('the record itself', () => {
+  const base = {
+    vendor: 'Kennametal',
+    materialNumber: '4151623',
+    catalogNumber: 'X',
+    description: '',
+    kind: 'endmill' as ToolKind,
+    unit: 'millimeters' as const,
+    substrate: 'carbide',
+    grade: 'KC7325',
+    geometry: { DC: 6.0 },
+    coolantThrough: false,
+  }
+
+  it('is frozen', () => {
+    // It is an interchange value. A mapper that mutated one would be reaching
+    // back across the seam this type exists to draw.
+    const record = toolRecord(base)
+
+    expect(Object.isFrozen(record)).toBe(true)
+    expect(Object.isFrozen(record.geometry)).toBe(true)
+    expect(Object.isFrozen(record.materialGroups)).toBe(true)
+    // @ts-expect-error `unit` is readonly
+    expect(() => (record.unit = 'inches')).toThrow(TypeError)
+  })
+
+  it('treats no material groups as a real answer rather than a missing one', () => {
+    // Kennametal indexes no tap by workpiece material, so all 129 carry none.
+    // Reading empty as "unconstrained" would put every tap under every
+    // material on no evidence.
+    const record = toolRecord({ ...base, kind: 'tap', grade: '', geometry: {} })
+
+    expect(record.materialGroups).toEqual([])
+    expect(record.nonFerrous).toBeNull()
+  })
+
+  it('copies the geometry it was handed', () => {
+    // The adapter's working object must not stay reachable through the record.
+    const geometry: Record<string, number> = { DC: 6.0 }
+    const record = toolRecord({ ...base, geometry })
+
+    geometry.DC = 99
+    expect(record.geometry.DC).toBe(6.0)
+  })
+})

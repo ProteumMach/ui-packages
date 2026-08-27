@@ -2,5 +2,6 @@ packages:
   - examples/typescript
   - examples/react-viewer
   - packages/sdk-typescript
+  - packages/tool-scraper
   - packages/ui
   - packages/viewer

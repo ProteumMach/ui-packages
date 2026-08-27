@@ -1,0 +1,76 @@
+{
+  "name": "@toolpath/tool-scraper",
+  "version": "0.0.0",
+  "description": "Scrape cutting-tool geometry from vendor catalogs into records and CSVs",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/toolpath/ui-packages.git",
+    "directory": "packages/tool-scraper"
+  },
+  "homepage": "https://developers.toolpath.com",
+  "bugs": {
+    "url": "https://github.com/toolpath/ui-packages/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node/index.d.ts",
+      "import": "./dist/node/index.js"
+    },
+    "./vendors/kennametal": {
+      "types": "./dist/vendors/kennametal/index.d.ts",
+      "import": "./dist/vendors/kennametal/index.js"
+    },
+    "./vendors/regofix": {
+      "types": "./dist/vendors/regofix/index.d.ts",
+      "import": "./dist/vendors/regofix/index.js"
+    },
+    "./vendors/destinytool": {
+      "types": "./dist/vendors/destinytool/index.d.ts",
+      "import": "./dist/vendors/destinytool/index.js"
+    },
+    "./registry": {
+      "types": "./dist/registry.d.ts",
+      "import": "./dist/registry.js"
+    },
+    "./families": {
+      "types": "./dist/families/index.d.ts",
+      "import": "./dist/families/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "check-types": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "htmlparser2": "12.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  },
+  "bin": {
+    "toolpath-scrape": "./dist/node/main.js"
+  }
+}
