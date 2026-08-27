@@ -63,11 +63,21 @@ export function threadMajorDiameter(tdz: string, threadSystem: ThreadSystem): nu
   const size = s.split('-', 1)[0] ?? ''
   if (size.startsWith('#')) {
     // ANSI machine-screw numbers: major dia = 0.060 + 0.013 * N inches
-    return round(0.06 + 0.013 * Number.parseInt(size.slice(1), 10), 4)
+    const n = Number.parseInt(size.slice(1), 10)
+    if (!Number.isInteger(n)) {
+      throw new RangeError(`unrecognized inch thread designation: ${tdz}`)
+    }
+    return round(0.06 + 0.013 * n, 4)
   }
   if (size.includes('/')) {
     const [num, den] = size.split('/')
-    return Number(num) / Number(den)
+    const value = Number(num) / Number(den)
+    // A designation like `1/` parses to NaN, which would otherwise travel into
+    // a record as a diameter. Every other unreadable shape here throws.
+    if (!Number.isFinite(value)) {
+      throw new RangeError(`unrecognized inch thread designation: ${tdz}`)
+    }
+    return value
   }
   throw new RangeError(`unrecognized inch thread designation: ${tdz}`)
 }

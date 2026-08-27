@@ -43,6 +43,19 @@ import { consoleWarn, pause, type ScrapedRow, type Warn } from '../scrape.js'
  */
 export const REQUEST_DELAY_MS = 400
 
+/**
+ * A catalog number as one path segment.
+ *
+ * REGO-FIX's catalog number is the vendor's own title — `BT 30 / PG 25 x 075`
+ * — and a separator in it was being honoured as one: `downloadStep` creates
+ * the parent directory, so the file landed in a `BT 30 ` subdirectory instead
+ * of flat in `outDir`, against what this module promises. The number stays
+ * readable, which is the whole reason the file is named for it.
+ */
+function fileName(catalogNumber: string): string {
+  return catalogNumber.replaceAll(/[/\\]/g, '-')
+}
+
 /** One STEP file onto disk. Returns the bytes written. */
 export async function downloadStep(fetcher: Fetcher, url: string, dest: string): Promise<number> {
   // Straight to `dest` rather than through a temp file: these are ~54 KB
@@ -97,7 +110,7 @@ export async function mirrorFamilySteps(
     }
 
     if (written.length > 0) await pause(delayMs)
-    const bytes = await downloadStep(fetcher, url, join(outDir, `${catalogNumber}.stp`))
+    const bytes = await downloadStep(fetcher, url, join(outDir, `${fileName(catalogNumber)}.stp`))
     written.push({ catalogNumber, bytes })
   }
 

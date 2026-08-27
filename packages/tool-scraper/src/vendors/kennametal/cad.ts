@@ -38,7 +38,7 @@
  */
 
 import { CAD_COLUMN } from '../../conventions.js'
-import type { Fetcher } from '../../fetch.js'
+import { statusOf, type Fetcher } from '../../fetch.js'
 import { pause, type ScrapeResult, type ScrapedRow } from '../../scrape.js'
 
 export const CAD_API = 'https://www.product-config.net/catalog3/cad?d=kennametal&id={material}'
@@ -85,6 +85,28 @@ export function lightweightStepUrl(payload: CadPayload): string | null {
   return typeof url === 'string' && url ? url : null
 }
 
+/**
+ * {@link fetchCad}, with a 404 read as "the vendor publishes none".
+ *
+ * The docstring below promises a row whose lookup finds no model keeps an
+ * empty cell and is never dropped. That held only for the `cadAvailable:
+ * false` payload — a 404 threw out of the loop and abandoned the whole file
+ * part-annotated, past `main()`'s catch and onto a stack trace. Any other
+ * status is still a failed request and still stops the run.
+ *
+ * Duck-typed through `statusOf` rather than `instanceof`, so a caller's own
+ * {@link Fetcher} gets the same handling — the same call `vendors/regofix`
+ * makes for the holders whose DIN 4000 document does not exist.
+ */
+async function cadFor(fetcher: Fetcher, material: string): Promise<CadPayload> {
+  try {
+    return await fetchCad(fetcher, material)
+  } catch (error) {
+    if (statusOf(error) === 404) return { cadAvailable: false }
+    throw error
+  }
+}
+
 /** What {@link annotateCadUrls} answers with. */
 export interface CadAnnotation {
   scrape: ScrapeResult
@@ -118,7 +140,7 @@ export async function annotateCadUrls(
   const rows: ScrapedRow[] = []
   for (const [index, row] of scrape.rows.entries()) {
     if (index) await pause(delayMs)
-    const url = lightweightStepUrl(await fetchCad(fetcher, row['Material Number'] ?? ''))
+    const url = lightweightStepUrl(await cadFor(fetcher, row['Material Number'] ?? ''))
     if (url) found += 1
     rows.push({ ...row, [column]: url ?? '' })
   }

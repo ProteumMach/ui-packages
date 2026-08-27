@@ -117,8 +117,15 @@ export type BrandName = keyof typeof BRANDS
  * Kennametal transport reads {@link Brand.node}, and a brand without one
  * simply cannot be passed to it. In Python that was a docstring; here the
  * scraper's signature says so and REGO-FIX cannot reach it.
+ *
+ * The value exists alongside the type because the CLI has to check a *string*
+ * off argv against this set — a type cannot do that, and checking against
+ * {@link BRANDS} instead let `--brand regofix` through to a URL with
+ * `undefined` in its path.
  */
-export type AemBrandName = 'kennametal' | 'widia'
+export const AEM_BRANDS = ['kennametal', 'widia'] as const satisfies readonly BrandName[]
+
+export type AemBrandName = (typeof AEM_BRANDS)[number]
 
 /**
  * The UUID namespace records of `brand` are minted under.

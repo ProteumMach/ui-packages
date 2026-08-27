@@ -37,7 +37,8 @@
 
 import type { UnitSystem } from '../../conventions.js'
 import { ScraperConfigError, VendorResponseError } from '../../errors.js'
-import type { BoundFamily, RecordMappers } from '../../family.js'
+import { familyBrand, type BoundFamily, type RecordMappers } from '../../family.js'
+import { BRANDS } from '../../identity.js'
 import { toolRecord, type ColumnMap, type GeometryName, type ToolRecord } from '../../records.js'
 import type { ScrapedRow } from '../../scrape.js'
 import { threadMajorDiameter, type ThreadSystem } from '../../thread.js'
@@ -105,6 +106,29 @@ function fact<T>(family: BoundFamily, key: string, value: T | undefined): T {
   return value
 }
 
+/**
+ * The `Thread System` tag, refusing anything that is not one of the two.
+ *
+ * It used to be cast, and the two readers of it defaulted in *opposite*
+ * directions: this module took anything that was not `'inch'` as metric, while
+ * `thread.threadMajorDiameter` took anything that was not `'metric'` as inch.
+ * A row whose tag was missing, empty or capitalised therefore produced a
+ * record whose `DC` was parsed in inches and whose `TP`/`SFDM`/`OAL`/`LCF`
+ * were read from the `_mm` columns — the silent unit mix `conventions`
+ * exists to make impossible. One reader, and it refuses.
+ */
+function threadSystem(row: ScrapedRow, what: string): ThreadSystem {
+  const value = row['Thread System'] ?? ''
+  if (value !== 'metric' && value !== 'inch') {
+    throw new VendorResponseError(
+      what,
+      `Thread System is ${JSON.stringify(value)}, not "metric" or "inch" — ` +
+        `a tap family states it as a constant column on the scrape`,
+    )
+  }
+  return value
+}
+
 /** An integer column the vendor always publishes — the flute count. */
 function count(row: ScrapedRow, column: string, what: string): number {
   const value = Number.parseInt(row[column] ?? '', 10)
@@ -131,7 +155,7 @@ export function drillRecord(row: ScrapedRow, family: BoundFamily, columns: Colum
   const what = row[MATERIAL_NUMBER] ?? ''
 
   return toolRecord({
-    vendor: family.brand ?? 'kennametal',
+    vendor: BRANDS[familyBrand(family)].vendor,
     materialNumber: what,
     catalogNumber: row[CATALOG_NUMBER] ?? '',
     description: row[CATALOG_NUMBER] ?? '',
@@ -168,13 +192,13 @@ export function drillRecord(row: ScrapedRow, family: BoundFamily, columns: Colum
  * why `threadMajorDiameter` sits in the core.
  */
 export function tapRecord(row: ScrapedRow, family: BoundFamily, columns: ColumnMap): ToolRecord {
-  const system = (row['Thread System'] ?? '') as ThreadSystem
+  const system = threadSystem(row, row[MATERIAL_NUMBER] ?? '')
   const unit: UnitSystem = system === 'inch' ? 'inches' : 'millimeters'
   const tdz = row['D1-TDZ'] ?? ''
   const what = row[MATERIAL_NUMBER] ?? ''
 
   return toolRecord({
-    vendor: family.brand ?? 'kennametal',
+    vendor: BRANDS[familyBrand(family)].vendor,
     materialNumber: what,
     catalogNumber: row[CATALOG_NUMBER] ?? '',
     // The designation is part of what a tap *is*, and the catalog number alone
@@ -222,7 +246,7 @@ export function endmillRecord(
   const fluteLength = require_(row, columns, 'LCF', unit, what)
 
   return toolRecord({
-    vendor: family.brand ?? 'kennametal',
+    vendor: BRANDS[familyBrand(family)].vendor,
     materialNumber: what,
     catalogNumber: row[CATALOG_NUMBER] ?? '',
     description: row[CATALOG_NUMBER] ?? '',

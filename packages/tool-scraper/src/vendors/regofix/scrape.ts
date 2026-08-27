@@ -168,7 +168,7 @@ export async function search(
     },
   }
   const payload = await fetcher.postJson<{
-    hits?: { total: number; hits: { _source: Source }[] }
+    hits?: { total: number | { value: number }; hits: { _source: Source }[] }
   }>(SEARCH_URL, { size, query })
 
   const hits = payload.hits
@@ -179,10 +179,15 @@ export async function search(
         `(keys: ${Object.keys(payload).sort().join(', ')})`,
     )
   }
-  if (hits.total > size) {
+  // Elasticsearch 6 answers with a bare number and 7+ with `{value, relation}`
+  // unless `rest_total_hits_as_int` is set. Reading only the number would make
+  // this guard a silent no-op the day the proxy is upgraded — which is exactly
+  // the truncated roster it exists to refuse.
+  const total = typeof hits.total === 'object' ? hits.total.value : hits.total
+  if (total > size) {
     throw new VendorResponseError(
       JSON.stringify(filters),
-      `${hits.total} products but only ${size} requested — raise \`size\` ` +
+      `${total} products but only ${size} requested — raise \`size\` ` +
         `rather than shipping a truncated roster`,
     )
   }
@@ -288,11 +293,16 @@ export function plain(value: string | number | null | undefined): string {
 
 /** `1/4` or `3.5` — the vendor prints both, and both are exact here. */
 export function parseSize(size: string): number {
-  if (size.includes('/')) {
-    const [num, den] = size.split('/')
-    return Number(num) / Number(den)
+  const value = size.includes('/')
+    ? Number(size.split('/')[0]) / Number(size.split('/')[1])
+    : Number(size)
+  // `3/` divides by zero and reaches here as Infinity, and an absent regex
+  // capture as `''` -> 0; both would travel into a row as a nominal size. Neither is a collet this
+  // vendor makes, so an unreadable size is refused rather than carried.
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new RangeError(`unrecognized size: ${JSON.stringify(size)}`)
   }
-  return Number(size)
+  return value
 }
 
 /** Round to `places` decimals, as Python's `round(x, places)` does here. */

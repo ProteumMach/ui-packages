@@ -52,9 +52,12 @@ import { ScraperConfigError } from './errors.js'
 export type FactValue = string | number | boolean
 
 /**
- * How a fact was arrived at. Closed, and ordered from strongest to weakest —
- * an assumptions document sorts by it, so the guesses are what a reader meets
- * first.
+ * How a fact was arrived at. Closed, and ordered from strongest to weakest.
+ *
+ * An assumptions document sorts by it, so a reader meets the checkable facts
+ * before the guesses and finishes on the ones only a person stands behind —
+ * `derived` first, then `assumed`. (`vendor-stated` leads the order but is
+ * filtered out of that document entirely; see {@link assumptions}.)
  */
 export const SOURCES = ['vendor-stated', 'derived', 'assumed'] as const
 
@@ -178,8 +181,9 @@ export interface FactBearing {
  * list of things that would be wrong if somebody guessed wrong — a citation is
  * a different kind of claim and has its own re-check path (one `curl`).
  *
- * Sorted by source then family then key, so the assumed ones lead and the
- * output is byte-stable for whatever gate reads it.
+ * Sorted by source then family then key — so the derived facts lead, the
+ * assumed ones close the list, and the output is byte-stable for whatever
+ * gate reads it.
  */
 export function assumptions(tables: Record<string, Record<string, FactBearing>>): Assumption[] {
   const rows: Assumption[] = []

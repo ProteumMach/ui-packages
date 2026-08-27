@@ -32,9 +32,9 @@ import { basename } from 'node:path'
 
 import { ScraperConfigError, VendorResponseError } from '../errors.js'
 import { familyBrand } from '../family.js'
-import { COLLET_FAMILIES, FAMILIES, HOLDER_FAMILIES, familyConfig } from '../families/index.js'
+import { ALL_FAMILIES, FAMILIES, HOLDER_FAMILIES, familyConfig } from '../families/index.js'
 import { createFetcher, type Fetcher } from '../fetch.js'
-import { BRANDS, type AemBrandName, type BrandName } from '../identity.js'
+import { AEM_BRANDS, type AemBrandName, type BrandName } from '../identity.js'
 import { boundFamily } from '../registry.js'
 import type { ScrapeResult } from '../scrape.js'
 import { mirrorFamilySteps } from './cad-mirror.js'
@@ -137,8 +137,10 @@ function wrote(out: string, brand: BrandName, scrape: ScrapeResult, io: Console_
   io.log(`  receipt: ${basename(receipt)}`)
 
   const name = basename(out)
-  const declared =
-    COLLET_FAMILIES[name]?.rows ?? HOLDER_FAMILIES[name]?.rows ?? FAMILIES[name]?.rows
+  // Through the merged table rather than three chained lookups, so a name two
+  // tables both claim is refused where it is built instead of resolving here
+  // to whichever happened to be checked first.
+  const declared = ALL_FAMILIES[name]?.rows
   const written = receipts.read(out)
   if (declared !== undefined && written !== null) {
     receipts.checkRows(name, declared, written)
@@ -215,8 +217,11 @@ async function kennametal(argv: string[], io: Console_, fetcher: Fetcher): Promi
     brand = value
     args.splice(flag, 2)
   }
-  if (!Object.hasOwn(BRANDS, brand)) {
-    io.error(`unknown brand: ${brand} (known: ${Object.keys(BRANDS).sort().join(', ')})`)
+  // Against the AEM brands rather than every brand: `scrapeFamily` reads
+  // `Brand.node`, and a brand without one built a URL with `undefined` in the
+  // path and died on the 404 instead of on this line.
+  if (!AEM_BRANDS.includes(brand as AemBrandName)) {
+    io.error(`unknown brand: ${brand} (known: ${[...AEM_BRANDS].sort().join(', ')})`)
     return 2
   }
   if (args.length < 2) {
@@ -300,6 +305,19 @@ async function cad(argv: string[], io: Console_, fetcher: Fetcher): Promise<numb
     return 2
   }
   for (const name of namesIn(argv, HOLDER_FAMILIES, 'holder')) {
+    // `annotateCadUrls` is Kennametal's CDS lookup, not a vendor-neutral one —
+    // it queries product-config.net and rewrites `CAD_COLUMN` on every row. Run
+    // against a REGO-FIX holder it would post that vendor's SKUs to Kennametal
+    // and blank the STEP URLs the REGO-FIX scrape had already filled in.
+    // `mirror-cad` reads the column and *is* neutral; this writes it and is not.
+    const brand = familyBrand(familyConfig(name))
+    if (!AEM_BRANDS.includes(brand as AemBrandName)) {
+      io.error(
+        `${name}: the cad step is ${[...AEM_BRANDS].sort().join('/')}-only — ` +
+          `${brand} publishes its own CAD URLs with the scrape`,
+      )
+      return 2
+    }
     const path = familyCsv(name)
     const { scrape, found } = await annotateCadUrls(fetcher, readCsv(name, path))
     writeCsv(path, scrape)

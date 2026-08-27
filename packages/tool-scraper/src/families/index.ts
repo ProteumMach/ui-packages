@@ -97,12 +97,15 @@ export const COLLET_FAMILIES: Record<string, ToolholdingDefinition> = merge<Tool
  *
  * Built once rather than searched per call, so a lookup can refuse an unknown
  * name by listing what it does know.
+ *
+ * Through {@link merge} and not a spread, for the reason {@link merge} exists:
+ * a spread here would let a name claimed by two of the three tables resolve
+ * silently to whichever was spread last, and this is the table `familyConfig`
+ * — and therefore `familyBrand`, and therefore where a CSV is written — reads.
  */
-export const ALL_FAMILIES: Record<string, FamilyDefinition | ToolholdingDefinition> = {
-  ...FAMILIES,
-  ...HOLDER_FAMILIES,
-  ...COLLET_FAMILIES,
-}
+export const ALL_FAMILIES: Record<string, FamilyDefinition | ToolholdingDefinition> = merge<
+  FamilyDefinition | ToolholdingDefinition
+>(FAMILIES, HOLDER_FAMILIES, COLLET_FAMILIES)
 
 /** One family's config by CSV name, refusing a name nothing declares. */
 export function familyConfig(name: string): FamilyDefinition | ToolholdingDefinition {

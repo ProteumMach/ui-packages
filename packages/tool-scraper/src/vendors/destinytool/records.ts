@@ -272,7 +272,14 @@ export function endmillRecord(
   const radRaw = radColumn === null ? undefined : row[radColumn]
   const radCell = radRaw && radRaw.trim() ? parseFractionInches(radRaw) : null
 
+  // Refused rather than allowed through as NaN: `materialGroups` reads it, and
+  // `NaN <= 3` is false, so a blank cell would silently classify the tool as
+  // ferrous P/M/K/S/H on no evidence. Kennametal's `count()` refuses the same
+  // shape for the same reason.
   const flutes = Number.parseInt(row['flutes'] ?? '', 10)
+  if (!Number.isInteger(flutes)) {
+    throw new VendorResponseError(what, `no integer in column "flutes"`)
+  }
 
   return toolRecord({
     vendor: 'destinytool',
