@@ -82,55 +82,73 @@ export const Button = ({
     }
   }
 
-  const contentClassName = cn(
-    'whitespace-nowrap rounded px-3 py-1 font-body text-xs font-semibold tracking-normal',
-    'bg-gray-100 group-hover:bg-gray-200/75 dark:bg-zinc-800 dark:group-hover:bg-zinc-900',
-    'transition duration-200 ease-in-out',
-    {
-      'bg-primary group-hover:bg-primary-darken group-active:bg-primary-darken dark:bg-primary dark:group-hover:bg-primary-darken dark:group-active:bg-primary-darken':
-        isPrimary,
-      'bg-success group-hover:bg-success-darken group-active:bg-success-darken dark:bg-success dark:group-hover:bg-success-darken dark:group-active:bg-success-darken':
-        isSuccess,
-      'bg-info group-hover:bg-info group-active:bg-info dark:bg-info dark:group-hover:bg-info dark:group-active:bg-info':
-        isInfo,
-      'bg-gray-50 group-hover:bg-gray-100 group-active:bg-gray-100 dark:bg-zinc-800 dark:group-hover:bg-zinc-900 dark:group-active:bg-zinc-900':
-        isMuted,
-      'bg-danger group-hover:bg-danger-darken group-active:bg-danger-darken dark:bg-danger dark:group-hover:bg-danger-darken dark:group-active:bg-danger-darken':
-        isDanger,
-      'border border-gray-100 bg-white dark:bg-zinc-900 dark:border-zinc-800 group-hover:bg-gray-50 dark:group-hover:bg-zinc-800 group-active:bg-gray-50 dark:group-active:bg-zinc-800 dark:group-hover:border-zinc-800':
-        isSecondary,
-      'bg-primary/50 dark:bg-primary/45': disabled && variant === 'primary',
-      'bg-success/50 dark:bg-success/45': disabled && variant === 'success',
-      'bg-info/50 dark:bg-info/45': disabled && variant === 'info',
-      'bg-danger/50 dark:bg-danger/45': disabled && variant === 'danger',
-      'dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-900 dark:group-active:bg-zinc-900':
-        disabled && !isColoredVariant,
-      'group-active:scale-95': !disabled,
-      'px-1.5 py-px text-2xs': size === 'sm',
-      'px-4 py-2 text-base': size === 'lg',
-      'rounded-lg': size === 'lg' && !isPill,
-      'rounded-full': isPill,
-      'px-8': isPill && size === 'lg',
-      'w-full': full,
-    },
-    className,
+  /*
+   * The inner surface, as an element rather than a component.
+   *
+   * It used to be `const ContentWrapper = ({children}) => ...` declared here,
+   * inside `Button` — which makes it a **new component type on every render**,
+   * so React unmounts the whole content subtree and mounts a fresh one each
+   * time. That is a real defect and not only a wasted render: a `click` is only
+   * dispatched when `mousedown` and `mouseup` land on the same element, and the
+   * `<div>` the pointer is actually over was being replaced between the two.
+   * Any render occurring mid-press — a hover handler on an ancestor is enough —
+   * silently swallowed the click, while the button stayed in the tree, matched
+   * by role and name, and reported enabled.
+   *
+   * It cost two long debugging sessions in the part viewer before the cause was
+   * found (F61, F67). Nothing in the types or the tests says so.
+   */
+  const wrap = (inner: ReactNode) => (
+    <div
+      className={cn(
+        'whitespace-nowrap rounded px-3 py-1 font-body text-xs font-semibold tracking-normal',
+        'bg-gray-100 group-hover:bg-gray-200/75 dark:bg-zinc-800 dark:group-hover:bg-zinc-900',
+        'transition duration-200 ease-in-out',
+        {
+          'bg-primary group-hover:bg-primary-darken group-active:bg-primary-darken dark:bg-primary dark:group-hover:bg-primary-darken dark:group-active:bg-primary-darken':
+            isPrimary,
+          'bg-success group-hover:bg-success-darken group-active:bg-success-darken dark:bg-success dark:group-hover:bg-success-darken dark:group-active:bg-success-darken':
+            isSuccess,
+          'bg-info group-hover:bg-info group-active:bg-info dark:bg-info dark:group-hover:bg-info dark:group-active:bg-info':
+            isInfo,
+          'bg-gray-50 group-hover:bg-gray-100 group-active:bg-gray-100 dark:bg-zinc-800 dark:group-hover:bg-zinc-900 dark:group-active:bg-zinc-900':
+            isMuted,
+          'bg-danger group-hover:bg-danger-darken group-active:bg-danger-darken dark:bg-danger dark:group-hover:bg-danger-darken dark:group-active:bg-danger-darken':
+            isDanger,
+          'border border-gray-100 bg-white dark:bg-zinc-900 dark:border-zinc-800 group-hover:bg-gray-50 dark:group-hover:bg-zinc-800 group-active:bg-gray-50 dark:group-active:bg-zinc-800 dark:group-hover:border-zinc-800':
+            isSecondary,
+          'bg-primary/50 dark:bg-primary/45': disabled && variant === 'primary',
+          'bg-success/50 dark:bg-success/45': disabled && variant === 'success',
+          'bg-info/50 dark:bg-info/45': disabled && variant === 'info',
+          'bg-danger/50 dark:bg-danger/45': disabled && variant === 'danger',
+          'dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-900 dark:group-active:bg-zinc-900':
+            disabled && !isColoredVariant,
+          'group-active:scale-95': !disabled,
+          'px-1.5 py-px text-2xs': size === 'sm',
+          'px-4 py-2 text-base': size === 'lg',
+          'rounded-lg': size === 'lg' && !isPill,
+          'rounded-full': isPill,
+          'px-8': isPill && size === 'lg',
+          'w-full': full,
+        },
+        className,
+      )}
+    >
+      {inner}
+    </div>
   )
 
-  const content = (
-    <div className={contentClassName}>
-      {!isLoading ? (
-        children
-      ) : (
+  const content = !isLoading
+    ? wrap(children)
+    : wrap(
         <AnimatedEllipsis
           className={cn({
             'h-2 w-1': size === 'sm',
             'h-2 w-1.5': size === 'md',
             'h-3 w-2': size === 'lg',
           })}
-        />
-      )}
-    </div>
-  )
+        />,
+      )
 
   if (asLink) {
     return (
