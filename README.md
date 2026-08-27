@@ -64,6 +64,11 @@ node --version
 
 The Node.js version must be `v24.18.0` or newer within the `v24` release line.
 
+## Publishing a new npm package
+
+New packages need a one-time bootstrap publish before npm trusted publishing can take over. See
+[Bootstrapping npm packages](docs/BOOTSTRAPPING-NPM-PACKAGES.md).
+
 ### 2. Download and prepare the repository
 
 Open PowerShell, Command Prompt, Terminal, or your editor's terminal, then run:
