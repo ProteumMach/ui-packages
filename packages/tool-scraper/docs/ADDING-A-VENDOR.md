@@ -38,11 +38,11 @@ publish no per-part page at all, and their links are searches. A link that
 
 ## 3. The adapter, under `vendors/<brand>/`
 
-`scrape.py` at minimum, and whatever else that vendor's data needs — Kennametal
+`scrape.ts` at minimum, and whatever else that vendor's data needs — Kennametal
 has four modules because its geometry, its material index, its CAD links and
 its thread pitches arrive four different ways.
 
-Two rules, and `tests/test_vendor_boundary.py` enforces both from the package
+Two rules, and `tests/vendor-boundary.test.ts` enforces both from the package
 tree:
 
 - **Nothing in the core imports a vendor.** A core module that needs a
@@ -51,9 +51,10 @@ tree:
   to reach into vendor one's parsing, and that is how a "shared" scraper that
   serves nobody gets built.
 
-Fetch through `fetch`, so the transport gets the same `User-Agent`, timeout and
-decoding as the others, and so a test can replace one module attribute instead
-of the whole of `urllib.request`.
+Take a `Fetcher` and read through it, so the transport gets the same
+`User-Agent`, timeout and decoding rules as the others — and so a caller can
+supply its own retries, proxy or rate limiting without reimplementing the
+decoding, and a test can pass a stub instead of reaching for a global.
 
 ## 4. The CSV: the vendor's own labels
 
@@ -61,7 +62,7 @@ of the whole of `urllib.request`.
 put a lie in the file whose whole job is to record what the vendor published,
 and the CSV is what gets diffed when a vendor silently changes their table.
 
-`conventions.py` holds the short list of rules that do hold across vendors.
+`conventions.ts` holds the short list of rules that do hold across vendors.
 Two are enforced:
 
 - **Units.** A dimensional column carries `_mm` or `_in`. An adapter declares a
@@ -79,7 +80,7 @@ A vendor code you cannot pin to a meaning keeps its raw code behind
 sits in the CSV looking exactly like a mapped length; `DIN_A2` reads as what it
 is.
 
-## 5. `families/<brand>.py`
+## 5. `families/<brand>.ts`
 
 Scrape targets, the column map, the hand-counted `rows`, and the facts no
 vendor table states.
@@ -89,12 +90,14 @@ vendor table states.
 `records.GEOMETRY_FIELDS`, which carries each code's definition and names the
 three that are Autodesk's rather than the standard's.
 
-**Every constant the vendor's table does not state is a `Fact`.** The gate is
-in `provenance.py` and it runs at import: a `vendor-stated` fact needs a
-citation specific enough to re-check with one request, a `derived` one needs a
-note saying what was computed from what, and an `assumed` one needs a note, a
-date and initials — because the only thing standing behind an assumption is a
-person on a day.
+**Every constant the vendor's table does not state is a `Fact`.** `Fact` is a
+union discriminated on `source`, so most of the gate is the compiler: a
+`vendor-stated` fact needs a citation specific enough to re-check with one
+request, a `derived` one needs a note saying what was computed from what, and an
+`assumed` one needs a note, a date and initials — because the only thing
+standing behind an assumption is a person on a day. `checkFact` in
+`provenance.ts` catches what a type cannot say: an empty string, and a `checked`
+that is not a date.
 
 When a vendor label is unclear, **ask**. Record the answer and its date. Do not
 guess and flag it afterwards; the flag is what gets lost.
@@ -102,7 +105,7 @@ guess and flag it afterwards; the flag is what gets lost.
 `rows` is what a human counted on the vendor's own page. It is the one key
 nothing reads at scrape time, and it is the point: every other count is
 computed from the same file it is checking, so a scrape that silently lost rows
-agrees with itself. `receipts.check_rows` is what the second number buys.
+agrees with itself. `receipts.checkRows` is what the second number buys.
 
 ## 6. `registry.ADAPTERS`, if the vendor ships cutting tools
 
@@ -111,24 +114,24 @@ none.
 
 ## 7. Tests
 
-Mock the network at one seam and feed inline fixtures. Every test in this
-package does, and `tests/conftest.py` refuses a real request and names the URL
-that asked for one — without it, a test that forgets to mock quietly pages a
-vendor's whole catalog and passes.
+Pass a stub `Fetcher` and feed inline fixtures. Every test in this package
+does, and `tests/setup.ts` replaces the global `fetch` with one that throws and
+names the URL that asked — without it, a test that forgets its stub quietly
+pages a vendor's whole catalog and passes.
 
 Check the header the adapter really writes against `conventions`, in that
 vendor's own test file. A header quoted as a literal is a second copy of what
 the adapter writes, updated at the same time, checking nothing.
 
-Cases that read a scraped CSV go through `tests/corpus.py`, which skips with a
+Cases that read a scraped CSV go through `tests/corpus.ts`, which skips with a
 named reason where no scrape exists.
 
 ## 8. The scrape
 
-An entry point in `cli.py` and a line in `pyproject.toml`'s `[project.scripts]`.
-Print the resolved scrape root first, and record a receipt after.
+A subcommand in `node/cli.ts`. Print the resolved scrape root first, and record
+a receipt after.
 
 Then run it, and read the CSV. The three faults documented in
-`vendors/regofix/scrape.py` — a part whose XML states the wrong part number, a
+`vendors/regofix/scrape.ts` — a part whose XML states the wrong part number, a
 product-line label that lies, a cell repeating the row above it — were all
 found this way and none of them raised anything.

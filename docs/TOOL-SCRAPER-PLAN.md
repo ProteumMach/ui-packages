@@ -4,7 +4,27 @@ _Written 2026-08-26, from a read of this repo and of `tool_catalog/packages/scra
 (`/Users/justingray/toolpath/new_code/tool_catalog`), against one question: what shape should
 vendor tool scraping take here, and how does the existing code get in._
 
-**Status: the port is complete — all seven steps landed.** Steps are checked off in "The port" below as they land.
+**Status: the port is complete — all seven steps landed, and the result was then
+re-implemented in TypeScript.** Steps are checked off in "The port" below as they landed.
+
+**Amended 2026-08-26: the package is TypeScript, not Python.** The seven steps below describe the
+port out of `tool_catalog`, and every structural decision in this document still holds — the
+acquisition/conversion split, one package rather than one per vendor, the vendor boundary, ISO 13399
+as the vocabulary, provenance as a gate. What changed is the language and two things that follow
+from it:
+
+- **The library returns records; files are a separate entry point.** Every Python scrape function
+  ended in `open(out_path, 'w')`, which is right for a console script and wrong for a package a
+  Node backend imports. CSV serialization, the receipt sidecar and the CAD mirror are
+  `@toolpath/tool-scraper/node`.
+- **It publishes to npm**, so decision 7 below — that this package takes no Changeset — is
+  reversed. `AGENTS.md` records that.
+
+The port was checked rather than argued: all 37 families across all six config tables were
+converted mechanically and diffed as JSON against the Python's own evaluated tables; every guid and
+all 2,232 thread designations are pinned against values the Python generated; and the corpus suite
+carries across intact, so a machine holding a scrape checks that this code reproduces what the
+Python wrote.
 
 ## What is being ported
 

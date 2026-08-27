@@ -13,9 +13,7 @@ packages/sdk-python/build/
 packages/sdk-python/dist/
 packages/sdk-python/*.egg-info/
 packages/sdk-python/uv.lock
-packages/tool-scraper/uv.lock
 packages/tool-scraper/dist/
-packages/tool-scraper/*.egg-info/
 packages/ui/dist/
 packages/viewer/dist/
 examples/react/dist/
