@@ -82,58 +82,54 @@ export const Button = ({
     }
   }
 
-  const ContentWrapper = ({ children }: { children: ReactNode }) => (
-    <div
-      className={cn(
-        'whitespace-nowrap rounded px-3 py-1 font-body text-xs font-semibold tracking-normal',
-        'bg-gray-100 group-hover:bg-gray-200/75 dark:bg-zinc-800 dark:group-hover:bg-zinc-900',
-        'transition duration-200 ease-in-out',
-        {
-          'bg-primary group-hover:bg-primary-darken group-active:bg-primary-darken dark:bg-primary dark:group-hover:bg-primary-darken dark:group-active:bg-primary-darken':
-            isPrimary,
-          'bg-success group-hover:bg-success-darken group-active:bg-success-darken dark:bg-success dark:group-hover:bg-success-darken dark:group-active:bg-success-darken':
-            isSuccess,
-          'bg-info group-hover:bg-info group-active:bg-info dark:bg-info dark:group-hover:bg-info dark:group-active:bg-info':
-            isInfo,
-          'bg-gray-50 group-hover:bg-gray-100 group-active:bg-gray-100 dark:bg-zinc-800 dark:group-hover:bg-zinc-900 dark:group-active:bg-zinc-900':
-            isMuted,
-          'bg-danger group-hover:bg-danger-darken group-active:bg-danger-darken dark:bg-danger dark:group-hover:bg-danger-darken dark:group-active:bg-danger-darken':
-            isDanger,
-          'border border-gray-100 bg-white dark:bg-zinc-900 dark:border-zinc-800 group-hover:bg-gray-50 dark:group-hover:bg-zinc-800 group-active:bg-gray-50 dark:group-active:bg-zinc-800 dark:group-hover:border-zinc-800':
-            isSecondary,
-          'bg-primary/50 dark:bg-primary/45': disabled && variant === 'primary',
-          'bg-success/50 dark:bg-success/45': disabled && variant === 'success',
-          'bg-info/50 dark:bg-info/45': disabled && variant === 'info',
-          'bg-danger/50 dark:bg-danger/45': disabled && variant === 'danger',
-          'dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-900 dark:group-active:bg-zinc-900':
-            disabled && !isColoredVariant,
-          'group-active:scale-95': !disabled,
-          'px-1.5 py-px text-2xs': size === 'sm',
-          'px-4 py-2 text-base': size === 'lg',
-          'rounded-lg': size === 'lg' && !isPill,
-          'rounded-full': isPill,
-          'px-8': isPill && size === 'lg',
-          'w-full': full,
-        },
-        className,
-      )}
-    >
-      {children}
-    </div>
+  const contentClassName = cn(
+    'whitespace-nowrap rounded px-3 py-1 font-body text-xs font-semibold tracking-normal',
+    'bg-gray-100 group-hover:bg-gray-200/75 dark:bg-zinc-800 dark:group-hover:bg-zinc-900',
+    'transition duration-200 ease-in-out',
+    {
+      'bg-primary group-hover:bg-primary-darken group-active:bg-primary-darken dark:bg-primary dark:group-hover:bg-primary-darken dark:group-active:bg-primary-darken':
+        isPrimary,
+      'bg-success group-hover:bg-success-darken group-active:bg-success-darken dark:bg-success dark:group-hover:bg-success-darken dark:group-active:bg-success-darken':
+        isSuccess,
+      'bg-info group-hover:bg-info group-active:bg-info dark:bg-info dark:group-hover:bg-info dark:group-active:bg-info':
+        isInfo,
+      'bg-gray-50 group-hover:bg-gray-100 group-active:bg-gray-100 dark:bg-zinc-800 dark:group-hover:bg-zinc-900 dark:group-active:bg-zinc-900':
+        isMuted,
+      'bg-danger group-hover:bg-danger-darken group-active:bg-danger-darken dark:bg-danger dark:group-hover:bg-danger-darken dark:group-active:bg-danger-darken':
+        isDanger,
+      'border border-gray-100 bg-white dark:bg-zinc-900 dark:border-zinc-800 group-hover:bg-gray-50 dark:group-hover:bg-zinc-800 group-active:bg-gray-50 dark:group-active:bg-zinc-800 dark:group-hover:border-zinc-800':
+        isSecondary,
+      'bg-primary/50 dark:bg-primary/45': disabled && variant === 'primary',
+      'bg-success/50 dark:bg-success/45': disabled && variant === 'success',
+      'bg-info/50 dark:bg-info/45': disabled && variant === 'info',
+      'bg-danger/50 dark:bg-danger/45': disabled && variant === 'danger',
+      'dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-900 dark:group-active:bg-zinc-900':
+        disabled && !isColoredVariant,
+      'group-active:scale-95': !disabled,
+      'px-1.5 py-px text-2xs': size === 'sm',
+      'px-4 py-2 text-base': size === 'lg',
+      'rounded-lg': size === 'lg' && !isPill,
+      'rounded-full': isPill,
+      'px-8': isPill && size === 'lg',
+      'w-full': full,
+    },
+    className,
   )
 
-  const content = !isLoading ? (
-    <ContentWrapper>{children}</ContentWrapper>
-  ) : (
-    <ContentWrapper>
-      <AnimatedEllipsis
-        className={cn({
-          'h-2 w-1': size === 'sm',
-          'h-2 w-1.5': size === 'md',
-          'h-3 w-2': size === 'lg',
-        })}
-      />
-    </ContentWrapper>
+  const content = (
+    <div className={contentClassName}>
+      {!isLoading ? (
+        children
+      ) : (
+        <AnimatedEllipsis
+          className={cn({
+            'h-2 w-1': size === 'sm',
+            'h-2 w-1.5': size === 'md',
+            'h-3 w-2': size === 'lg',
+          })}
+        />
+      )}
+    </div>
   )
 
   if (asLink) {
