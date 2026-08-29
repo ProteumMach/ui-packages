@@ -23,7 +23,7 @@ class SurfaceFacts:
             fillet_radius (float): The blend radius, signed by which way the surface turns: positive rolling over
                 an edge, negative running into a corner, zero for no blend at all.
             max_stepdown (float): The deepest cut taken in one pass down the surface, mm.
-            surface_finish_cusp_height (float): How much scallop the finishing pass may leave between neighbouring passes,
+            surface_finish_cusp_height (float): How much scallop the finishing pass may leave between neighboring passes,
                 mm.
             is_u_shaped_fillet (bool): Whether the fillet has a U-shaped cross section.
             has_sharp_corner (bool): Whether the surface includes a sharp corner a tool must respect.

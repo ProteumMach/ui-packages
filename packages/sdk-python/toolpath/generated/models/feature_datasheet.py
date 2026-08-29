@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from ..models.hole_facts import HoleFacts
     from ..models.pocket_facts import PocketFacts
     from ..models.profile_facts import ProfileFacts
+    from ..models.reach_curve import ReachCurve
     from ..models.surface_facts import SurfaceFacts
     from ..models.tolerance_band import ToleranceBand
     from ..models.tslot_facts import TslotFacts
@@ -39,6 +40,24 @@ class FeatureDatasheet:
             extended_z_min (float): The z range extended by adjacent geometry the tool passes over reaching the
                 feature.
             extended_z_max (float): Highest z the tool passes over while reaching the feature, in mm.
+            reach_curve (ReachCurve): How deep a tool must reach, by how far outboard of the cut the material stands:
+                material
+                within `horizontalOffset[i]` of the feature rises to `verticalOffset[i]` above it, so
+                anything on the tool standing that far past its own cutting edge must clear that much.
+                Both arrays are the same length, ascending, non-negative, in mm; the curve is a
+                non-decreasing step function, and offsets beyond its last knot clamp to it.
+
+                Offsets are measured from the feature, never from the tool's axis: offset zero is the
+                wall of the cut, so material at offset `d` meets the tool at radius `d` plus the cutting
+                radius. Each reading is the worst case over the feature's whole surface — the tallest
+                material within that distance of any point of it, measured above that point.
+
+                ![A tool cutting a pocket whose wall stands at the cut, with a boss further out: the
+                horizontal offsets run outward from the feature's edge, the vertical offsets up from
+                its floor](./media/reach-curve.svg)
+
+                The tool checks sweep a tool's shank and holder over this curve; it is here so a
+                caller can draw it, or sweep an envelope of its own.
             radial_stock_to_leave (float): Material intentionally left radially for a later operation, in mm.
             axial_stock_to_leave (float): Material intentionally left along the tool axis for a later operation, in mm.
             tolerance_band (ToleranceBand): How far a machined surface may deviate from the model, in three escalating bands
@@ -56,6 +75,7 @@ class FeatureDatasheet:
     z_max: float
     extended_z_min: float
     extended_z_max: float
+    reach_curve: ReachCurve
     radial_stock_to_leave: float
     axial_stock_to_leave: float
     tolerance_band: ToleranceBand
@@ -96,6 +116,8 @@ class FeatureDatasheet:
         extended_z_min = self.extended_z_min
 
         extended_z_max = self.extended_z_max
+
+        reach_curve = self.reach_curve.to_dict()
 
         radial_stock_to_leave = self.radial_stock_to_leave
 
@@ -142,6 +164,7 @@ class FeatureDatasheet:
                 "zMax": z_max,
                 "extendedZMin": extended_z_min,
                 "extendedZMax": extended_z_max,
+                "reachCurve": reach_curve,
                 "radialStockToLeave": radial_stock_to_leave,
                 "axialStockToLeave": axial_stock_to_leave,
                 "toleranceBand": tolerance_band,
@@ -164,6 +187,7 @@ class FeatureDatasheet:
         from ..models.hole_facts import HoleFacts
         from ..models.pocket_facts import PocketFacts
         from ..models.profile_facts import ProfileFacts
+        from ..models.reach_curve import ReachCurve
         from ..models.surface_facts import SurfaceFacts
         from ..models.tolerance_band import ToleranceBand
         from ..models.tslot_facts import TslotFacts
@@ -179,6 +203,8 @@ class FeatureDatasheet:
         extended_z_min = d.pop("extendedZMin")
 
         extended_z_max = d.pop("extendedZMax")
+
+        reach_curve = ReachCurve.from_dict(d.pop("reachCurve"))
 
         radial_stock_to_leave = d.pop("radialStockToLeave")
 
@@ -294,6 +320,7 @@ class FeatureDatasheet:
             z_max=z_max,
             extended_z_min=extended_z_min,
             extended_z_max=extended_z_max,
+            reach_curve=reach_curve,
             radial_stock_to_leave=radial_stock_to_leave,
             axial_stock_to_leave=axial_stock_to_leave,
             tolerance_band=tolerance_band,

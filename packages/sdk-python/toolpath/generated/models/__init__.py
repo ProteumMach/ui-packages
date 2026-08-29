@@ -36,6 +36,7 @@ from .part_response_units import PartResponseUnits
 from .pocket_facts import PocketFacts
 from .problem_details import ProblemDetails
 from .profile_facts import ProfileFacts
+from .reach_curve import ReachCurve
 from .region import Region
 from .report_units import ReportUnits
 from .report_units_angle import ReportUnitsAngle
@@ -95,6 +96,7 @@ __all__ = (
     "PocketFacts",
     "ProblemDetails",
     "ProfileFacts",
+    "ReachCurve",
     "Region",
     "ReportUnits",
     "ReportUnitsAngle",
