@@ -10,7 +10,8 @@ import { useTapGuard } from './tap.js'
 import { createPart } from './render/part.js'
 import { regionAdjacency } from './render/adjacency.js'
 import { type PartPick, buildPick, viewDirection } from './render/picking.js'
-import { useViewerControls } from './viewer.js'
+import { trackDoubleTaps } from './render/tap.js'
+import { useRetarget, useViewerControls } from './viewer.js'
 import {
   type SectionOptions,
   type SectionState,
@@ -236,8 +237,15 @@ export const PartMesh = ({
   }, [layerKey, repaint])
 
   const isTap = useTapGuard()
+  const retarget = useRetarget()
+  // One tracker for the life of the mesh: pairing is a property of the pointer,
+  // not of any render.
+  const doubles = useMemo(() => trackDoubleTaps(), [])
 
-  const pickFor = (event: ThreeEvent<PointerEvent | MouseEvent>): PartPick | null => {
+  const pickFor = (
+    event: ThreeEvent<PointerEvent | MouseEvent>,
+    doubled = false,
+  ): PartPick | null => {
     const triangleIndex = event.faceIndex
     if (triangleIndex == null) return null
     const region = model.regionIndex.regionForTriangle(triangleIndex)
@@ -256,6 +264,7 @@ export const PartMesh = ({
       point: [event.point.x, event.point.y, event.point.z],
       normal: [normal.x, normal.y, normal.z],
       activeDirection,
+      doubled,
       viewDirection: viewDirection(camera, target),
       modifiers: {
         alt: source.altKey,
@@ -297,14 +306,74 @@ export const PartMesh = ({
       <primitive
         object={part.object}
         onPointerMove={(event: ThreeEvent<PointerEvent>) => emitHover(pickFor(event))}
-        onPointerOut={() => emitHover(null)}
+        onPointerOut={() => {
+          emitHover(null)
+          /*
+           * The pointer leaving the part breaks the double-click pair.
+           *
+           * Time and distance cannot tell "clicked this face twice" from
+           * "clicked it, pressed something in a panel, clicked it again" — the
+           * second is three gestures and lands well inside the window, and it
+           * is an ordinary way to work: read a face, act on it, read it again.
+           * Without this that second click was swallowed and the view re-aimed
+           * instead, which is the wrong answer twice over.
+           */
+          doubles.reset()
+        }}
         onClick={(event: ThreeEvent<MouseEvent>) => {
-          // The end of an orbit is not a request to select whatever it ended
-          // over — and it usually ends over the part, since that is what was
-          // being orbited.
-          if (!isTap(event.nativeEvent)) return
+          /*
+           * The end of an orbit is not a request to select whatever it ended
+           * over — and it usually ends over the part, since that is what was
+           * being orbited.
+           *
+           * It breaks the double-click pair as well as being swallowed. The
+           * `onPointerOut` reset cannot cover this: an orbit over a part that
+           * fills the viewport never leaves the mesh, so a click, an orbit
+           * released over the part, and a third click inside
+           * the double-tap window of the *first* one paired those two and
+           * re-aimed the view — with a whole drag in between.
+           */
+          if (!isTap(event.nativeEvent)) {
+            doubles.reset()
+            return
+          }
 
-          const pick = pickFor(event)
+          /*
+           * A double click re-aims the orbit at what was clicked — and the
+           * click is still a click.
+           *
+           * Withholding the second pick was tried and is wrong. It stops a
+           * double click walking a face's readings, which is worth something,
+           * but it also silently takes the gesture away from an app that had
+           * given it a meaning: an editor where clicking a face puts it in and
+           * clicking it again takes it out is an ordinary thing to build, and
+           * this is not the layer that can tell the two apart. `doubled` on the
+           * pick reports the fact and leaves the decision where the knowledge
+           * is — the same bargain `modifiers` makes.
+           *
+           * Paired by hand rather than read off `dblclick`, which fires for the
+           * primary button only after both clicks and would arrive too late to
+           * mark the second one. `event.point` is this raycast's own hit, so
+           * the pivot lands exactly where the pick did.
+           */
+          const doubled = doubles.isDouble(event.nativeEvent)
+
+          /*
+           * The pick is built **before** the re-target, and the order is load
+           * bearing.
+           *
+           * `retarget` calls `setLookAt`, which writes the controls' *end*
+           * target — and `readTarget` reads that same end value back. Re-aiming
+           * first therefore handed the pick a target that was already the point
+           * just clicked, so its view direction came out as
+           * `camera.position - hitPoint` rather than `camera.position -
+           * orbitTarget`. On a face near the edge of a framed part that is
+           * degrees away from the direction the eye is actually looking along,
+           * and the ranking it feeds can name a different owner than a single
+           * click on the very same face.
+           */
+          const pick = pickFor(event, doubled)
+          if (doubled && retarget) retarget(event.point)
           if (pick) onPick?.(pick)
         }}
         /*

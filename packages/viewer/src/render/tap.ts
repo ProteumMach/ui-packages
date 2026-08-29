@@ -71,6 +71,15 @@ export interface DoubleTapPoint extends TapPoint {
 export interface DoubleTapTracker {
   /** Whether this press completes a double tap begun by the last one. */
   isDouble(event: DoubleTapPoint): boolean
+  /**
+   * Forgets the press being waited on, so the next one starts a fresh pair.
+   *
+   * For the caller that knows the gesture was interrupted by something this
+   * has no way to see — the pointer leaving the thing being clicked, most of
+   * all. Two presses either side of a trip to a panel are two clicks that
+   * happen to be quick, however close together the clock puts them.
+   */
+  reset(): void
 }
 
 /**
@@ -87,6 +96,12 @@ export interface DoubleTapTracker {
  *
  * A completed double clears the state rather than leaving it, so three presses
  * are one double and one single rather than two overlapping doubles.
+ *
+ * Time and position are all this can judge on, which is not enough on its own:
+ * clicking a face, pressing something in a panel and clicking the same face
+ * again is three gestures the clock cannot tell from two, and it is quick
+ * enough to land inside the window. {@link DoubleTapTracker.reset} is how the
+ * caller says the pair was broken by something it could see and this could not.
  */
 export function trackDoubleTaps(
   within: number = DOUBLE_TAP_MS,
@@ -101,6 +116,9 @@ export function trackDoubleTaps(
 
       last = paired ? null : event
       return paired
+    },
+    reset: () => {
+      last = null
     },
   }
 }
