@@ -50,11 +50,15 @@ export {
   CAD_CAMERA_UP,
   DEFAULT_FIT_MARGIN,
   EXCLUDE_FROM_FRAME,
+  MAX_FRAME_RATIO,
+  MIN_FRAME_RATIO,
   PERSPECTIVE_FOV,
+  adaptedUp,
   applyProjection,
   aspectRatio,
   boundsFromBox,
   cadViewDirections,
+  cameraLimits,
   contentBounds,
   currentViewDirection,
   defaultBounds,
@@ -62,9 +66,10 @@ export {
   orthographicHalfHeight,
   perspectiveFitDistance,
   startPosition,
+  targetBoundary,
 } from './render/camera.js'
 export { ExtendedCameraControls } from './render/controls.js'
-export { useViewerControls, Viewer } from './viewer.js'
+export { useRetarget, useViewerControls, Viewer } from './viewer.js'
 export { PartReportFormatError, UnsupportedKernelVersionError } from './model/errors.js'
 export { buildRegionIndex } from './model/region-index.js'
 export {
@@ -102,6 +107,19 @@ export {
   applyHighlightLayers,
 } from './render/paint.js'
 export { NO_MODIFIERS, buildPick, focusForPick, viewDirection } from './render/picking.js'
+export { retargetPose } from './render/retarget.js'
+export type { RetargetPose } from './render/retarget.js'
+export {
+  ORBIT_TARGET_COLOR,
+  ORBIT_TARGET_FADE_MS,
+  ORBIT_TARGET_FLASH_MS,
+  ORBIT_TARGET_PIXELS,
+  ORBIT_TARGET_RING_COLOR,
+  ORBIT_TARGET_RING_OPACITY,
+  ORBIT_TARGET_RING_PIXELS,
+  ORBIT_TARGET_RING_WIDTH,
+  orbitTargetOpacity,
+} from './render/target.js'
 export type { BuildPickInput, PartPick, PickModifiers } from './render/picking.js'
 export type { ViewerControls, ViewerHandle, ViewerView } from './types.js'
 export type {
@@ -132,6 +150,12 @@ export type { SectionAnchor, SectionBounds, SectionPlacement } from './render/se
 export type { GridSpec } from './render/grid.js'
 export type { DoubleTapPoint, DoubleTapTracker, TapPoint, TapTracker } from './render/tap.js'
 export type { CadCameraControlsProps } from './camera.js'
-export type { Projection, SceneBounds, ViewerCamera, ViewportSize } from './render/camera.js'
+export type {
+  CameraLimits,
+  Projection,
+  SceneBounds,
+  ViewerCamera,
+  ViewportSize,
+} from './render/camera.js'
 export type { ControlScheme, ExtendedCameraControlsOptions } from './render/controls.js'
-export type { ViewerProps } from './viewer.js'
+export type { Retarget, ViewerProps } from './viewer.js'

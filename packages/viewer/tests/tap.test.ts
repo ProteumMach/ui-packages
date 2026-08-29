@@ -47,6 +47,29 @@ describe('pairing presses into a double tap by hand', () => {
     expect(doubles.isDouble(at(10, 10, 600))).toBe(false)
   })
 
+  it('forgets the waiting press when the caller says the pair was broken', () => {
+    /*
+     * Clicking a face, pressing something in a panel and clicking the same face
+     * again is three gestures, and the clock cannot tell it from two: it lands
+     * well inside the window and at the same place. The caller can see the
+     * pointer leave, so it is the caller that says so.
+     */
+    const doubles = trackDoubleTaps()
+
+    doubles.isDouble(at(10, 10, 0))
+    doubles.reset()
+
+    expect(doubles.isDouble(at(10, 10, 100))).toBe(false)
+  })
+
+  it('still pairs the presses that follow a reset', () => {
+    const doubles = trackDoubleTaps()
+
+    doubles.reset()
+    expect(doubles.isDouble(at(10, 10, 0))).toBe(false)
+    expect(doubles.isDouble(at(10, 10, 100))).toBe(true)
+  })
+
   it('does not pair two presses too far apart on screen', () => {
     // Two quick clicks at opposite corners are two clicks that happened to be
     // quick, not one gesture — re-framing there is somebody else's view lost.
