@@ -14,8 +14,9 @@ import {
   discoverProducts,
   parseCategoryPage,
 } from '../src/vendors/harvey/catalog.js'
+import { REQUEST_DELAY_MS } from '../src/scrape.js'
 import { BASE } from '../src/vendors/harvey/scrape.js'
-import { asFetcher } from './stubs.js'
+import { asFetcher, recordPauses } from './stubs.js'
 
 const CATEGORY = `<html><body>
   <nav><a href="/products/all-products">All products</a></nav>
@@ -112,5 +113,31 @@ describe('walking the tree', () => {
       '/products/miniature-end-mills/square',
       '/products/specialty-profiles/keyseat-cutters',
     ])
+  })
+})
+
+describe('the politeness delay', () => {
+  it('waits after every page the walk reads', async () => {
+    // The one test here that leaves `delayMs` at its default. The walk is about
+    // 33 requests and Cloudflare fronts this site, so raising request volume is
+    // the risk the pacing exists against — and `delayMs: 0` skips the timer
+    // entirely, which is why no other test in this file can see it.
+    const pages: Record<string, string> = {
+      [`${BASE}/root`]: CATEGORY,
+      [`${BASE}/products/miniature-end-mills/ball/stub`]: PRODUCTS,
+      [`${BASE}/products/miniature-end-mills/ball/long`]: PRODUCTS,
+    }
+    const fetcher = asFetcher({
+      text: (url: string) => Promise.resolve(pages[url] ?? '<html></html>'),
+    })
+    const { waits, restore } = recordPauses()
+
+    try {
+      await discoverProducts(fetcher, ['/root'], { warn: () => {} })
+    } finally {
+      restore()
+    }
+
+    expect(waits).toEqual([REQUEST_DELAY_MS, REQUEST_DELAY_MS, REQUEST_DELAY_MS])
   })
 })

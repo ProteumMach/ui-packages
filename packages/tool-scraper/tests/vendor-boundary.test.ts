@@ -1,12 +1,12 @@
 /**
  * The layout, asserted from the package tree rather than from a list.
  *
- * The claim this package rests on is that its three adapters share the core
- * and never each other — so a REGO-FIX change cannot break a Kennametal
- * scrape, and a constant two vendors both need has one home. A rostered test
- * would go stale the first time somebody added a file; these derive their
- * module lists by walking `src/`, so a new adapter is covered the moment it
- * lands.
+ * The claim this package rests on is that its adapters share the core and
+ * never each other — so a REGO-FIX change cannot break a Kennametal scrape,
+ * and a constant two vendors both need has one home. A rostered test would go
+ * stale the first time somebody added a file; these derive their module lists
+ * by walking `src/`, so a new adapter is covered the moment it lands. The
+ * count is deliberately not written down here for the same reason.
  *
  * ## How imports are read
  *
@@ -18,7 +18,7 @@
  * is a guard somebody switches off.
  */
 
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -123,6 +123,33 @@ describe('the tree is the shape these rules assume', () => {
     for (const brand of BRANDS) {
       const files = readdirSync(join(VENDORS, brand))
       expect(files, brand).toContain('scrape.ts')
+    }
+  })
+
+  it('gives every manufacturer a subpath a consumer can import', () => {
+    // The direction `tests/packaging.test.ts` cannot check. That one walks
+    // `exports` and proves each entry has a module behind it, which catches a
+    // subpath added for a file that is not there. The failure this catches is
+    // the other one: an adapter that builds into `dist`, ships in the tarball,
+    // and cannot be reached — `import '@toolpath/tool-scraper/vendors/maritool'`
+    // throws ERR_PACKAGE_PATH_NOT_EXPORTED at a consumer, and nothing before
+    // that says so. Derived from the tree rather than rostered, so the sixth
+    // vendor is covered without anybody remembering this test exists.
+    const manifest = JSON.parse(readFileSync(join(SRC, '../package.json'), 'utf8')) as {
+      exports: Record<string, { types: string; import: string }>
+    }
+
+    for (const brand of BRANDS) {
+      expect(existsSync(join(VENDORS, brand, 'index.ts')), `${brand} has no index.ts`).toBe(true)
+      expect(
+        Object.keys(manifest.exports),
+        `src/vendors/${brand} builds and ships, but no ./vendors/${brand} subpath ` +
+          `exports it — a consumer cannot import it`,
+      ).toContain(`./vendors/${brand}`)
+      expect(manifest.exports[`./vendors/${brand}`]).toEqual({
+        types: `./dist/vendors/${brand}/index.d.ts`,
+        import: `./dist/vendors/${brand}/index.js`,
+      })
     }
   })
 

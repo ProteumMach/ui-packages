@@ -21,7 +21,8 @@ import { describe, expect, it } from 'vitest'
 import { CAD_COLUMN, CAD_DXF_COLUMN, checkIdentityColumns } from '../src/conventions.js'
 import { VendorResponseError } from '../src/errors.js'
 import { HOLDER_FAMILIES, LEAVES, type Leaf } from '../src/families/maritool.js'
-import { parseCategory } from '../src/vendors/maritool/catalog.js'
+import { REQUEST_DELAY_MS } from '../src/scrape.js'
+import { discoverCategories, leavesOf, parseCategory } from '../src/vendors/maritool/catalog.js'
 import {
   categoryUrl,
   colletSeries,
@@ -34,7 +35,7 @@ import {
   unionHeader,
   type ListingRow,
 } from '../src/vendors/maritool/scrape.js'
-import { asFetcher } from './stubs.js'
+import { asFetcher, recordPauses } from './stubs.js'
 
 const CAT40_ER: Leaf = { cPath: '23_25_42', clamping: 'collet', style: 'er-collet-chuck' }
 const CAT40_SHRINK: Leaf = { cPath: '23_25_503', clamping: 'shrink', style: 'shrink-fit' }
@@ -789,5 +790,173 @@ describe('the family table', () => {
       expect(cfg.brand, name).toBe('maritool')
       expect(cfg.rows, name).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('the politeness delay', () => {
+  // These are the only tests in this file that leave `delayMs` at its default.
+  // Every other one passes `delayMs: 0`, which is right when the subject is the
+  // parsing and is also why none of them can see this: `pause` returns without
+  // touching a timer at zero, so a dropped `await pause()` fails nothing.
+  //
+  // MariTool is the vendor with the most to answer for here — a full run is one
+  // request per listing page and then one per part, 529 of them — and the
+  // package's rule is that a scrape does not raise request volume. The delay is
+  // the whole of what enforces it.
+
+  /** The leaf's listing and a page for each part, keyed the way the store serves them. */
+  function pages(parts: string[]): Record<string, string> {
+    const rows = parts.map((part, index) => listingRow(String(index + 1), part, part))
+    const served: Record<string, string> = {
+      [categoryUrl('23_25_42')]: listingPage(parts.length, rows),
+    }
+    parts.forEach((part, index) => {
+      served[
+        `https://www.maritool.com/Mill-Tool-Holders/c23_25_42/p${index + 1}/` +
+          `${part.replaceAll('.', '-')}/product_info.html`
+      ] = productPage(ER16_SPECS, part)
+    })
+    return served
+  }
+
+  it('waits before every product page, and once at the end of a leaf', async () => {
+    const { fetcher } = vendor(pages(['CAT40-ER16-3.0', 'CAT40-ER11-2.5']))
+    const { waits, restore } = recordPauses()
+
+    try {
+      await scrapeHolders(fetcher, [CAT40_ER])
+    } finally {
+      restore()
+    }
+
+    // One per part plus one closing the leaf. The listing page itself is the
+    // first request of the run and has nothing to wait behind.
+    expect(waits).toEqual([REQUEST_DELAY_MS, REQUEST_DELAY_MS, REQUEST_DELAY_MS])
+  })
+
+  it('waits once per leaf beyond the first, not once per family', async () => {
+    // Two leaves of one part each: two product pages, two leaf closings.
+    const served = pages(['CAT40-ER16-3.0'])
+    served[categoryUrl('23_25_503')] = listingPage(1, [listingRow('9', 'CAT40-SF-500-3', 'S')])
+    served[
+      'https://www.maritool.com/Mill-Tool-Holders/c23_25_42/p9/CAT40-SF-500-3/product_info.html'
+    ] = productPage(ER16_SPECS, 'CAT40-SF-500-3')
+    const { fetcher } = vendor(served)
+    const { waits, restore } = recordPauses()
+
+    try {
+      await scrapeHolders(fetcher, [CAT40_ER, CAT40_SHRINK])
+    } finally {
+      restore()
+    }
+
+    expect(waits).toHaveLength(4)
+    expect(new Set(waits)).toEqual(new Set([REQUEST_DELAY_MS]))
+  })
+
+  it('waits between listing pages, and not before the first', async () => {
+    const { fetcher } = vendor({
+      [categoryUrl('23_25_42')]: listingPage(2, [listingRow('1', 'A', 'A')]),
+      [categoryUrl('23_25_42', 2)]: listingPage(2, [listingRow('2', 'B', 'B')], 2),
+    })
+    const { waits, restore } = recordPauses()
+
+    try {
+      await roster(fetcher, '23_25_42')
+    } finally {
+      restore()
+    }
+
+    expect(waits).toEqual([REQUEST_DELAY_MS])
+  })
+
+  it('waits after every category the walk reads', async () => {
+    const { fetcher } = vendor({
+      [categoryUrl('23_25')]:
+        '<html><head><title>CAT40 - MariTool</title></head><body>' +
+        '<a href="https://www.maritool.com/s/c23_25_42/index.html">ER</a></body></html>',
+      [categoryUrl('23_25_42')]:
+        '<html><head><title>ER Collet Chucks - MariTool</title></head>' +
+        '<body>Displaying <b>1</b> to <b>1</b> (of <b>7</b> products)</body></html>',
+    })
+    const { waits, restore } = recordPauses()
+
+    try {
+      await discoverCategories(fetcher, ['23_25'], { warn: () => {} })
+    } finally {
+      restore()
+    }
+
+    // A 199-page walk paced by nothing is the one request-volume risk this
+    // adapter carries that a scrape does not, because a scrape reads 41 leaves
+    // and the walk reads every node above them.
+    expect(waits).toEqual([REQUEST_DELAY_MS, REQUEST_DELAY_MS])
+  })
+})
+
+describe('walking the category tree', () => {
+  /** A category page: its own title, and a link per child cPath. */
+  const page = (name: string, children: string[], products = 0) =>
+    `<html><head><title>Tool Holders, Collets and Machine Accessories ${name} - MariTool</title></head>
+     <body>${products > 0 ? `Displaying <b>1</b> to <b>1</b> (of <b>${products}</b> products)` : ''}
+     ${children.map((c) => `<a href="https://www.maritool.com/s/c${c}/index.html">x</a>`).join('')}
+     </body></html>`
+
+  it('reads a category once, however many parents link to it', async () => {
+    // The sidebar renders the whole open branch, so a node is linked from more
+    // than one page it is a child of. Without the visited set the walk re-reads
+    // it — and a tree whose pages link back up would not terminate at all.
+    const { fetcher, asked } = vendor({
+      [categoryUrl('23_25')]: page('CAT40', ['23_25_42', '23_25_43']),
+      [categoryUrl('23_25_42')]: page('ER Collet Chucks', ['23_25_42_9'], 7),
+      [categoryUrl('23_25_43')]: page('Shrink Fit', ['23_25_42_9'], 3),
+      [categoryUrl('23_25_42_9')]: page('Metric', [], 4),
+    })
+
+    const found = await discoverCategories(fetcher, ['23_25', '23_25'], {
+      warn: () => {},
+      delayMs: 0,
+    })
+
+    expect(asked).toHaveLength(4)
+    expect(found.map((c) => c.cPath)).toEqual(['23_25', '23_25_42', '23_25_42_9', '23_25_43'])
+  })
+
+  it('warns about a category holding neither a child nor a product', async () => {
+    // The symptom of a branch the store has emptied, and of a page whose shape
+    // changed enough that neither the child links nor the count parsed. Both
+    // are worth a line; neither is worth stopping a walk that is run by hand.
+    const warnings: string[] = []
+    const { fetcher } = vendor({
+      [categoryUrl('23_25')]: page('CAT40', ['23_25_42']),
+      [categoryUrl('23_25_42')]: page('ER Collet Chucks', []),
+    })
+
+    const found = await discoverCategories(fetcher, ['23_25'], {
+      warn: (m) => warnings.push(m),
+      delayMs: 0,
+    })
+
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain('c23_25_42')
+    expect(warnings[0]).toContain('ER Collet Chucks')
+    // Warned about, and still reported: the walk's output is what a person
+    // reads to decide, and a category dropped from it reads as one that is gone.
+    expect(found).toHaveLength(2)
+  })
+
+  it('calls a category with no children a leaf, whatever its depth', async () => {
+    const { fetcher } = vendor({
+      [categoryUrl('23_46')]: page('HSK', ['23_46_63']),
+      [categoryUrl('23_46_63')]: page('HSK63A', ['23_46_63_1']),
+      [categoryUrl('23_46_63_1')]: page('ER Collet Chucks', [], 12),
+    })
+
+    const found = await discoverCategories(fetcher, ['23_46'], { warn: () => {}, delayMs: 0 })
+
+    // Three levels, and only the deepest carries parts. A walk that stopped at
+    // depth 2 would report the nine HSK sizes as empty.
+    expect(leavesOf(found).map((c) => c.cPath)).toEqual(['23_46_63_1'])
+    expect(leavesOf(found)[0]!.products).toBe(12)
   })
 })

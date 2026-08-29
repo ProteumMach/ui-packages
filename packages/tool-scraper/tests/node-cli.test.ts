@@ -16,6 +16,10 @@ import { dirname, join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { REQUEST_DELAY_MS } from '../src/scrape.js'
+import { CATEGORY_ROOTS as HARVEY_ROOTS } from '../src/vendors/harvey/catalog.js'
+import { checkIdentityColumns } from '../src/conventions.js'
+import { parseCsv } from '../src/node/csv.js'
 import { HOLDER_FAMILIES } from '../src/families/index.js'
 import { LEAVES as MARITOOL_LEAVES } from '../src/families/maritool.js'
 import { categoryUrl } from '../src/vendors/maritool/scrape.js'
@@ -23,7 +27,7 @@ import { toCsv } from '../src/node/csv.js'
 import { SCRAPE_ROOT_ENV, describeRoot, familyCsv } from '../src/node/paths.js'
 import * as receipts from '../src/node/receipts.js'
 import { run } from '../src/node/cli.js'
-import { asFetcher, recorder, stub } from './stubs.js'
+import { asFetcher, recordPauses, recorder, stub } from './stubs.js'
 
 /** A family whose CSV the in-place commands can be pointed at. */
 const TAPS = 'khsst_spiral_point_plug_inch.csv'
@@ -334,7 +338,40 @@ ${numbers.map((n) => `{variantName:"${n}",variantDxfFileLink:"https://cdn.exampl
     )
   })
 
-  it('prints the product pages the category walk finds', async () => {
+  it('waits between families, and not before the first', async () => {
+    // The per-page scrape is one request and does not pace itself, so this loop
+    // is the only thing between a caller naming eight families and eight
+    // requests going out back to back. Nowhere else exercises it: every other
+    // test here names one family, and the pause is guarded on the index.
+    const { io } = recorder()
+    const counts: Record<string, number> = {
+      '/products/miniature-end-mills---ball---extra-long-length': 10,
+      '/products/miniature-end-mills---corner-radius---extra-long-length': 12,
+    }
+    const fetcher = asFetcher({
+      text: (url: string) => {
+        const path = Object.keys(counts).find((p) => url.endsWith(p))
+        return Promise.resolve(page(counts[path!]!))
+      },
+    })
+    const { waits, restore } = recordPauses()
+
+    try {
+      expect(
+        await run(['harvey', 'harvey_endmill_025.csv', 'harvey_endmill_026.csv'], io, fetcher),
+      ).toBe(0)
+    } finally {
+      restore()
+    }
+
+    expect(waits).toEqual([REQUEST_DELAY_MS])
+  })
+
+  it('prints the product pages the category walk finds, paced', async () => {
+    // The command passes the walk no delay, so this runs the vendor-facing
+    // default. Recording the waits rather than sleeping them is what keeps four
+    // roots from costing the suite 1.6 seconds, and it asserts the pacing at
+    // the same time.
     const { io, out } = recorder()
     const fetcher = asFetcher({
       text: () =>
@@ -344,29 +381,33 @@ ${numbers.map((n) => `{variantName:"${n}",variantDxfFileLink:"https://cdn.exampl
             '</div>',
         ),
     })
+    const { waits, restore } = recordPauses()
 
-    expect(await run(['harvey', '--catalog'], io, fetcher)).toBe(0)
+    try {
+      expect(await run(['harvey', '--catalog'], io, fetcher)).toBe(0)
+    } finally {
+      restore()
+    }
 
     expect(out).toContain('/products/thing')
+    expect(waits).toEqual(HARVEY_ROOTS.map(() => REQUEST_DELAY_MS))
   })
 })
 
 describe('the maritool command', () => {
   // A MariTool family is 6 listing pages and 11 product pages, and the command
   // paces itself between every one of them — 17 real waits, which is seven
-  // seconds of a suite that otherwise runs in two. The delay is politeness
-  // towards a vendor, and there is no vendor here: `scrape.pause` resolves on
-  // a `setTimeout`, so a timer that fires at once takes the wait out without
-  // taking the code path out. `scrapeHolders` still awaits every pause it
-  // would make, in the same order.
+  // seconds of a suite that otherwise runs in two. `recordPauses` is what takes
+  // the wait out without taking the code path out, and it keeps what was asked
+  // for: `waits` below is the same record `tests/maritool.test.ts` asserts the
+  // pacing against, so this block is not the one place the delay disappears.
+  let paused: ReturnType<typeof recordPauses>
+
   beforeEach(() => {
-    vi.stubGlobal('setTimeout', (fn: () => void) => {
-      fn()
-      return 0
-    })
+    paused = recordPauses()
   })
   afterEach(() => {
-    vi.unstubAllGlobals()
+    paused.restore()
   })
 
   /** One listing row, in MariTool's own markup. */
@@ -439,6 +480,31 @@ describe('the maritool command', () => {
     expect(written).toContain('L1_in')
     expect(all()).toContain('wrote 9 rows')
     expect(all()).toContain('SKIPPED CAT50-PART-01')
+
+    // The identity check against the header the command really wrote, rather
+    // than against one a mapper built in memory. Nothing in the write path runs
+    // it: `checkIdentityColumns` has one production caller, `registry.toRecords`,
+    // and only cutting-tool families reach it — MariTool and REGO-FIX ship
+    // toolholding and no column map, so for them this assertion is the whole
+    // sensor. A re-scrape whose `Part#` line moved would still parse, still
+    // have the right row count, and mint every guid off an empty string.
+    expect(() => checkIdentityColumns('maritool', parseCsv(written).header)).not.toThrow()
+    // And it fails where the column is gone, so the line above is not passing
+    // on a header it never looked at.
+    expect(() => checkIdentityColumns('maritool', ['L1_in', 'taper'])).toThrow(/Material Number/)
+  })
+
+  it('paces itself between every request the family takes', async () => {
+    // 6 listing pages and 11 product pages: a pause before each product page,
+    // one closing each leaf, and none before the first request of a leaf whose
+    // roster is a single page. The vendor is a small shop and the rule is that
+    // a scrape does not raise request volume.
+    const { io } = recorder()
+
+    await run(['maritool', 'maritool_cat50_holders.csv'], io, serving(catalog()))
+
+    expect(paused.waits).toHaveLength(17)
+    expect(new Set(paused.waits)).toEqual(new Set([REQUEST_DELAY_MS]))
   })
 
   it('records a receipt naming every leaf it paged', async () => {
