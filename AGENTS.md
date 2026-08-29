@@ -1,7 +1,7 @@
 # Toolpath UI Packages Agent Guide
 
 This repository publishes libraries. It is not an application: nothing here is deployed, and
-every meaningful change lands in somebody else's `node_modules`. Four npm packages and one
+every meaningful change lands in somebody else's `node_modules`. Three npm packages and one
 PyPI package ship from this tree, alongside the examples that prove they work and the
 generation pipeline that keeps two of them honest against the API.
 
@@ -16,7 +16,7 @@ cost for everyone downstream. Those are the risks worth spending review attentio
 | `@toolpath/ui`           | `packages/ui/`             | npm — React component kit + theme  |
 | `@toolpath/viewer`       | `packages/viewer/`         | npm — three.js/R3F part viewer     |
 | `@toolpath/api`          | `packages/sdk-typescript/` | npm — generated TypeScript SDK     |
-| `@toolpath/tool-scraper` | `packages/tool-scraper/`   | npm — vendor tool-catalog scraping |
+| `@toolpath/tool-scraper` | `packages/tool-scraper/`   | nothing yet — `private`, see below |
 | `toolpath`               | `packages/sdk-python/`     | PyPI — generated Python SDK        |
 
 `examples/typescript`, `examples/python`, and `examples/react-viewer` are workspace members but
@@ -125,8 +125,8 @@ What the sensors cannot carry:
   suppressions stay legal. A disable comment naming an unresolvable or disabled rule fails lint.
 - **The Changeset check watches `src/` and not the manifests.** `scripts/check-release-intent.mjs`
   lists `packages/ui/src/`, `packages/ui/tailwind-preset.cjs`, `packages/viewer/src/`,
-  `packages/tool-scraper/src/`, `packages/sdk-typescript/src/`, `openapi/`,
-  `codegen/typescript-fetch.yaml`, and `scripts/generate-sdks.mjs`. A `package.json` change that
+  `packages/sdk-typescript/src/`, `openapi/`, `codegen/typescript-fetch.yaml`, and
+  `scripts/generate-sdks.mjs`. A `package.json` change that
   alters `exports`, `files`, `engines`, or a dependency is consumer-visible and needs a Changeset
   under the rules below, but no check will ask for one. That part is judgment until the script's
   path list grows.
@@ -148,12 +148,11 @@ Fix camera reset after a report reload.
 
 Use the package and bump that match the change:
 
-| Changed area                                                                                                | Package                  |
-| ----------------------------------------------------------------------------------------------------------- | ------------------------ |
-| `packages/ui/src/` or `packages/ui/tailwind-preset.cjs`                                                     | `@toolpath/ui`           |
-| `packages/viewer/src/`                                                                                      | `@toolpath/viewer`       |
-| `packages/sdk-typescript/src/`, `openapi/`, `codegen/typescript-fetch.yaml`, or `scripts/generate-sdks.mjs` | `@toolpath/api`          |
-| `packages/tool-scraper/src/`                                                                                | `@toolpath/tool-scraper` |
+| Changed area                                                                                                | Package            |
+| ----------------------------------------------------------------------------------------------------------- | ------------------ |
+| `packages/ui/src/` or `packages/ui/tailwind-preset.cjs`                                                     | `@toolpath/ui`     |
+| `packages/viewer/src/`                                                                                      | `@toolpath/viewer` |
+| `packages/sdk-typescript/src/`, `openapi/`, `codegen/typescript-fetch.yaml`, or `scripts/generate-sdks.mjs` | `@toolpath/api`    |
 
 - Public package manifest changes that alter exports, dependencies, peer dependencies, or shipped files
   also require the relevant package Changeset.
@@ -174,9 +173,12 @@ the label to get a check green.
 the release workflow does not version it, and adding one would put a package name in a changelog
 that never ships. Its version lives in its own `pyproject.toml`.
 
-`packages/tool-scraper` used to sit under the same exclusion and no longer does: it was ported to
-TypeScript and publishes to npm as `@toolpath/tool-scraper`, so it takes a Changeset like any other
-public package.
+**`packages/tool-scraper` is `private` and takes no Changeset.** It is built and tested like any
+other package and it keeps its `publishConfig`, but `private` keeps it out of `changeset publish`
+and out of the first-publish scan in `scripts/check-npm-package-bootstrap.mjs` — where, being
+absent from npm, it held back every release the workflow tried to make. Publishing it needs the
+bootstrap in `docs/BOOTSTRAPPING-NPM-PACKAGES.md`, run by a maintainer with `@toolpath` scope
+rights; dropping `private` and restoring its row above is the other half of that.
 
 Do not manually edit package versions or changelogs. The release workflow generates them in its
 auto-merged release-metadata pull request.
