@@ -42,7 +42,9 @@ are never published. They exist to exercise a package the way a consumer would.
   API returned. Do not reformat them.
 - `docs/` holds written plans, not steering. `docs/BOOTSTRAPPING-NPM-PACKAGES.md` is the one
   procedure an agent may need to follow.
-- `examples/react-viewer/tests/viewer.spec.ts` is the repo's only Playwright suite.
+- `examples/react-viewer/tests/` is the repo's only Playwright suite. `viewer.spec.ts` drives
+  the example's default page and `orthographic.spec.ts` its `?projection=orthographic` one;
+  each has click points scanned under its own camera, and `canvas.ts` holds what they share.
 
 ## Commands
 

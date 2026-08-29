@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { at, on } from './canvas.js'
 
 /**
  * The example viewer, driven the way somebody would drive it.
@@ -12,13 +13,17 @@ import { expect, test } from '@playwright/test'
  * different `projection` prop would. That is not hypothetical: making
  * orthographic the package default moved every one of them, and two of the four
  * tests here went red reporting "Direction: never left all" and "expected
- * back-face, got bottom-face", neither of which names a camera. The example now
- * pins `projection="perspective"` at its `<Viewer>` (`src/main.tsx`) and the
- * guard names the points, so the next such change reports itself once.
+ * back-face, got bottom-face", neither of which names a camera. This page of
+ * the example therefore asks for `projection="perspective"` (`src/main.tsx`)
+ * and the guard names the points, so the next such change reports itself once.
  *
- * Fractions of the canvas rather than pixels: the canvas is laid out beside the
- * text column and is not the same shape on every machine that runs this, while
- * the part is framed against the canvas it is given.
+ * The package's own default is exercised on the other page —
+ * `?projection=orthographic`, in `tests/orthographic.spec.ts`, with click points
+ * scanned under that camera.
+ *
+ * Fractions of the canvas rather than pixels (`./canvas.ts`): the canvas is laid
+ * out beside the text column and is not the same shape on every machine that
+ * runs this, while the part is framed against the canvas it is given.
  */
 /** On the part, dead centre — the back face under this camera. */
 const CENTRE = { x: 0.5, y: 0.5 }
@@ -32,21 +37,6 @@ const OTHER = { x: 0.5, y: 0.62 }
  * is what makes "the selection did not change" a real assertion about it.
  */
 const ARROW = { x: 0.33, y: 0.27 }
-
-/** Canvas-relative, for `locator.click({ position })`. */
-const on = (box: { width: number; height: number }, point: { x: number; y: number }) => ({
-  x: box.width * point.x,
-  y: box.height * point.y,
-})
-
-/** Page-absolute, for `page.mouse`. */
-const at = (
-  box: { x: number; y: number; width: number; height: number },
-  point: { x: number; y: number },
-) => ({
-  x: box.x + box.width * point.x,
-  y: box.y + box.height * point.y,
-})
 
 /**
  * What each point hits, named.
@@ -275,4 +265,54 @@ test('panning over empty space keeps the selection', async ({ page }) => {
   // it never means "deselect".
   await page.mouse.click(box.x + 60, box.y + 60, { button: 'right' })
   await expect(selected).toHaveText(chosen ?? '')
+})
+
+/**
+ * A pan is not half of a double click.
+ *
+ * The middle button is TRUCK, so *every* middle-button pan ends in an
+ * `auxclick` — the same event the double-middle-click re-frame is assembled
+ * from. Unguarded, two pans released near enough to each other in time and
+ * space paired into a double and called Fit, throwing away the pan just made.
+ * The left button has had this guard on the mesh all along; this is the middle
+ * one getting it too.
+ */
+test('two middle-button pans released in the same place do not re-frame', async ({ page }) => {
+  await page.goto('/')
+  const canvas = page.locator('canvas')
+  await page.waitForTimeout(700)
+  const box = await canvas.boundingBox()
+  if (!box) throw new Error('Viewer canvas has no bounding box')
+
+  const selected = page.locator('p', { hasText: 'Selected:' })
+  const centre = on(box, CENTRE)
+
+  await page.getByRole('button', { name: 'Fit' }).click()
+  await page.waitForTimeout(300)
+  await canvas.click({ position: centre })
+  await expect(selected).not.toContainText('none')
+
+  // Both pans finish at the same pixel, back to back: the release points are
+  // well inside the slop and the pair is well inside the window, which is
+  // exactly what the double-tap tracker is looking for. They travel the same
+  // way, so the part is further off centre after the second, not back where it
+  // started.
+  const release = { x: box.x + box.width * 0.7, y: box.y + box.height - 40 }
+  const panTo = async (startX: number) => {
+    await page.mouse.move(startX, release.y)
+    await page.mouse.down({ button: 'middle' })
+    for (let step = 1; step <= 4; step += 1) {
+      await page.mouse.move(startX + ((release.x - startX) * step) / 4, release.y)
+    }
+    await page.mouse.up({ button: 'middle' })
+  }
+
+  await panTo(box.x + box.width * 0.1)
+  await panTo(box.x + box.width * 0.4)
+  await page.waitForTimeout(300)
+
+  // The part is off centre and stayed there. A re-frame would have put it back
+  // under the middle of the canvas, and this click would have found it.
+  await canvas.click({ position: centre })
+  await expect(selected).toContainText('none')
 })
