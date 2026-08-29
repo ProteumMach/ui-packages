@@ -32,10 +32,6 @@ const releaseSensitivePaths = [
       'scripts/generate-sdks.mjs',
     ],
   },
-  {
-    packageName: '@toolpath/tool-scraper',
-    paths: ['packages/tool-scraper/src/'],
-  },
 ]
 
 const affectedPackages = releaseSensitivePaths

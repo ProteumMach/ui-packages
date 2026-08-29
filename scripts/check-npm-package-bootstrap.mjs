@@ -16,6 +16,9 @@ const npmPackages = (
           const packageJson = JSON.parse(
             await readFile(join(repositoryRoot, 'packages', entry.name, 'package.json'), 'utf8'),
           )
+          // A private package never reaches npm, so it never needs a first publish
+          // — and left in, one would hold back every release the workflow makes.
+          if (packageJson.private) return undefined
           return packageJson.publishConfig?.registry === registry ? packageJson.name : undefined
         } catch (error) {
           if (error.code === 'ENOENT') return undefined
