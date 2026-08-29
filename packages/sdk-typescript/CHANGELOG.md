@@ -1,5 +1,11 @@
 # @toolpath/api
 
+## 0.2.5
+
+### Patch Changes
+
+- 26c00ca: Regenerate the TypeScript SDK for Engine API 1.0.4.
+
 ## 0.2.4
 
 ### Patch Changes
