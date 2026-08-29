@@ -321,10 +321,22 @@ export const PartMesh = ({
           doubles.reset()
         }}
         onClick={(event: ThreeEvent<MouseEvent>) => {
-          // The end of an orbit is not a request to select whatever it ended
-          // over — and it usually ends over the part, since that is what was
-          // being orbited.
-          if (!isTap(event.nativeEvent)) return
+          /*
+           * The end of an orbit is not a request to select whatever it ended
+           * over — and it usually ends over the part, since that is what was
+           * being orbited.
+           *
+           * It breaks the double-click pair as well as being swallowed. The
+           * `onPointerOut` reset cannot cover this: an orbit over a part that
+           * fills the viewport never leaves the mesh, so a click, an orbit
+           * released over the part, and a third click inside
+           * the double-tap window of the *first* one paired those two and
+           * re-aimed the view — with a whole drag in between.
+           */
+          if (!isTap(event.nativeEvent)) {
+            doubles.reset()
+            return
+          }
 
           /*
            * A double click re-aims the orbit at what was clicked — and the
@@ -345,9 +357,23 @@ export const PartMesh = ({
            * the pivot lands exactly where the pick did.
            */
           const doubled = doubles.isDouble(event.nativeEvent)
-          if (doubled && retarget) retarget(event.point)
 
+          /*
+           * The pick is built **before** the re-target, and the order is load
+           * bearing.
+           *
+           * `retarget` calls `setLookAt`, which writes the controls' *end*
+           * target — and `readTarget` reads that same end value back. Re-aiming
+           * first therefore handed the pick a target that was already the point
+           * just clicked, so its view direction came out as
+           * `camera.position - hitPoint` rather than `camera.position -
+           * orbitTarget`. On a face near the edge of a framed part that is
+           * degrees away from the direction the eye is actually looking along,
+           * and the ranking it feeds can name a different owner than a single
+           * click on the very same face.
+           */
           const pick = pickFor(event, doubled)
+          if (doubled && retarget) retarget(event.point)
           if (pick) onPick?.(pick)
         }}
         /*

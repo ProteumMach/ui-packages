@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import {
   PICKED_SURFACE_LABEL,
   dragPlane,
-  screenLength,
   sectionBounds,
   sectionConstant,
   sectionDepth,
@@ -13,7 +12,6 @@ import {
   sectionOffset,
   sectionPlane,
 } from '../src/render/section.js'
-import { OrthographicCamera, PerspectiveCamera } from 'three'
 
 /**
  * A section is a plane constant and a sign convention, and every bug in one is
@@ -145,27 +143,6 @@ describe('sectionDepth', () => {
     // thickness, plus the margin at each end.
     expect(range.min).toBeLessThan(0)
     expect(range.max).toBeGreaterThan(50)
-  })
-})
-
-describe('screenLength', () => {
-  it('holds a control the same size on screen however far away it is', () => {
-    const camera = new PerspectiveCamera(30, 1, 0.1, 1000)
-    camera.position.set(0, 0, 100)
-    const near = screenLength(camera, new Vector3(0, 0, 50), { width: 800, height: 600 }, 78)
-    const far = screenLength(camera, new Vector3(0, 0, -50), { width: 800, height: 600 }, 78)
-
-    // Further away means more world units per pixel, so the handle grows.
-    expect(far).toBeGreaterThan(near)
-  })
-
-  it('reads an orthographic frustum rather than a distance', () => {
-    const camera = new OrthographicCamera(-10, 10, 10, -10)
-    const length = screenLength(camera, new Vector3(), { width: 800, height: 400 }, 40)
-
-    // 20 world units over 400 pixels, so 40 pixels is 2 units — wherever the
-    // camera happens to be.
-    expect(length).toBeCloseTo(2, 9)
   })
 })
 

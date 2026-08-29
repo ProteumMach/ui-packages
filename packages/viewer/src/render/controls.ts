@@ -78,9 +78,29 @@ const DEFAULT_SMOOTH_TIME = 0.001
  * is a few flicks of the wheel. Unclamped, the same speed is what reached
  * `zoom` 1e30. Set the two together or the first notch overshoots everything.
  *
- * `restThreshold` at 0.005 rather than the library's 0.01 so the `rest` event
- * waits for the view to actually stop; at 0.01 it fired while the tail of a
- * zoom was still visibly moving.
+ * `restThreshold` at 0.005 rather than the library's 0.01. The reason it was
+ * first written down — that the `rest` event fired while the tail of a zoom was
+ * still visibly moving — is not the reason it earns its place here: nothing in
+ * this package or in `examples/react-viewer` listens for `rest`. What it
+ * actually governs is two things, both of which the viewer does use.
+ *
+ * `update()` compares it against the remaining deltas to decide the view has
+ * settled (camera-controls 3.1.0, line 2266), and on a `frameloop="demand"`
+ * canvas that is what ends the run of frames a gesture costs. Every `*To` call
+ * — `setLookAt`, `zoomTo`, `dollyTo` — also compares against it to decide
+ * whether to resolve immediately rather than animate. So halving it buys the
+ * end of a zoom and pays for it in frames.
+ *
+ * **It cannot be scaled to the part, and it is not an oversight that it is
+ * not.** The same number is compared against `deltaTheta` and `deltaPhi` in
+ * radians, `deltaRadius` and `deltaTarget` in world units, and `deltaZoom`
+ * unitless. Multiplying it by the scene radius the way `MIN_FRAME_RATIO`
+ * and `targetBoundary` are would fix the world-unit half and break the angular
+ * one — on a 900 mm plate an orbit would be called finished while still turning
+ * by radians. The honest cost is that a large part spends longer under the
+ * world-unit comparisons than a small one, which is extra update frames per
+ * gesture; fixing that needs the library to separate the units, not a
+ * multiplier here.
  */
 const DOLLY_SPEED = 1.15
 const REST_THRESHOLD = 0.005

@@ -47,6 +47,42 @@ export function aspectRatio(size: ViewportSize): number {
   return size.width > 0 && size.height > 0 ? size.width / size.height : 1
 }
 
+/** Guards the divide when the camera sits exactly on the point being measured. */
+const SCREEN_LENGTH_EPSILON = 1e-9
+
+/**
+ * A world length that covers `pixels` on screen at `point`.
+ *
+ * Anything sized in world units is a thumbnail on a plate and a wall on an
+ * insert; the whole reason a control is measured this way is that it is a
+ * control rather than part of the model. The section handle and the orbit
+ * target marker both size themselves with it, which is why it lives here with
+ * the camera rather than beside either of them.
+ *
+ * The two projections answer differently on purpose. An orthographic frustum
+ * covers the same world height wherever the point is, so distance does not
+ * enter; a perspective one covers more the further away it looks, so it does.
+ */
+export function screenLength(
+  camera: ViewerCamera,
+  point: Vector3,
+  viewport: ViewportSize,
+  pixels: number,
+): number {
+  const height = viewport.height > 0 ? viewport.height : 1
+  const zoom = camera.zoom || 1
+
+  const visible =
+    camera instanceof OrthographicCamera
+      ? (camera.top - camera.bottom) / zoom
+      : (2 *
+          Math.tan(((camera.fov / 2) * Math.PI) / 180) *
+          Math.max(camera.position.distanceTo(point), SCREEN_LENGTH_EPSILON)) /
+        zoom
+
+  return (visible / height) * pixels
+}
+
 export function boundsFromBox(box: Box3): SceneBounds {
   if (box.isEmpty()) return defaultBounds()
 
@@ -215,19 +251,48 @@ export interface CameraLimits {
  *
  * Pure, and derived from `bounds`, so it re-derives wherever the scene is
  * re-measured rather than being sampled once at mount.
+ *
+ * `framed` is what the view has been framed *on*, when that is not the whole
+ * scene — `frameBox` on a single feature. The band is then taken about that
+ * framing as well as about the scene's, because a band centred on the part is
+ * the wrong band for a view of a 3 mm hole in it: ten times the *part's* fitted
+ * size can be less than once the hole's, so the framing the caller asked for sat
+ * outside the clamps meant to keep it in view. Under an orthographic camera
+ * `zoom` is measured against a frustum still sized to the scene, so the framing
+ * enters as the zoom ratio it takes to reach; under a perspective one it enters
+ * as its own fitted distance.
+ *
+ * Widened to the union of the two rather than moved onto `framed`, and that is
+ * the whole of why this takes both. A band that simply followed the last framing
+ * would take the part away: framing a hole would put "far enough out to see what
+ * the hole is in" past `maxDistance`, so the wheel could no longer get back to
+ * the part it had just been looking at, and Fit — a gesture with nothing on
+ * screen to say so — would be the only way. Reaching further in must not cost
+ * the reach back out, so each end takes whichever bound is looser. With no
+ * `framed`, or one the size of the scene, both ends collapse to the scene's own
+ * and this is the function it was before.
  */
 export function cameraLimits(
   projection: Projection,
   size: ViewportSize,
   bounds: SceneBounds,
   margin = DEFAULT_FIT_MARGIN,
+  framed?: SceneBounds,
 ): CameraLimits {
   const fit = fitDistance(projection, size, bounds, margin)
+  // A degenerate framing — an empty box, a feature with no extent — has no
+  // ratio to offer and would poison the clamps with `Infinity`. The scene's own
+  // band is the honest answer.
+  const framedRadius = framed && framed.radius > 0 ? framed.radius : bounds.radius
 
   if (projection === 'orthographic') {
+    // What `frameBounds` must reach for this framing: `zoom` 1 is the scene
+    // fitted, so the scene's radius over the framed one *is* the zoom.
+    const reach = bounds.radius > 0 ? bounds.radius / framedRadius : 1
+
     return {
-      minZoom: MIN_FRAME_RATIO,
-      maxZoom: MAX_FRAME_RATIO,
+      minZoom: Math.min(MIN_FRAME_RATIO, MIN_FRAME_RATIO * reach),
+      maxZoom: Math.max(MAX_FRAME_RATIO, MAX_FRAME_RATIO * reach),
       // Distance does not change apparent size under an orthographic camera, so
       // these are not the zoom clamps in another form — they only keep the
       // camera clear of the geometry it is looking at, and bounded.
@@ -236,6 +301,13 @@ export function cameraLimits(
     }
   }
 
+  const framedFit = fitDistance(
+    projection,
+    size,
+    framedRadius === bounds.radius ? bounds : { ...bounds, radius: framedRadius },
+    margin,
+  )
+
   return {
     // The wheel is `ACTION.DOLLY` under a perspective camera, so nothing here
     // moves `camera.zoom`. They are set to the same pair anyway: a consumer
@@ -243,8 +315,8 @@ export function cameraLimits(
     // in is too far.
     minZoom: MIN_FRAME_RATIO,
     maxZoom: MAX_FRAME_RATIO,
-    minDistance: fit / MAX_FRAME_RATIO,
-    maxDistance: fit / MIN_FRAME_RATIO,
+    minDistance: Math.min(fit, framedFit) / MAX_FRAME_RATIO,
+    maxDistance: Math.max(fit, framedFit) / MIN_FRAME_RATIO,
   }
 }
 
@@ -324,6 +396,18 @@ const scratchSide = new Vector3()
  * be canonical — the opening frame, a reset, a named view — has to say what
  * `up` is rather than inherit it. `viewer.tsx` does, at `resetContent`. The
  * test beside this pins both halves.
+ *
+ * `into` may be `view` or `up` — three.js `crossVectors` reads all six
+ * components before it writes any, and the intermediate is this module's own
+ * scratch, so writing the result over an input is safe. Said here because this
+ * is exported and an out-parameter invites the question; the test beside this
+ * pins it, so a three.js change cannot quietly turn the answer around.
+ *
+ * `view` and `up` being parallel is the one degenerate case: their cross is
+ * zero, `normalize` leaves it zero, and the result is a zero vector rather than
+ * an error. A caller with a free-orbiting camera reaches that at the pole,
+ * which is what `freeOrbit` and a squared `up` at every canonical pose exist to
+ * keep it away from.
  */
 export function adaptedUp(view: Vector3, up: Vector3, into: Vector3): Vector3 {
   const side = scratchSide.crossVectors(view, up).normalize()

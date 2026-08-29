@@ -14,6 +14,7 @@ import { Box3, Group, Vector3 } from 'three'
 import { CadCameraControls } from './camera.js'
 import { retargetPose } from './render/retarget.js'
 import { type TapTracker, trackDoubleTaps, trackTaps } from './render/tap.js'
+import { ViewerTapProvider, useTapGuard } from './tap.js'
 import {
   CAD_CAMERA_UP,
   DEFAULT_FIT_MARGIN,
@@ -91,16 +92,31 @@ const ViewerScene = ({
   const size = useThree((state) => state.size)
   const invalidate = useThree((state) => state.invalidate)
   const domElement = useThree((state) => state.gl.domElement)
+  const isTap = useTapGuard()
   const controlsRef = useRef<ExtendedCameraControls | null>(null)
   const contentRef = useRef<Group>(null)
   const lightsRef = useRef<Group>(null)
   const initialFrameComplete = useRef(false)
   const boundsRef = useRef<SceneBounds>(defaultBounds())
+  /*
+   * The bounds the view was last framed on, when they were smaller than the
+   * scene's — `null` whenever the framing is the whole part.
+   *
+   * The limits are derived from it as well as from the scene (see
+   * {@link applyLimits}), and they are re-derived on every resize. Without
+   * somewhere to keep this, that re-derivation narrowed the band back to the
+   * scene's and undid the framing's widening: the next wheel notch snapped an
+   * orthographic zoom back to 10× and dollied a perspective camera outward,
+   * against the gesture. A resize is a window drag, a panel opening, a sidebar
+   * toggle — not something the consumer connects to the view jumping.
+   */
+  const framedRef = useRef<SceneBounds | null>(null)
   const scratchBox = useMemo(() => new Box3(), [])
   const scratchBoundary = useMemo(() => new Box3(), [])
   const scratchDirection = useMemo(() => new Vector3(), [])
   const scratchView = useMemo(() => new Vector3(), [])
   const scratchTarget = useMemo(() => new Vector3(), [])
+  const scratchPosition = useMemo(() => new Vector3(), [])
 
   /**
    * How far the wheel may travel, for the bounds the scene currently has.
@@ -108,11 +124,18 @@ const ViewerScene = ({
    * Applied here rather than once at mount because the limits are derived from
    * the part: a viewer that loads a second part, or is resized under a
    * perspective camera, would otherwise keep the first framing's idea of far.
+   *
+   * `framed` widens the band to take in a view framed on something smaller than
+   * the scene; see {@link cameraLimits}. The target boundary stays on the
+   * scene's bounds either way — what the wheel may reach is a question about the
+   * framing, but where the part is remains a question about the part, and
+   * confining the target to a box around a framed feature would strand somebody
+   * who framed one and then tried to pan off it.
    */
   const applyLimits = useCallback(
-    (bounds: SceneBounds) => {
+    (bounds: SceneBounds, framed?: SceneBounds) => {
       controlsRef.current?.applyLimits(
-        cameraLimits(projection, size, bounds, DEFAULT_FIT_MARGIN),
+        cameraLimits(projection, size, bounds, DEFAULT_FIT_MARGIN, framed),
         targetBoundary(bounds, scratchBoundary, DEFAULT_FIT_MARGIN),
       )
     },
@@ -180,6 +203,10 @@ const ViewerScene = ({
       // the wheel did to zoom would otherwise survive a Fit.
       if (projection === 'orthographic') void controls.zoomTo(1, transition)
 
+      // This framing is the whole scene, so there is no widening left to carry
+      // across a resize.
+      framedRef.current = null
+
       // Last, because applying them moves the controls: `setBoundary` marks
       // them for update, and an update under free orbit re-derives the up
       // vector from whatever the camera is looking at *now*. Ahead of the
@@ -197,6 +224,15 @@ const ViewerScene = ({
    * Frames bounds other than the whole part's, from where the camera already
    * is. The frustum still comes from the *scene's* bounds rather than these, so
    * a feature framed up close does not clip the part around it.
+   *
+   * The limits are re-derived about this framing before the zoom that reaches
+   * it, because otherwise they refuse it. `zoomTo` clamps to `maxZoom`, so
+   * framing a 3 mm hole in a 100 mm plate asked for about 37× and silently got
+   * the wheel's 10× — a quarter of the size requested, reported as success. The
+   * perspective half failed the other way round: `setLookAt` writes the distance
+   * without consulting `minDistance` while the wheel's own dolly clamps to it,
+   * so a close framing stood until the first notch and then jumped *outward*,
+   * away from the direction of the gesture.
    */
   const frameBounds = useCallback(
     (bounds: SceneBounds): boolean => {
@@ -217,6 +253,16 @@ const ViewerScene = ({
         bounds.center.z,
         true,
       )
+
+      // After the look-at, for the reason `frame` applies its own limits last —
+      // applying them updates the controls, and an update under free orbit
+      // re-derives the up vector from the pose the camera is looking at now.
+      // Before the `zoomTo`, because that is the call being clamped. Kept, so
+      // a later resize re-derives the same widened band rather than the
+      // scene's; see {@link framedRef}.
+      framedRef.current = bounds
+      applyLimits(boundsRef.current, bounds)
+
       if (projection === 'orthographic') {
         void controls.zoomTo(boundsRef.current.radius / bounds.radius, true)
       }
@@ -224,7 +270,7 @@ const ViewerScene = ({
       invalidate()
       return true
     },
-    [camera, invalidate, projection, size],
+    [applyLimits, camera, invalidate, projection, size],
   )
 
   const fitContent = useCallback(() => {
@@ -260,9 +306,14 @@ const ViewerScene = ({
    * Orbit about this from now on.
    *
    * Called with a point on the part, from the raycast the pick already ran.
-   * `retargetPose` decides where the camera and the target go; the transition
-   * is on, because the part gliding to the middle is what says the pivot moved
-   * — a jump reads as the view having been knocked.
+   * `retargetPose` decides where the camera and the target go.
+   *
+   * The transition flag is passed, but the move arrives immediately: these
+   * controls run at `DEFAULT_SMOOTH_TIME` (0.001), which settles a transition
+   * inside a single frame at any frame rate this renders at. The flag is kept
+   * because it is what the call means and because it would ease if the damping
+   * were ever raised — not because anything eases today. `showOrbitTarget` is
+   * what makes the pivot moving visible; a move this fast cannot say it itself.
    *
    * It does not re-frame and it does not square the roll. Somebody asking to
    * orbit about a corner is not asking to be shown the whole part again, and
@@ -273,7 +324,23 @@ const ViewerScene = ({
       const controls = controlsRef.current
       if (!controls) return
 
-      const pose = retargetPose(camera.position, controls.getTarget(scratchTarget), point)
+      /*
+       * `getPosition`, not `camera.position`. Both accessors return the
+       * controls' *end* value, so the pair describes one pose; `camera.position`
+       * is where the camera has got to so far, and pairing that with an end
+       * target subtracts two halves of different poses. In any frame where an
+       * earlier `setLookAt` has not finished settling, the offset
+       * `retargetPose` is asked to preserve is wrong by whatever is left of
+       * that move, and the view shifts instead of holding the angle and
+       * distance it had. At `DEFAULT_SMOOTH_TIME` that is a one-frame window
+       * rather than the length of an animation, which makes it rare and not
+       * less wrong.
+       */
+      const pose = retargetPose(
+        controls.getPosition(scratchPosition),
+        controls.getTarget(scratchTarget),
+        point,
+      )
       void controls.setLookAt(
         pose.position.x,
         pose.position.y,
@@ -285,13 +352,14 @@ const ViewerScene = ({
       )
       invalidate()
     },
-    [camera, invalidate, scratchTarget],
+    [invalidate, scratchPosition, scratchTarget],
   )
 
   /*
-   * `null` rather than a function that does nothing, so the part can turn the
-   * whole gesture off — including the tap pairing, whose second click would
-   * otherwise still be swallowed for a re-target that never happens.
+   * `null` rather than a function that does nothing, so the part can tell the
+   * gesture is off and skip the work of moving the camera. The tap pairing runs
+   * either way and the pick always fires — a paired click just arrives marked
+   * `doubled` and re-aims nothing.
    */
   const retargetOn = useMemo(
     () => (retargetOnDoubleClick ? retarget : null),
@@ -321,12 +389,20 @@ const ViewerScene = ({
     const doubles = trackDoubleTaps()
     const recentre = (event: MouseEvent) => {
       if (event.button !== 1) return
+
+      // The end of a pan is not a request to re-frame. The middle button is
+      // TRUCK, so *every* pan ends in an `auxclick` here — and two quick pans
+      // that happen to be released within the slop of each other, panning out
+      // and back being the obvious one, read as a double and threw away the
+      // pan just made. The same guard the left button gets on the mesh.
+      if (!isTap(event)) return
+
       if (doubles.isDouble(event)) fitContent()
     }
 
     domElement.addEventListener('auxclick', recentre)
     return () => domElement.removeEventListener('auxclick', recentre)
-  }, [domElement, fitContent, recentreOnDoubleClick])
+  }, [domElement, fitContent, isTap, recentreOnDoubleClick])
 
   useEffect(() => {
     setControls({
@@ -385,7 +461,7 @@ const ViewerScene = ({
    */
   useEffect(() => {
     applyProjection(camera, size, boundsRef.current, DEFAULT_FIT_MARGIN)
-    if (initialFrameComplete.current) applyLimits(boundsRef.current)
+    if (initialFrameComplete.current) applyLimits(boundsRef.current, framedRef.current ?? undefined)
     invalidate()
   }, [applyLimits, camera, invalidate, size])
 
@@ -415,23 +491,25 @@ const ViewerScene = ({
   })
 
   return (
-    <ViewerRetargetContext.Provider value={retargetOn}>
-      <group ref={lightsRef}>
-        <ambientLight color={theme.ambient} intensity={theme.ambientIntensity} />
-        <hemisphereLight
-          args={[theme.hemisphereSky, theme.hemisphereGround, theme.hemisphereIntensity]}
+    <ViewerTapProvider value={isTap}>
+      <ViewerRetargetContext.Provider value={retargetOn}>
+        <group ref={lightsRef}>
+          <ambientLight color={theme.ambient} intensity={theme.ambientIntensity} />
+          <hemisphereLight
+            args={[theme.hemisphereSky, theme.hemisphereGround, theme.hemisphereIntensity]}
+          />
+        </group>
+        <group ref={contentRef}>{children}</group>
+        <CadCameraControls
+          controlsRef={controlsRef}
+          scheme={scheme}
+          freeOrbit={freeOrbit}
+          zoomTo={zoomTo}
         />
-      </group>
-      <group ref={contentRef}>{children}</group>
-      <CadCameraControls
-        controlsRef={controlsRef}
-        scheme={scheme}
-        freeOrbit={freeOrbit}
-        zoomTo={zoomTo}
-      />
-      {/* After the controls, so its effect finds `controlsRef` filled. */}
-      {showOrbitTarget ? <TargetMarker controlsRef={controlsRef} /> : null}
-    </ViewerRetargetContext.Provider>
+        {/* After the controls, so its effect finds `controlsRef` filled. */}
+        {showOrbitTarget ? <TargetMarker controlsRef={controlsRef} /> : null}
+      </ViewerRetargetContext.Provider>
+    </ViewerTapProvider>
   )
 }
 
@@ -474,12 +552,16 @@ export interface ViewerProps {
    * Whether a double **left** click on the part orbits about what was clicked
    * from then on. On by default.
    *
-   * The clicked point glides to the middle of the view at the same size and
+   * The clicked point moves to the middle of the view at the same size and
    * angle, and stays the pivot until something else moves it. It is how you get
    * from "the whole part" to "this corner" without losing the ability to turn
    * what you are looking at — and under an orthographic camera it is the only
    * gesture that re-aims the pivot at all, because the wheel there scales a
    * frustum rather than travelling toward anything.
+   *
+   * The move is immediate rather than eased: the damping these controls ship
+   * with settles a transition inside one frame. Turn on {@link showOrbitTarget}
+   * if the pivot moving needs to be visible.
    *
    * The click is still a click. Its pick arrives with `doubled: true` on it, so
    * an app that wants a double click to mean something of its own can say so,

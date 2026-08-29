@@ -14,7 +14,6 @@ export {
   SECTION_RENDER_ORDER,
   dragPlane,
   pickedStartDepth,
-  screenLength,
   sectionBounds,
   sectionConstant,
   sectionDepth,
@@ -65,6 +64,7 @@ export {
   fitDistance,
   orthographicHalfHeight,
   perspectiveFitDistance,
+  screenLength,
   startPosition,
   targetBoundary,
 } from './render/camera.js'

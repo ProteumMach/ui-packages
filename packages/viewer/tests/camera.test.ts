@@ -27,6 +27,7 @@ import {
   fitDistance,
   orthographicHalfHeight,
   perspectiveFitDistance,
+  screenLength,
   startPosition,
   targetBoundary,
 } from '../src/render/camera.js'
@@ -243,6 +244,77 @@ describe('cameraLimits', () => {
 
     expect(large.maxDistance / small.maxDistance).toBeCloseTo(900 / 6, 6)
   })
+
+  /**
+   * `frameBox` on something much smaller than the part.
+   *
+   * The band is about the scene, and a view of a 3 mm hole in a 100 mm plate is
+   * nowhere near it: the framing needs about 37× and the wheel's ceiling is 10×.
+   * Both cameras refused it, in opposite directions — orthographic clamped the
+   * `zoomTo` and reported success, perspective let `setLookAt` past the floor
+   * `dolly` then enforced, so the first notch of the wheel threw the framing
+   * away.
+   */
+  describe('framed on something smaller than the scene', () => {
+    const plate = boundsFromBox(box(100))
+    const hole = boundsFromBox(box(3))
+
+    it('reaches the zoom an orthographic framing of a small feature needs', () => {
+      const limits = cameraLimits('orthographic', LANDSCAPE, plate, DEFAULT_FIT_MARGIN, hole)
+      // The zoom `frameBounds` asks for, written the way it writes it.
+      const reach = plate.radius / hole.radius
+
+      expect(reach).toBeGreaterThan(MAX_FRAME_RATIO)
+      expect(limits.maxZoom).toBeGreaterThanOrEqual(reach)
+    })
+
+    it('leaves a perspective framing of a small feature standing', () => {
+      const limits = cameraLimits('perspective', LANDSCAPE, plate, DEFAULT_FIT_MARGIN, hole)
+      // Where `frameBounds` puts the camera. The wheel's own dolly clamps to
+      // `minDistance`, so a framing inside it survives exactly until the first
+      // notch and then jumps outward.
+      const framedFit = fitDistance('perspective', LANDSCAPE, hole)
+
+      expect(framedFit).toBeGreaterThanOrEqual(limits.minDistance)
+      expect(framedFit).toBeLessThanOrEqual(limits.maxDistance)
+    })
+
+    it('keeps the whole part reachable from a framed feature', () => {
+      // The point of widening rather than moving. A band that simply followed
+      // the last framing would put "far enough out to see what the hole is in"
+      // outside itself, and the wheel could not get back to the part.
+      for (const projection of ['orthographic', 'perspective'] as const) {
+        const scene = cameraLimits(projection, LANDSCAPE, plate)
+        const framed = cameraLimits(projection, LANDSCAPE, plate, DEFAULT_FIT_MARGIN, hole)
+        const fit = fitDistance(projection, LANDSCAPE, plate)
+
+        expect(fit).toBeGreaterThanOrEqual(framed.minDistance)
+        expect(fit).toBeLessThanOrEqual(framed.maxDistance)
+        expect(framed.minZoom).toBeLessThanOrEqual(scene.minZoom)
+        expect(framed.maxZoom).toBeGreaterThanOrEqual(scene.maxZoom)
+        expect(framed.maxDistance).toBeGreaterThanOrEqual(scene.maxDistance)
+      }
+    })
+
+    it('is the scene band again when the framing is the scene', () => {
+      for (const projection of ['orthographic', 'perspective'] as const) {
+        expect(cameraLimits(projection, LANDSCAPE, plate, DEFAULT_FIT_MARGIN, plate)).toEqual(
+          cameraLimits(projection, LANDSCAPE, plate),
+        )
+      }
+    })
+
+    it('ignores a framing with no extent rather than clamping to infinity', () => {
+      // An empty box has radius 0, and the zoom it implies is `Infinity`.
+      const empty = { center: plate.center, radius: 0 }
+
+      for (const projection of ['orthographic', 'perspective'] as const) {
+        expect(cameraLimits(projection, LANDSCAPE, plate, DEFAULT_FIT_MARGIN, empty)).toEqual(
+          cameraLimits(projection, LANDSCAPE, plate),
+        )
+      }
+    })
+  })
 })
 
 /**
@@ -342,5 +414,58 @@ describe('adaptedUp', () => {
 
     const rolledBy = (Math.acos(direct.dot(throughUnframed)) * 180) / Math.PI
     expect(rolledBy).toBeGreaterThan(50)
+  })
+
+  /*
+   * The function is exported and takes an out-parameter, so "may I pass the
+   * same vector twice?" is a question a consumer will ask. The answer is yes,
+   * and it rests on three.js caching all six components of `crossVectors`
+   * before it writes any — someone else's implementation detail, which is
+   * exactly the kind of thing worth pinning rather than trusting.
+   */
+  it('gives the same answer when the result is written over an argument', () => {
+    const separate = adaptedUp(openingView, CAD_CAMERA_UP.clone(), new Vector3())
+
+    const overView = openingView.clone()
+    adaptedUp(overView, CAD_CAMERA_UP.clone(), overView)
+
+    const up = CAD_CAMERA_UP.clone()
+    adaptedUp(openingView, up, up)
+
+    for (const aliased of [overView, up]) {
+      expect(aliased.x).toBeCloseTo(separate.x, 12)
+      expect(aliased.y).toBeCloseTo(separate.y, 12)
+      expect(aliased.z).toBeCloseTo(separate.z, 12)
+    }
+  })
+
+  // Not an error and not a legal up vector: the caller is responsible for never
+  // asking. `freeOrbit` and a squared `up` at every canonical pose are what keep
+  // the viewer away from it.
+  it('returns a zero vector when the view and the up vector are parallel', () => {
+    const up = adaptedUp(CAD_CAMERA_UP.clone(), CAD_CAMERA_UP.clone(), new Vector3())
+
+    expect(up.lengthSq()).toBe(0)
+  })
+})
+
+describe('screenLength', () => {
+  it('holds a control the same size on screen however far away it is', () => {
+    const camera = new PerspectiveCamera(30, 1, 0.1, 1000)
+    camera.position.set(0, 0, 100)
+    const near = screenLength(camera, new Vector3(0, 0, 50), { width: 800, height: 600 }, 78)
+    const far = screenLength(camera, new Vector3(0, 0, -50), { width: 800, height: 600 }, 78)
+
+    // Further away means more world units per pixel, so the handle grows.
+    expect(far).toBeGreaterThan(near)
+  })
+
+  it('reads an orthographic frustum rather than a distance', () => {
+    const camera = new OrthographicCamera(-10, 10, 10, -10)
+    const length = screenLength(camera, new Vector3(), { width: 800, height: 400 }, 40)
+
+    // 20 world units over 400 pixels, so 40 pixels is 2 units — wherever the
+    // camera happens to be.
+    expect(length).toBeCloseTo(2, 9)
   })
 })

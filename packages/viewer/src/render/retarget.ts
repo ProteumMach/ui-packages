@@ -12,9 +12,11 @@ export interface RetargetPose {
  *
  * The target moves to the point and the camera moves by the same delta, so the
  * offset between them — the viewing direction and the distance along it — comes
- * through untouched. Only the pivot changes: what was clicked glides to the
+ * through untouched. Only the pivot changes: what was clicked ends up in the
  * middle of the view, at the same size, seen from the same angle, and every
- * orbit and zoom afterwards is about it.
+ * orbit and zoom afterwards is about it. This says where the pose lands, not
+ * how it gets there — how fast is the caller's transition and the controls'
+ * damping, and in this viewer that is one frame.
  *
  * Moving the target alone would swing the camera to look at the new point from
  * the old place, which reads as the part being knocked sideways. Moving the

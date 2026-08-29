@@ -10,9 +10,8 @@ import {
   SphereGeometry,
   Vector3,
 } from 'three'
-import { EXCLUDE_FROM_FRAME, type ViewerCamera } from './render/camera.js'
+import { EXCLUDE_FROM_FRAME, type ViewerCamera, screenLength } from './render/camera.js'
 import type { ExtendedCameraControls } from './render/controls.js'
-import { screenLength } from './render/section.js'
 import {
   ORBIT_TARGET_COLOR,
   ORBIT_TARGET_FLASH_MS,
