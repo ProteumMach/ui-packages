@@ -123,7 +123,23 @@ const App = () => {
             </label>
           ) : null}
         </div>
-        <Viewer ref={viewerRef} onPointerMissed={() => setSelected([])}>
+        {/*
+          Pinned to perspective, and the pin is the point rather than the value.
+
+          The package default is orthographic, so leaving this off would be the
+          more honest demo. What it would also be is a camera that `tests/` is
+          coupled to from another package: its click points were scanned by hand
+          off the rendered canvas, and flipping the default moved every one of
+          them — two of the four tests it then had went red saying "Direction:
+          never left all" and "expected back-face, got bottom-face", which is
+          four sentences away from "the camera moved".
+
+          So this example is about picking, the section, panning and the view
+          cube, and it states the camera those are asked under. The first test in
+          `tests/viewer.spec.ts` names what each point hits, so the next camera
+          change reports itself once instead of as N downstream failures.
+        */}
+        <Viewer ref={viewerRef} projection="perspective" onPointerMissed={() => setSelected([])}>
           <PartMesh
             model={cube}
             geometry={geometry}

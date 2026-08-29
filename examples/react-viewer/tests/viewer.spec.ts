@@ -1,5 +1,94 @@
 import { expect, test } from '@playwright/test'
 
+/**
+ * The example viewer, driven the way somebody would drive it.
+ *
+ * **The click points are found, not chosen.** They were scanned off the
+ * rendered canvas; the comment beside each says what it hits, and the first
+ * test below is the guard that says so out loud.
+ *
+ * They depend on the **viewer build**, not only on the projection this example
+ * asks for — a camera change inside `@toolpath/viewer` moves them just as a
+ * different `projection` prop would. That is not hypothetical: making
+ * orthographic the package default moved every one of them, and two of the four
+ * tests here went red reporting "Direction: never left all" and "expected
+ * back-face, got bottom-face", neither of which names a camera. The example now
+ * pins `projection="perspective"` at its `<Viewer>` (`src/main.tsx`) and the
+ * guard names the points, so the next such change reports itself once.
+ *
+ * Fractions of the canvas rather than pixels: the canvas is laid out beside the
+ * text column and is not the same shape on every machine that runs this, while
+ * the part is framed against the canvas it is given.
+ */
+/** On the part, dead centre — the back face under this camera. */
+const CENTRE = { x: 0.5, y: 0.5 }
+/** On the part, above centre — a *different* face from `OTHER`. */
+const ONE = { x: 0.5, y: 0.32 }
+/** On the part, below centre. */
+const OTHER = { x: 0.5, y: 0.62 }
+/**
+ * On the first direction arrow, which floats clear of the part's corner. The
+ * part is behind it, so a click that misses the arrow lands on a face — which
+ * is what makes "the selection did not change" a real assertion about it.
+ */
+const ARROW = { x: 0.33, y: 0.27 }
+
+/** Canvas-relative, for `locator.click({ position })`. */
+const on = (box: { width: number; height: number }, point: { x: number; y: number }) => ({
+  x: box.width * point.x,
+  y: box.height * point.y,
+})
+
+/** Page-absolute, for `page.mouse`. */
+const at = (
+  box: { x: number; y: number; width: number; height: number },
+  point: { x: number; y: number },
+) => ({
+  x: box.x + box.width * point.x,
+  y: box.y + box.height * point.y,
+})
+
+/**
+ * What each point hits, named.
+ *
+ * Nothing checked this before, so a camera that moved was reported by whichever
+ * assertions happened to depend on a coordinate — seven of them in the sibling
+ * DFM template, four sentences each, none of them saying "the camera moved".
+ * This test says it in one, and it fails first because it is first in the file.
+ */
+test('the click points hit the faces the rest of this file is written about', async ({ page }) => {
+  await page.goto('/')
+  const canvas = page.locator('canvas')
+  await expect(canvas).toBeVisible()
+  await page.waitForTimeout(700)
+  const box = await canvas.boundingBox()
+  if (!box) throw new Error('Viewer canvas has no bounding box')
+
+  const selected = page.locator('p', { hasText: 'Selected:' })
+  const direction = page.locator('p', { hasText: 'Direction:' })
+
+  await canvas.click({ position: on(box, CENTRE) })
+  await expect(selected).toContainText('back-face')
+
+  await canvas.click({ position: on(box, ONE) })
+  await expect(selected).toContainText('right-face')
+
+  await canvas.click({ position: on(box, OTHER) })
+  await expect(selected).toContainText('back-face')
+
+  // ONE and OTHER being *different* faces is what the drag-versus-click test
+  // rests on; that they are these two is what everything else rests on.
+  expect(ONE).not.toEqual(OTHER)
+
+  // The arrow is on top of the part, so it has to take the click itself. If it
+  // has moved off the arrow the selection changes and the direction does not,
+  // which is exactly the pair of symptoms Phase 6 produced.
+  const before = await selected.textContent()
+  await page.mouse.click(at(box, ARROW).x, at(box, ARROW).y)
+  await expect(direction).toContainText('0')
+  await expect(selected).toHaveText(before ?? '')
+})
+
 test('selects a feature and responds to CAD camera navigation', async ({ page }) => {
   await page.goto('/')
   const canvas = page.locator('canvas')
@@ -23,23 +112,17 @@ test('selects a feature and responds to CAD camera navigation', async ({ page })
   await page.getByRole('button', { name: 'Section' }).click()
   await expect(cut).toContainText('off')
 
-  await canvas.hover({ position: { x: 400, y: 300 } })
+  await canvas.hover({ position: on(box, CENTRE) })
   await expect(page.getByText('Hovered:', { exact: false })).not.toContainText('none')
 
-  await canvas.click({ position: { x: 400, y: 300 } })
+  await canvas.click({ position: on(box, CENTRE) })
   await expect(page.getByText('Selected:', { exact: false })).not.toContainText('none')
 
   // An arrow says "show me only this way up", and pressing it again lets that
   // go. The arrows sit outside the part, so this reaches past its corner.
   const direction = page.locator('p', { hasText: 'Direction:' })
   await expect(direction).toContainText('all')
-  // As a fraction of the canvas rather than in pixels: the arrows are placed
-  // against the part's own size, and the canvas is not the same shape on every
-  // machine that runs this.
-  const arrow = {
-    x: box.x + box.width * 0.33,
-    y: box.y + box.height * 0.27,
-  }
+  const arrow = at(box, ARROW)
   await page.mouse.click(arrow.x, arrow.y)
   await expect(direction).not.toContainText('all')
   await page.mouse.click(arrow.x, arrow.y)
@@ -81,7 +164,7 @@ test('pans with either pan button, from wherever the drag starts', async ({ page
   // label alone, whose text never changes, so every assertion below would hold
   // whatever the viewer did.
   const selected = page.locator('p', { hasText: 'Selected:' })
-  const centre = { x: box.width / 2, y: box.height / 2 }
+  const centre = on(box, CENTRE)
 
   // The gesture starts in the bottom-left corner: empty, as far from the part
   // as the viewport gets, and clear of the toolbar in the top-left. A pan that
@@ -124,9 +207,9 @@ test('finishing a drag over a face is not a request to select it', async ({ page
 
   const selected = page.locator('p', { hasText: 'Selected:' })
   const hovered = page.locator('p', { hasText: 'Hovered:' })
-  // Two points on two different faces of the cube.
-  const one = { x: box.width * 0.5, y: box.height * 0.32 }
-  const other = { x: box.width * 0.5, y: box.height * 0.62 }
+  // Two points on two different faces of the cube — see the guard above.
+  const one = on(box, ONE)
+  const other = on(box, OTHER)
 
   await canvas.click({ position: one })
   await expect(selected).not.toContainText('none')
@@ -172,7 +255,7 @@ test('panning over empty space keeps the selection', async ({ page }) => {
   if (!box) throw new Error('Viewer canvas has no bounding box')
 
   const selected = page.locator('p', { hasText: 'Selected:' })
-  await canvas.click({ position: { x: box.width / 2, y: box.height * 0.32 } })
+  await canvas.click({ position: on(box, ONE) })
   await expect(selected).not.toContainText('none')
   const chosen = await selected.textContent()
 
