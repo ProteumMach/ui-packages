@@ -28,3 +28,20 @@ bootstrap publish. This is the only manual publish; do not add an npm token to t
 The bootstrap command refuses to publish version `0.0.0` or a package with a repository URL that
 does not match `origin`. If its version is already published, it skips publishing and only sets up
 trusted publishing.
+
+## When the package already carries its first version
+
+A package that was versioned in an earlier release cycle and then held back from npm has no
+release-metadata pull request to wait for: its Changesets are spent, so the release workflow reaches
+its publish step directly. Run the bootstrap on the branch that makes the package public, before
+merging it.
+
+```sh
+pnpm install --frozen-lockfile
+npm login
+pnpm bootstrap:npm-package <package-name>
+```
+
+Merging first is not fatal, but the release run fails at `changeset publish`: npm will not accept a
+publish for a package it has never seen, and trusted publishing cannot be configured until it has.
+Re-run the workflow after bootstrapping.
