@@ -65,17 +65,31 @@ Body:
 1. `git status`, `git diff --staged`, `git diff`, and
    `git log -10 --pretty=format:'%s'` — read what is actually changing, and
    match the surrounding style.
-2. Stage deliberately. Commit only files belonging to this change; never
-   `git add -A` over a tree you have not inspected. Leave unrelated edits
-   alone and say so.
-3. Per `AGENTS.md`, a consumer-visible change to a public package needs its
-   Changeset in the same commit. Add it before committing, not after.
-4. Write the message to a file and use `git commit -F <file>`, so wrapping and
+2. Stage deliberately, by explicit path. Commit only files belonging to this
+   change; never `git add .` or `git add -A` over a tree you have not
+   inspected. Leave unrelated edits alone and say so.
+3. Never stage a secret or a build artifact. That means any `*.env` file other
+   than a deliberate documented template such as `.env.example`, and any key,
+   credential, token, or private URL. It also means generated output:
+   `packages/*/dist/`, `test-results/`, `playwright-report/`, and
+   `**/__pycache__/`. If one is present in the tree, say so — do not read its
+   contents to decide.
+4. Per `AGENTS.md`, a consumer-visible change to a public package needs its
+   Changeset in the same commit. Add it before committing, not after. CI
+   enforces this: `.github/workflows/release-intent.yml` fails the pull request
+   when a release-sensitive path changed without one, and the
+   `no-release-needed` label is a maintainer's call with a written reason, not
+   a way to get a check green.
+5. Write the message to a file and use `git commit -F <file>`, so wrapping and
    punctuation survive the shell.
-5. `git log -1 --stat` to confirm what landed. If the pre-commit hook
-   (`lint-staged`) rewrote files, review the result and amend rather than
-   stacking a fixup.
-6. Do not push unless asked. On the default branch, branch first.
+6. Let the pre-commit hook run. It is `lint-staged` running Prettier; never
+   bypass a failed hook with `--no-verify`. If it rewrote files, review the
+   result and amend rather than stacking a fixup.
+7. `git log -1 --stat` to confirm what landed.
+8. Do not push unless asked. On the default branch, branch first.
+
+Report the commit hash, the subject, and the number of files changed, and say
+that the commit is local and has not been pushed.
 
 ## Examples
 
