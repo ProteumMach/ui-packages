@@ -47,6 +47,10 @@
       "types": "./dist/vendors/harvey/index.d.ts",
       "import": "./dist/vendors/harvey/index.js"
     },
+    "./vendors/maritool": {
+      "types": "./dist/vendors/maritool/index.d.ts",
+      "import": "./dist/vendors/maritool/index.js"
+    },
     "./registry": {
       "types": "./dist/registry.d.ts",
       "import": "./dist/registry.js"

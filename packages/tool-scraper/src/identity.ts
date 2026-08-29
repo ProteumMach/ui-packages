@@ -106,6 +106,24 @@ export const BRANDS = {
     vendor: 'Harvey Tool',
     productLink: 'https://www.harveytool.com/products/tool-details-{material}',
   },
+  // MariTool is an osCommerce-family storefront, and its per-part page is
+  // addressable three ways: `product_info.php?products_id=100`, the
+  // SEO-rewritten `/p100/<slug>/product_info.html`, and a keyword search. The
+  // first two are keyed on an internal store id rather than on the part
+  // number, and that id is the one thing about a MariTool part that is not
+  // stable — a re-created product changes it. So the link is a search for the
+  // part number, the same call REGO-FIX and Destiny Tool got, and here it is a
+  // search the vendor really answers: `advanced_search_result.php?keywords=`
+  // is the storefront's own search endpoint and a part number matches exactly
+  // one product (JG 2026-08-29).
+  //
+  // No `node`: that key is Kennametal's AEM platform and nothing else.
+  maritool: {
+    host: 'maritool.com',
+    home: 'https://www.maritool.com',
+    vendor: 'MariTool',
+    productLink: 'https://www.maritool.com/advanced_search_result.php?keywords={material}',
+  },
 } as const satisfies Record<string, Brand>
 
 /**

@@ -17,6 +17,8 @@ import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { HOLDER_FAMILIES } from '../src/families/index.js'
+import { LEAVES as MARITOOL_LEAVES } from '../src/families/maritool.js'
+import { categoryUrl } from '../src/vendors/maritool/scrape.js'
 import { toCsv } from '../src/node/csv.js'
 import { SCRAPE_ROOT_ENV, describeRoot, familyCsv } from '../src/node/paths.js'
 import * as receipts from '../src/node/receipts.js'
@@ -346,6 +348,157 @@ ${numbers.map((n) => `{variantName:"${n}",variantDxfFileLink:"https://cdn.exampl
     expect(await run(['harvey', '--catalog'], io, fetcher)).toBe(0)
 
     expect(out).toContain('/products/thing')
+  })
+})
+
+describe('the maritool command', () => {
+  // A MariTool family is 6 listing pages and 11 product pages, and the command
+  // paces itself between every one of them — 17 real waits, which is seven
+  // seconds of a suite that otherwise runs in two. The delay is politeness
+  // towards a vendor, and there is no vendor here: `scrape.pause` resolves on
+  // a `setTimeout`, so a timer that fires at once takes the wait out without
+  // taking the code path out. `scrapeHolders` still awaits every pause it
+  // would make, in the same order.
+  beforeEach(() => {
+    vi.stubGlobal('setTimeout', (fn: () => void) => {
+      fn()
+      return 0
+    })
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  /** One listing row, in MariTool's own markup. */
+  const row = (id: string, part: string) => {
+    const link = `https://www.maritool.com/x/c23/p${id}/${part}/product_info.html`
+    return `<tr class="product-info">
+      <td><a href="${link}"><img/></a></td>
+      <td><div><a href="${link}" title="${part}">${part} TOOL HOLDER</a></div>
+        <div class="product-info-detail"><p>Part#: ${part}</p><p>Brand: MariTool</p></div></td>
+    </tr>`
+  }
+
+  const listing = (parts: string[][]) =>
+    `<html><body>Displaying <b>1</b> to <b>${parts.length}</b> (of <b>${parts.length}</b> products)
+     <table><tbody>${parts.map(([id, part]) => row(id!, part!)).join('')}</tbody></table></body></html>`
+
+  const product = (specs: boolean) =>
+    specs
+      ? `<html><body><div class="product-info-box"><div class="header">Product Specifications</div>
+         <table><tr><td><b>Taper:&nbsp;</b></td><td>CAT50</td></tr>
+                <tr><td><b>Gage Length:&nbsp;</b></td><td>3.0</td></tr></table></div></body></html>`
+      : '<html><body><div class="header">Product Info</div></body></html>'
+
+  /**
+   * The CAT50 catalog as MariTool really publishes it: six leaves, eleven
+   * parts, and the two in `c23_24_45` publishing no spec table.
+   */
+  function catalog(): Record<string, string> {
+    const counts = [2, 1, 1, 1, 3, 3]
+    const pages: Record<string, string> = {}
+    let next = 1
+
+    MARITOOL_LEAVES['maritool_cat50_holders.csv'].forEach((leaf, index) => {
+      const parts = Array.from({ length: counts[index]! }, () => {
+        const id = String(next++)
+        return [id, `CAT50-PART-${id.padStart(2, '0')}`]
+      })
+      pages[categoryUrl(leaf.cPath)] = listing(parts)
+      for (const [id, part] of parts) {
+        // The first leaf is `c23_24_45`, whose two parts publish no table.
+        pages[`https://www.maritool.com/x/c23/p${id}/${part}/product_info.html`] = product(
+          index > 0,
+        )
+      }
+    })
+    return pages
+  }
+
+  const serving = (pages: Record<string, string>) =>
+    asFetcher({
+      text: (url: string) => {
+        const page = pages[url]
+        return page === undefined
+          ? Promise.reject(new Error(`no fixture for ${url}`))
+          : Promise.resolve(page)
+      },
+    })
+
+  it('scrapes a family into the CSV its own config names, and skips what has no table', async () => {
+    // The leaf cPaths come from the family's config, so none is typed again
+    // and none can be typed wrong. The declared `rows` is 9 against the
+    // vendor's 11 — the two skipped parts are the difference, and
+    // `receipts.checkRows` is what holds the two numbers together.
+    const { io, all } = recorder()
+
+    expect(await run(['maritool', 'maritool_cat50_holders.csv'], io, serving(catalog()))).toBe(0)
+
+    const written = readFileSync(familyCsv('maritool_cat50_holders.csv'), 'utf8')
+    expect(written).toContain('Material Number')
+    expect(written).toContain('L1_in')
+    expect(all()).toContain('wrote 9 rows')
+    expect(all()).toContain('SKIPPED CAT50-PART-01')
+  })
+
+  it('records a receipt naming every leaf it paged', async () => {
+    // A MariTool family is scraped from several categories, so the receipt
+    // carries all of their cPaths rather than one.
+    const { io } = recorder()
+
+    await run(['maritool', 'maritool_cat50_holders.csv'], io, serving(catalog()))
+
+    expect(receipts.read(familyCsv('maritool_cat50_holders.csv'))).toMatchObject({
+      brand: 'maritool',
+      familyCode: '23_24_45 23_24_429_430 23_24_1978 23_24_429_1979 23_24_957 23_24_429_1512',
+      rows: 9,
+    })
+  })
+
+  it('refuses a scrape that lost rows against the declared count', async () => {
+    const { io } = recorder()
+    const pages = catalog()
+    // The last leaf now publishes two parts where the family declares three.
+    const last = MARITOOL_LEAVES['maritool_cat50_holders.csv'].at(-1)!
+    pages[categoryUrl(last.cPath)] = listing([
+      ['90', 'CAT50-PART-90'],
+      ['91', 'CAT50-PART-91'],
+    ])
+    for (const id of ['90', '91']) {
+      pages[`https://www.maritool.com/x/c23/p${id}/CAT50-PART-${id}/product_info.html`] =
+        product(true)
+    }
+
+    await expect(
+      run(['maritool', 'maritool_cat50_holders.csv'], io, serving(pages)),
+    ).rejects.toThrow(/declares 9/)
+  })
+
+  it('refuses a CSV name no MariTool family claims', async () => {
+    const { io } = recorder()
+
+    await expect(run(['maritool', 'not_a_family.csv'], io, noNetwork)).rejects.toThrow(
+      /MariTool family/,
+    )
+  })
+
+  it('prints the categories the walk finds, and which are leaves', async () => {
+    const { io, out } = recorder()
+    const fetcher = asFetcher({
+      text: (url: string) =>
+        Promise.resolve(
+          url.includes('cPath=23_25_42')
+            ? '<html><head><title>x ER Collet Chucks - MariTool</title></head>' +
+                '<body>Displaying <b>1</b> to <b>1</b> (of <b>7</b> products)</body></html>'
+            : '<html><head><title>x CAT40 - MariTool</title></head><body>' +
+                '<a href="https://www.maritool.com/s/c23_25_42/index.html">ER</a></body></html>',
+        ),
+    })
+
+    expect(await run(['maritool', '--catalog'], io, fetcher)).toBe(0)
+
+    expect(out.join('\n')).toContain('cPath=23_25_42')
+    expect(out.join('\n')).toContain('of them leaves')
   })
 })
 

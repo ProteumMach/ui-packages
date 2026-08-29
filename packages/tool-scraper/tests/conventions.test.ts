@@ -54,15 +54,19 @@ describe('identity columns', () => {
 
   it('writes down every vendor that broke the convention', () => {
     // REGO-FIX adopted Kennametal's identity labels; Destiny Tool passes
-    // Firestore's own `itemNumber` straight through, and Harvey Tool genuinely
-    // publishes one number per part and no catalog designation at all. The
+    // Firestore's own `itemNumber` straight through, and Harvey Tool and
+    // MariTool each genuinely publish one number per part and no catalog
+    // designation at all — MariTool keeps `Material Number` and drops only the
+    // second column, which is a deviation all the same: a header check that
+    // did not know would fail every MariTool CSV. The
     // convention was real but informal, and it eroded the first time a vendor
     // did not resemble the first two — so each deviation is a table entry, and
     // the next vendor's drift has to be a decision somebody made rather than a
     // thing that happened.
-    expect(Object.keys(IDENTITY_DEVIATIONS).sort()).toEqual(['destinytool', 'harvey'])
+    expect(Object.keys(IDENTITY_DEVIATIONS).sort()).toEqual(['destinytool', 'harvey', 'maritool'])
     expect(identityColumns('destinytool')).toEqual(['itemNumber'])
     expect(identityColumns('harvey')).toEqual(['Tool #'])
+    expect(identityColumns('maritool')).toEqual(['Material Number'])
     expect(identityColumns('regofix')).toEqual(IDENTITY_COLUMNS)
   })
 

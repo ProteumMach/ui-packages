@@ -23,6 +23,7 @@ pnpm add @toolpath/tool-scraper
 | REGO-FIX           | Elasticsearch proxy POST + per-part DIN 4000 XML        | toolholding                          |
 | Destiny Tool       | Firestore REST, paginated                               | solid end mills                      |
 | Harvey Tool        | inline JS literal on a product page, plus its `<thead>` | miniature end mills, keyseat cutters |
+| MariTool           | osCommerce category listings, then one page per part    | toolholding                          |
 
 ## Two entry points
 
@@ -72,6 +73,8 @@ toolpath-scrape regofix holders "$TOOLPATH_SCRAPE_ROOT/regofix/csv/regofix_bt30_
 toolpath-scrape destinytool "$TOOLPATH_SCRAPE_ROOT/destinytool/csv/destinytool_end_mills_inch.csv"
 toolpath-scrape harvey harvey_endmill_008.csv     # the page and the unit come from its config
 toolpath-scrape harvey --catalog                  # what the four category trees link to today
+toolpath-scrape maritool maritool_cat40_holders.csv  # its leaf categories come from its config
+toolpath-scrape maritool --catalog                # what the five taper trees hold today
 ```
 
 `toolpath-scrape --help` lists the rest.
@@ -104,7 +107,8 @@ without a note, a date and initials does not compile.
 - [`docs/KENNAMETAL_CAD_API.md`](docs/KENNAMETAL_CAD_API.md),
   [`docs/KENNAMETAL_SPEEDFEED_API.md`](docs/KENNAMETAL_SPEEDFEED_API.md),
   [`docs/REGOFIX_PRODUCTFINDER_API.md`](docs/REGOFIX_PRODUCTFINDER_API.md),
-  [`docs/HARVEY_PRODUCT_TABLE.md`](docs/HARVEY_PRODUCT_TABLE.md) — how each endpoint or table was
+  [`docs/HARVEY_PRODUCT_TABLE.md`](docs/HARVEY_PRODUCT_TABLE.md),
+  [`docs/MARITOOL_CATALOG.md`](docs/MARITOOL_CATALOG.md) — how each endpoint or table was
   found, and the dead ends tried first.
 - [`../../docs/TOOL-SCRAPER-PLAN.md`](../../docs/TOOL-SCRAPER-PLAN.md) — the structure, the evidence
   behind it, and what has landed.

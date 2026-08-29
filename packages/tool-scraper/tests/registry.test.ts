@@ -15,7 +15,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ScraperConfigError } from '../src/errors.js'
-import { familyId } from '../src/family.js'
+import { familyBrand, familyId } from '../src/family.js'
 import { ALL_FAMILIES, COLLET_FAMILIES, FAMILIES, HOLDER_FAMILIES } from '../src/families/index.js'
 import { BRANDS, recordGuid, type BrandName } from '../src/identity.js'
 import { ColumnMap, REQUIRED_GEOMETRY, type ToolKind } from '../src/records.js'
@@ -191,15 +191,34 @@ describe('the catalog sources what no table states', () => {
   })
 
   it('gives every holder and collet provenance for its discriminants', () => {
-    // `taper`, `clamping` and `style` are facts the variant table never states
-    // — which is why they are config, and therefore why each needs a source.
+    // `taper`, `clamping` and `style` are constants no variant table states —
+    // which is why they are config, and therefore why each needs a source.
+    //
+    // **Unless the vendor states them per part, in which case a fact would be
+    // the wrong thing.** A family constant standing beside a scraped column
+    // masks a scrape that lost the column, so the two are alternatives rather
+    // than belt and braces. Which brands scrape which discriminant is listed
+    // here by name, so a new vendor's silence is a decision somebody made:
+    // MariTool files one CSV per taper and mixes all three holder styles in
+    // it, and its HSK family holds nine spindle sizes, so none of the three is
+    // expressible as a constant. REGO-FIX is the same case one column narrower
+    // — see the `contact` claim below.
+    const SCRAPED: Partial<Record<BrandName, readonly string[]>> = {
+      maritool: ['taper', 'clamping', 'style'],
+    }
+
     expect(Object.keys(HOLDER_FAMILIES).length).toBeGreaterThan(0)
     expect(Object.keys(COLLET_FAMILIES).length).toBeGreaterThan(0)
 
     for (const [name, cfg] of Object.entries(HOLDER_FAMILIES)) {
       const facts = Object.keys(cfg.facts ?? {})
+      const scraped = SCRAPED[familyBrand(cfg)] ?? []
       for (const key of ['taper', 'clamping', 'style']) {
-        expect(facts, name).toContain(key)
+        if (scraped.includes(key)) {
+          expect(facts, `${name}: ${key} is scraped, so a fact would mask it`).not.toContain(key)
+        } else {
+          expect(facts, name).toContain(key)
+        }
       }
     }
     for (const [name, cfg] of Object.entries(COLLET_FAMILIES)) {

@@ -114,15 +114,19 @@ export const IDENTITY_COLUMNS = ['Material Number', 'ISO Catalog Number'] as con
  * Where a vendor's CSV does not use {@link IDENTITY_COLUMNS}, and what it uses
  * instead.
  *
- * **Two entries, and they are a record of drift rather than a licence.** REGO-FIX
- * adopted Kennametal's identity labels; Destiny Tool passes Firestore's own
- * `itemNumber` straight through and publishes no catalog designation at all —
- * the convention was real but informal, and it eroded the first time a vendor
- * did not resemble the first two. Writing the deviation down is what makes the
- * fourth vendor's drift a decision somebody made rather than a thing that
- * happened. Harvey Tool is the second, and it is the honest kind: the vendor
- * genuinely publishes one identifier, so the entry records a fact about Harvey
- * rather than a shortcut taken here.
+ * **Three entries, and they are a record of drift rather than a licence.**
+ * REGO-FIX adopted Kennametal's identity labels; Destiny Tool passes
+ * Firestore's own `itemNumber` straight through and publishes no catalog
+ * designation at all — the convention was real but informal, and it eroded the
+ * first time a vendor did not resemble the first two. Writing the deviation
+ * down is what makes the next vendor's drift a decision somebody made rather
+ * than a thing that happened.
+ *
+ * Harvey Tool and MariTool are the honest kind, and they are now the majority:
+ * both genuinely publish one identifier per part, so their entries record a
+ * fact about the vendor rather than a shortcut taken here. Two of the two
+ * vendors added since the convention was written have needed one, which says
+ * the two-column shape is Kennametal's rather than the industry's.
  */
 export const IDENTITY_DEVIATIONS: Partial<Record<BrandName, readonly string[]>> = {
   destinytool: ['itemNumber'],
@@ -133,6 +137,15 @@ export const IDENTITY_DEVIATIONS: Partial<Record<BrandName, readonly string[]>> 
   // a column in the CSV that the vendor does not publish, which is the one
   // thing a receipt must not do.
   harvey: ['Tool #'],
+  // MariTool publishes one number per part — the `Part#` line its own listing
+  // rows are headed with, which is also what its `Available Downloads for …`
+  // header restates and what its search endpoint matches on — and no second
+  // catalog designation anywhere on a category page or a product page. The
+  // store's `products_id` is not that second number: it is an internal id a
+  // re-created product would change, and every guid minted off it with it.
+  // Same call as Harvey's, and the honest kind: the entry records a fact about
+  // the vendor rather than a shortcut taken here.
+  maritool: ['Material Number'],
 }
 
 /**

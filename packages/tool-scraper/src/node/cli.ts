@@ -6,6 +6,7 @@
  * toolpath-scrape regofix         ProductFinder index -> toolholding CSV
  * toolpath-scrape destinytool     Firestore products -> End Mill CSV
  * toolpath-scrape harvey          one product page -> CSV
+ * toolpath-scrape maritool        leaf categories -> toolholding CSV
  * toolpath-scrape thread-pitch    add the derived Thread Pitch column
  * toolpath-scrape cad             add the vendor CAD model column
  * toolpath-scrape materials       add the ISO workpiece-group column
@@ -48,6 +49,14 @@ import { PRODUCT_PAGES } from '../families/harvey.js'
 import { CATEGORY_ROOTS, discoverProducts } from '../vendors/harvey/catalog.js'
 import { scrapeProduct } from '../vendors/harvey/scrape.js'
 import { SEARCH_URL, scrapeCollets, scrapeHolders } from '../vendors/regofix/scrape.js'
+import { LEAVES as MARITOOL_LEAVES } from '../families/maritool.js'
+import {
+  CATEGORY_ROOTS as MARITOOL_ROOTS,
+  describe as describeCategory,
+  discoverCategories,
+  leavesOf,
+} from '../vendors/maritool/catalog.js'
+import { scrapeHolders as scrapeMaritoolHolders } from '../vendors/maritool/scrape.js'
 
 /**
  * The PG series a BT 30 holder can take. PG 32 and PG 48 collets exist and no
@@ -86,6 +95,17 @@ const USAGE = `usage: toolpath-scrape <command> [args]
       Walks the four Harvey category trees and prints every product page it
       finds, one per line. For noticing a page Harvey has added — a scrape
       needs none of it.
+
+  maritool FAMILY.csv [more.csv ...]
+      One MariTool taper -> a CSV. The leaf categories to page through come
+      from the family's own config, so none of them is typed again. One
+      request per listing page, then one per part for its Product
+      Specifications table.
+
+  maritool --catalog
+      Walks the five MariTool taper trees and prints every category it finds,
+      one per line, with its product count. For rechecking the leaf cPaths in
+      \`families/maritool.ts\` — a scrape needs none of it.
 
   thread-pitch TAP.csv [more.csv ...]
       Adds a Thread Pitch column derived from D1-TDZ, in place. Safe to re-run.
@@ -203,6 +223,8 @@ export async function run(
       return destinytool(rest, io, fetcher)
     case 'harvey':
       return harvey(rest, io, fetcher)
+    case 'maritool':
+      return maritool(rest, io, fetcher)
     case 'thread-pitch':
       return threadPitch(rest, io)
     case 'cad':
@@ -343,6 +365,44 @@ async function harvey(argv: string[], io: Console_, fetcher: Fetcher): Promise<n
     // is typed and its directory is the caller's to have made.
     mkdirSync(dirname(out), { recursive: true })
     wrote(out, 'harvey', scrape, io)
+  }
+  return 0
+}
+
+/**
+ * One or more MariTool families, or the catalog walk.
+ *
+ * The scrape paces itself between every request it makes, so unlike `harvey`
+ * there is nothing to pace between families here.
+ */
+async function maritool(argv: string[], io: Console_, fetcher: Fetcher): Promise<number> {
+  if (argv[0] === '--catalog') {
+    const found = await discoverCategories(fetcher, MARITOOL_ROOTS, { warn: io.error })
+    for (const category of found) io.log(describeCategory(category))
+    const leaves = leavesOf(found)
+    io.log(
+      `${found.length} categories under ${MARITOOL_ROOTS.length} taper trees, ` +
+        `${leaves.length} of them leaves, ` +
+        `${leaves.reduce((sum, leaf) => sum + leaf.products, 0)} products`,
+    )
+    return 0
+  }
+
+  if (argv.length === 0) {
+    io.error(USAGE)
+    return 2
+  }
+
+  for (const name of namesIn(argv, MARITOOL_LEAVES, 'MariTool family')) {
+    // Never undefined: `namesIn` refused anything `MARITOOL_LEAVES` does not
+    // key, and `tests/maritool.test.ts` holds the two tables to the same keys.
+    const leaves = MARITOOL_LEAVES[name as keyof typeof MARITOOL_LEAVES]
+    const scrape = await scrapeMaritoolHolders(fetcher, leaves, { warn: io.error })
+    const out = familyCsv(name)
+    // This command resolves its own output path rather than taking one, so the
+    // brand's directory may not exist yet.
+    mkdirSync(dirname(out), { recursive: true })
+    wrote(out, 'maritool', scrape, io)
   }
   return 0
 }
