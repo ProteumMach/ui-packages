@@ -26,7 +26,7 @@ import type { MapperOptions, ScrapedRow } from './scrape.js'
 /**
  * The per-family constants a fact can carry, and their types.
  *
- * Ten keys, which is the whole vocabulary the catalog uses. Naming them rather
+ * Eleven keys, which is the whole vocabulary the catalog uses. Naming them rather
  * than accepting any string is what lets a mapper read `family.coolantThrough`
  * as a `boolean` instead of casting an `unknown` out of a bag — and what makes
  * a fact whose value is the wrong type a compile error where the family is
@@ -37,6 +37,18 @@ export interface FamilyFacts {
   unit?: UnitSystem
   /** Cutting-material code — `carbide`, `hss`, `diamond`. */
   bmc?: string
+  /**
+   * The end profile, as the vendor names it — `Ball`, `Square`,
+   * `Corner Radius`.
+   *
+   * A per-family constant here rather than a per-row derivation because some
+   * vendors state it once for a whole product line and never in the variant
+   * table: Harvey Tool's 52 product pages each publish one profile in the page
+   * title and no profile column, where Destiny Tool publishes an `endStyle`
+   * per row and needs none of this. It is what tells a mapper that a family
+   * with no corner-radius column has `RE = DC / 2` rather than `RE = 0`.
+   */
+  profile?: string
   coolantThrough?: boolean
   flutes?: number
   /** Degrees included. */

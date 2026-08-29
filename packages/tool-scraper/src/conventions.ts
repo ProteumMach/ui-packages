@@ -18,6 +18,7 @@
  * | Multi-value cells are space-separated             | all three                 |
  * | One row per orderable part                        | all three                 |
  * | `CAD_STEP_URL` names a CAD model where one exists | Kennametal, REGO-FIX      |
+ * | `CAD_DXF_URL` names a 2D profile where one exists  | Harvey                    |
  * | Unmapped vendor codes keep a `DIN_` prefix        | REGO-FIX; rule is general |
  * | The identity columns                              | **broken** — see below    |
  *
@@ -73,6 +74,23 @@ export const UNIT_SUFFIX: Record<UnitSystem, string> = {
 export const CAD_COLUMN = 'CAD_STEP_URL'
 
 /**
+ * The CSV column holding a part's downloadable 2D DXF profile.
+ *
+ * A second column rather than a second thing written into {@link CAD_COLUMN},
+ * because a DXF is not a STEP model: one is a flat profile a machinist prints
+ * or traces, the other is the solid a CAM system imports. Harvey Tool publishes
+ * a DXF for 12,773 of its 12,799 parts and a STEP for none of them, so writing
+ * its link into `CAD_STEP_URL` would repeat exactly the mistake the
+ * `CAD_STP_LWM` -> `CAD_STEP_URL` rename fixed on 2026-08-08 — a column name
+ * that is a claim about the data, and false.
+ *
+ * Vendor-neutral and beside `CAD_COLUMN` for the same reason that one is: a
+ * format is not one manufacturer's fact, and the second vendor to publish a DXF
+ * must write it into this column rather than inventing another.
+ */
+export const CAD_DXF_COLUMN = 'CAD_DXF_URL'
+
+/**
  * The prefix an unmapped vendor code keeps, so it cannot read as a dimension.
  *
  * REGO-FIX's per-part DIN 4000 XML publishes codes — `A2`, `B1`, `B2` — whose
@@ -96,16 +114,25 @@ export const IDENTITY_COLUMNS = ['Material Number', 'ISO Catalog Number'] as con
  * Where a vendor's CSV does not use {@link IDENTITY_COLUMNS}, and what it uses
  * instead.
  *
- * **One entry, and it is a record of drift rather than a licence.** REGO-FIX
+ * **Two entries, and they are a record of drift rather than a licence.** REGO-FIX
  * adopted Kennametal's identity labels; Destiny Tool passes Firestore's own
  * `itemNumber` straight through and publishes no catalog designation at all —
  * the convention was real but informal, and it eroded the first time a vendor
  * did not resemble the first two. Writing the deviation down is what makes the
  * fourth vendor's drift a decision somebody made rather than a thing that
- * happened.
+ * happened. Harvey Tool is the second, and it is the honest kind: the vendor
+ * genuinely publishes one identifier, so the entry records a fact about Harvey
+ * rather than a shortcut taken here.
  */
 export const IDENTITY_DEVIATIONS: Partial<Record<BrandName, readonly string[]>> = {
   destinytool: ['itemNumber'],
+  // Harvey Tool publishes exactly one number per part — the `Tool #` its own
+  // table column is headed with, which is also the segment of its per-part URL
+  // — and no second catalog designation anywhere on a product page or a part
+  // page. Inventing an `ISO Catalog Number` to satisfy the convention would put
+  // a column in the CSV that the vendor does not publish, which is the one
+  // thing a receipt must not do.
+  harvey: ['Tool #'],
 }
 
 /**

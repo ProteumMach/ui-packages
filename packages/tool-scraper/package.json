@@ -43,6 +43,10 @@
       "types": "./dist/vendors/destinytool/index.d.ts",
       "import": "./dist/vendors/destinytool/index.js"
     },
+    "./vendors/harvey": {
+      "types": "./dist/vendors/harvey/index.d.ts",
+      "import": "./dist/vendors/harvey/index.js"
+    },
     "./registry": {
       "types": "./dist/registry.d.ts",
       "import": "./dist/registry.js"

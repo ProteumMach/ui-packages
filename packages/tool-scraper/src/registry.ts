@@ -33,6 +33,7 @@ import { ScraperConfigError } from './errors.js'
 import { checkFact, type Fact } from './provenance.js'
 import { checkColumnMap } from './records.js'
 import { RECORD_MAPPERS as DESTINYTOOL } from './vendors/destinytool/records.js'
+import { RECORD_MAPPERS as HARVEY } from './vendors/harvey/records.js'
 import { RECORD_MAPPERS as KENNAMETAL } from './vendors/kennametal/records.js'
 
 /**
@@ -48,6 +49,7 @@ export const ADAPTERS: Record<string, RecordMappers> = {
   kennametal: KENNAMETAL,
   widia: KENNAMETAL,
   destinytool: DESTINYTOOL,
+  harvey: HARVEY,
 }
 
 /**

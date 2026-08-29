@@ -94,6 +94,18 @@ export const BRANDS = {
     vendor: 'Destiny Tool',
     productLink: 'https://destinytool.com/products?search={material}',
   },
+  // Harvey Tool is the first brand here whose per-part link is a real page the
+  // vendor already publishes: every tool number in a product table is rendered
+  // as `<a href="/products/tool-details-14916">`, so the template below is the
+  // vendor's own URL rather than a search standing in for one. The 26 parts
+  // whose table cell carries no link are the exception, and the link is still
+  // the right thing to offer for them — see `docs/HARVEY_PRODUCT_TABLE.md` §3.
+  harvey: {
+    host: 'harveytool.com',
+    home: 'https://www.harveytool.com',
+    vendor: 'Harvey Tool',
+    productLink: 'https://www.harveytool.com/products/tool-details-{material}',
+  },
 } as const satisfies Record<string, Brand>
 
 /**

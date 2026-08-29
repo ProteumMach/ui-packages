@@ -17,11 +17,12 @@ pnpm add @toolpath/tool-scraper
 
 ## Vendors
 
-| Vendor             | Transport                                        | What it publishes     |
-| ------------------ | ------------------------------------------------ | --------------------- |
-| Kennametal / WIDIA | AEM variant-table GET, parsed with `htmlparser2` | tools and toolholding |
-| REGO-FIX           | Elasticsearch proxy POST + per-part DIN 4000 XML | toolholding           |
-| Destiny Tool       | Firestore REST, paginated                        | solid end mills       |
+| Vendor             | Transport                                               | What it publishes                    |
+| ------------------ | ------------------------------------------------------- | ------------------------------------ |
+| Kennametal / WIDIA | AEM variant-table GET, parsed with `htmlparser2`        | tools and toolholding                |
+| REGO-FIX           | Elasticsearch proxy POST + per-part DIN 4000 XML        | toolholding                          |
+| Destiny Tool       | Firestore REST, paginated                               | solid end mills                      |
+| Harvey Tool        | inline JS literal on a product page, plus its `<thead>` | miniature end mills, keyseat cutters |
 
 ## Two entry points
 
@@ -57,6 +58,8 @@ toolpath-scrape kennametal 100003658 "$TOOLPATH_SCRAPE_ROOT/kennametal/csv/godri
 toolpath-scrape materials godrill_3xd_metric.csv
 toolpath-scrape regofix holders "$TOOLPATH_SCRAPE_ROOT/regofix/csv/regofix_bt30_pg_holders.csv"
 toolpath-scrape destinytool "$TOOLPATH_SCRAPE_ROOT/destinytool/csv/destinytool_end_mills_inch.csv"
+toolpath-scrape harvey harvey_endmill_008.csv     # the page and the unit come from its config
+toolpath-scrape harvey --catalog                  # what the four category trees link to today
 ```
 
 `toolpath-scrape --help` lists the rest.
@@ -80,7 +83,8 @@ without a note, a date and initials does not compile.
 - [`docs/ADDING-A-VENDOR.md`](docs/ADDING-A-VENDOR.md) — the runbook.
 - [`docs/KENNAMETAL_CAD_API.md`](docs/KENNAMETAL_CAD_API.md),
   [`docs/KENNAMETAL_SPEEDFEED_API.md`](docs/KENNAMETAL_SPEEDFEED_API.md),
-  [`docs/REGOFIX_PRODUCTFINDER_API.md`](docs/REGOFIX_PRODUCTFINDER_API.md) — how each endpoint was
+  [`docs/REGOFIX_PRODUCTFINDER_API.md`](docs/REGOFIX_PRODUCTFINDER_API.md),
+  [`docs/HARVEY_PRODUCT_TABLE.md`](docs/HARVEY_PRODUCT_TABLE.md) — how each endpoint or table was
   found, and the dead ends tried first.
 - [`../../docs/TOOL-SCRAPER-PLAN.md`](../../docs/TOOL-SCRAPER-PLAN.md) — the structure, the evidence
   behind it, and what has landed.

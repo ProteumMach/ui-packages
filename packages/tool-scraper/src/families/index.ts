@@ -33,6 +33,7 @@
 import { ScraperConfigError } from '../errors.js'
 import type { FamilyDefinition, ToolholdingDefinition } from '../family.js'
 import { FAMILIES as DESTINYTOOL } from './destinytool.js'
+import { FAMILIES as HARVEY } from './harvey.js'
 import {
   COLLET_FAMILIES as KM_COLLETS,
   FAMILIES as KENNAMETAL,
@@ -71,6 +72,7 @@ function merge<T>(...tables: Readonly<Record<string, T>>[]): Record<string, T> {
 export const FAMILIES: Record<string, FamilyDefinition> = merge<FamilyDefinition>(
   KENNAMETAL,
   DESTINYTOOL,
+  HARVEY,
 )
 
 /**

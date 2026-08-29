@@ -47,6 +47,7 @@ describe('every command states where scraped data lands', () => {
     ['kennametal'],
     ['regofix'],
     ['destinytool'],
+    ['harvey'],
     ['thread-pitch'],
     ['cad'],
     ['materials'],
@@ -234,6 +235,117 @@ describe('receipts', () => {
 
     const keys = Object.keys(JSON.parse(readFileSync(receipts.pathFor(csv), 'utf8')) as object)
     expect(keys).toEqual([...keys].sort())
+  })
+})
+
+describe('the harvey command', () => {
+  const HEAD = `<table id="Harvey-EndMill-025_1"><thead>
+  <tr><th colspan="1" rowspan="1">CUTTER DIA.</th>
+      <th colspan="1" rowspan="1">LOC</th>
+      <th colspan="1" rowspan="1">SHANK DIA.</th>
+      <th colspan="1" rowspan="1">OAL</th>
+      <th colspan="2" rowspan="1">UNCOATED</th>
+      <th rowspan="2">Add to Cart</th></tr>
+  <tr><th colspan="1"><b>D</b><sub>1</sub></th><th colspan="1"><b>L</b><sub>2</sub></th>
+      <th colspan="1"><b>D</b><sub>2</sub></th><th colspan="1"><b>L</b><sub>1</sub></th>
+      <th colspan="1">4 FL</th>
+      <th class="product-table-th-price" colspan="1">PRICE</th></tr>
+</thead><tbody><tr><td>x</td></tr></tbody></table>`
+
+  /** One HTML row carrying one part, the way the smallest real page does. */
+  const row = (number: string) =>
+    `{a0:{d:".250 (1/4)"},a1:{d:".375"},a2:{d:"1/4"},a3:{d:"6"},` +
+    `s0:{d:"<a href=\\"/products/tool-details-${number}\\">${number}</a>"},` +
+    `p0:{d:"$148.40 "},` +
+    `atc:{j:"[{\\"T\\":\\"${number}\\",\\"C\\":\\"${number}\\",\\"Q\\":\\"1\\"}]"}}`
+
+  /** `harvey_endmill_025.csv` declares 10 parts; `parts` says how many to serve. */
+  const page = (parts: number) => {
+    const numbers = Array.from({ length: parts }, (_, i) => String(14916 + i))
+    return `<html><body>${HEAD}<script>
+var cols1 = [{data:"a0"},{data:"a1"},{data:"a2"},{data:"a3"},{data:"s0"},{data:"p0"},{data:"atc"}];
+var cols2 = [];
+var tableData1 = [${numbers.map(row).join(',')}];
+var tableData2 = [];
+var viewModel = {simFileViewModel:{productCode:"HT-Harvey-EndMill-025",productTitle:"Miniature End Mills - Ball - Extra Long Length",variantSimFileViewModel:[
+${numbers.map((n) => `{variantName:"${n}",variantDxfFileLink:"https://cdn.example/${n}.dxf",variantStepFileLink:""}`).join(',\n')}]}};
+</script></body></html>`
+  }
+
+  const serving = (parts: number) => {
+    const asked: string[] = []
+    return {
+      asked,
+      fetcher: asFetcher({
+        text: (url: string) => {
+          asked.push(url)
+          return Promise.resolve(page(parts))
+        },
+      }),
+    }
+  }
+
+  it('scrapes a family into the CSV its own config names', async () => {
+    // The page to fetch and the unit system come from the family's config, so
+    // neither is typed again and neither can be typed wrong.
+    const { io, all } = recorder()
+    const { asked, fetcher } = serving(10)
+
+    expect(await run(['harvey', 'harvey_endmill_025.csv'], io, fetcher)).toBe(0)
+
+    expect(asked).toEqual([
+      'https://www.harveytool.com/products/miniature-end-mills---ball---extra-long-length',
+    ])
+    const written = readFileSync(familyCsv('harvey_endmill_025.csv'), 'utf8')
+    expect(written).toContain('CUTTER DIA._in')
+    expect(written).toContain('14916')
+    expect(all()).toContain('wrote 10 rows')
+  })
+
+  it('records a receipt naming the vendor family code', async () => {
+    const { io } = recorder()
+
+    await run(['harvey', 'harvey_endmill_025.csv'], io, serving(10).fetcher)
+
+    expect(receipts.read(familyCsv('harvey_endmill_025.csv'))).toMatchObject({
+      brand: 'harvey',
+      familyCode: 'HT-Harvey-EndMill-025',
+      rows: 10,
+    })
+  })
+
+  it('refuses a scrape that lost rows against the declared count', async () => {
+    // The one check nothing computes from the file it is checking. Harvey's own
+    // add-to-cart payloads are where the declared number came from.
+    const { io } = recorder()
+
+    await expect(run(['harvey', 'harvey_endmill_025.csv'], io, serving(9).fetcher)).rejects.toThrow(
+      /declares 10/,
+    )
+  })
+
+  it('refuses a CSV name no Harvey family claims', async () => {
+    const { io } = recorder()
+
+    await expect(run(['harvey', 'not_a_family.csv'], io, noNetwork)).rejects.toThrow(
+      /Harvey family/,
+    )
+  })
+
+  it('prints the product pages the category walk finds', async () => {
+    const { io, out } = recorder()
+    const fetcher = asFetcher({
+      text: () =>
+        Promise.resolve(
+          '<div class="product-grid-component">' +
+            '<div class="col-md-4 col-12 item-wrapper"><a href="/products/thing"></a></div>' +
+            '</div>',
+        ),
+    })
+
+    expect(await run(['harvey', '--catalog'], io, fetcher)).toBe(0)
+
+    expect(out).toContain('/products/thing')
   })
 })
 
