@@ -239,6 +239,17 @@ The Husky pre-commit hook runs `lint-staged`, which runs Prettier over staged fi
 - Never force-push, bypass hooks, run `git reset --hard`, run `git clean`, or use `git checkout --`
   unless the user explicitly asks and understands the consequence.
 
+### Pull request descriptions
+
+Fill in `.github/pull_request_template.md` and keep it **as short as the change allows**. A
+description is a pointer to the diff, not a second copy of it.
+
+- State facts. No narration, no rationale the code or a Changeset already carries, no praise.
+- Summary is a few lines or a short bullet list. One line per behavior a consumer sees.
+- Name breaking changes and the opt-out for each. Nothing else earns a heading.
+- Do not restate Changeset prose, commit bodies, file lists, diffstats, or test names.
+- Under Validation, name only the commands actually run and their result.
+
 ## Review guidelines
 
 IMPORTANT — these guidelines apply when reviewing code, and the `review-code` and `review-testing`
