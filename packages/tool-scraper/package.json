@@ -1,6 +1,6 @@
 {
   "name": "@toolpath/tool-scraper",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Scrape cutting-tool geometry from vendor catalogs into records and CSVs",
   "license": "MIT",
   "engines": {
@@ -8,12 +8,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/toolpath/toolpath.git",
+    "url": "https://github.com/toolpath/ui-packages.git",
     "directory": "packages/tool-scraper"
   },
   "homepage": "https://developers.toolpath.com",
   "bugs": {
-    "url": "https://github.com/toolpath/toolpath/issues"
+    "url": "https://github.com/toolpath/ui-packages/issues"
   },
   "publishConfig": {
     "access": "public",
