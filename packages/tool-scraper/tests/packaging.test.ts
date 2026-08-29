@@ -29,6 +29,7 @@ import {
   type FetcherOptions,
   type ScrapeResult,
   type ScrapedRow,
+  type ToolRecord,
   type Warn,
 } from '../src/index.js'
 
@@ -55,11 +56,12 @@ describe('the package surface', () => {
     // entry point used to export neither it nor `ScrapedRow` while exporting
     // every function that takes or returns one. A missing name fails
     // `check-types` rather than this expectation.
-    const surface: [ScrapeResult | null, ScrapedRow | null, BoundFamily | null] = [null, null, null]
+    const surface: [ScrapeResult | null, ScrapedRow | null, BoundFamily | null, ToolRecord | null] =
+      [null, null, null, null]
     const options: FetcherOptions = {}
     const warn: Warn = () => {}
 
-    expect(surface).toHaveLength(3)
+    expect(surface).toHaveLength(4)
     expect(warn).toBeTypeOf('function')
     expect(createFetcher(options)).toBeTypeOf('object')
     expect(HttpError).toBeTypeOf('function')

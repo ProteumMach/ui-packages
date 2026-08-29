@@ -9,15 +9,15 @@
  *
  * What each case pins is a decision the module docstring argues for: that a
  * tap's unit is per row and a drill's is per family, that an absent optional
- * column means something specific rather than zero, and that a tap's `grade`
- * is its coating because a tap has no carbide grade.
+ * column means something specific rather than zero, and that an absent
+ * material-groups column is a different claim from a blank cell in one.
  */
 
 import { describe, expect, it } from 'vitest'
 
 import { VendorResponseError } from '../src/errors.js'
 import type { BoundFamily, FamilyFacts } from '../src/family.js'
-import { checkColumnMap, type ToolKind } from '../src/records.js'
+import { checkColumnMap, UNSPECIFIED, type ToolKind } from '../src/records.js'
 import type { ScrapedRow } from '../src/scrape.js'
 import { drillRecord, endmillRecord, tapRecord } from '../src/vendors/kennametal/records.js'
 
@@ -85,8 +85,37 @@ describe('a drill', () => {
     expect(record.geometry.SIG).toBe(140)
   })
 
-  it('collapses the material groups to ISO classes', () => {
-    expect(drillRecord(row, cfg, cfg.columns).materialGroups).toEqual(['P', 'N'])
+  it('collapses the material groups to ISO classes, and says the vendor stated them', () => {
+    const record = drillRecord(row, cfg, cfg.columns)
+
+    expect(record.materialGroups).toEqual(['P', 'N'])
+    expect(record.materialGroupsSource).toBe('vendor-stated')
+  })
+
+  it('tells an unswept CSV apart from a part the sweep rated for nothing', () => {
+    // The material groups are not scraped with the variant table: a second CLI
+    // step writes the column. So an absent column is "never swept" — no
+    // evidence — and a blank cell under a present one is the vendor's index
+    // saying this part is rated for nothing. `parseCsv` fills `''` only for
+    // cells under a column that is in the header, which is what keeps the two
+    // distinguishable at all.
+    const unswept = { ...row }
+    delete (unswept as Record<string, string>)['Material Groups']
+
+    expect(drillRecord(unswept, cfg, cfg.columns).materialGroups).toBeNull()
+    expect(drillRecord(unswept, cfg, cfg.columns).materialGroupsSource).toBe(UNSPECIFIED)
+
+    const swept = drillRecord({ ...row, 'Material Groups': '' }, cfg, cfg.columns)
+    expect(swept.materialGroups).toEqual([])
+    expect(swept.materialGroupsSource).toBe('vendor-stated')
+  })
+
+  it('carries the coating column where the table publishes one', () => {
+    // The carbide `Grade` a drill table also carries reaches no record: it is
+    // what the tool is made of in Kennametal's vocabulary, and `substrate`
+    // already carries the cutting material as a fact.
+    expect(drillRecord({ ...row, Coating: 'TiAlN' }, cfg, cfg.columns).coating).toBe('TiAlN')
+    expect(drillRecord(row, cfg, cfg.columns).coating).toBe('')
   })
 
   it('carries non-ferrous, which only a drill states', () => {
@@ -125,7 +154,7 @@ describe('a drill', () => {
 })
 
 describe('a tap', () => {
-  const cfg = family('tap', TAP_LABELS, { bmc: 'hss' })
+  const cfg = family('tap', TAP_LABELS, { bmc: 'hss', coolantThrough: false })
 
   const metric: ScrapedRow = {
     'Material Number': '1',
@@ -174,10 +203,11 @@ describe('a tap', () => {
     expect(tapRecord(inch, cfg, cfg.columns).geometry.TP).toBe(0.025)
   })
 
-  it('carries the coating as the grade', () => {
-    // A tap has no carbide grade; that is Kennametal's table shape, not a rule
-    // about taps everywhere.
-    expect(tapRecord(metric, cfg, cfg.columns).grade).toBe('TiN')
+  it('carries the coating, which is all a tap table publishes', () => {
+    // A tap has no carbide grade — that is Kennametal's table shape, not a rule
+    // about taps everywhere — so `Coating` is the only treatment there is.
+    expect(tapRecord(metric, cfg, cfg.columns).coating).toBe('TiN')
+    expect(tapRecord(metric, cfg, cfg.columns).substrate).toBe('hss')
   })
 
   it('puts the designation in the description', () => {
@@ -205,14 +235,31 @@ describe('a tap', () => {
     expect(tapRecord(tagged('metric'), cfg, cfg.columns).unit).toBe('millimeters')
   })
 
-  it('is never coolant-through, and carries no material groups', () => {
-    // Kennametal indexes no tap by workpiece material — all 129 carry none —
-    // and reading empty as "unconstrained" would put every tap under every
-    // material on no evidence.
+  it('reads coolant-through from a fact like every other kind', () => {
+    // It was hardcoded `false` here until 2026-08-29, which is the same answer
+    // with nothing standing behind it. The three tap families now state it as
+    // an assumed fact, so the claim is on one page with a date and initials
+    // beside it rather than in a mapper.
+    expect(tapRecord(metric, cfg, cfg.columns).coolantThrough).toBe(false)
+
+    const silent = family('tap', TAP_LABELS, { bmc: 'hss' })
+    expect(() => tapRecord(metric, silent, silent.columns)).toThrow(
+      /must state coolantThrough as a fact/,
+    )
+  })
+
+  it('carries no material groups, because no tap CSV is swept', () => {
+    // Kennametal indexes no tap by workpiece material — all 129 carry none.
+    // An unswept CSV has no column at all, which is no evidence rather than an
+    // index that rates the tap for nothing.
     const record = tapRecord(metric, cfg, cfg.columns)
 
-    expect(record.coolantThrough).toBe(false)
-    expect(record.materialGroups).toEqual([])
+    expect(record.materialGroups).toBeNull()
+    expect(record.materialGroupsSource).toBe(UNSPECIFIED)
+
+    const swept = tapRecord({ ...metric, 'Material Groups': '' }, cfg, cfg.columns)
+    expect(swept.materialGroups).toEqual([])
+    expect(swept.materialGroupsSource).toBe('vendor-stated')
   })
 })
 
@@ -313,7 +360,7 @@ describe('every mapper', () => {
     // `vendor` is what a downstream consumer displays and joins on; `widia` is
     // a key in this package's own table and not a thing the vendor calls
     // itself.
-    const cfg = family('tap', TAP_LABELS, { bmc: 'hss' })
+    const cfg = family('tap', TAP_LABELS, { bmc: 'hss', coolantThrough: false })
     const row: ScrapedRow = {
       'Material Number': '1',
       'ISO Catalog Number': 'T100',
@@ -329,6 +376,14 @@ describe('every mapper', () => {
 
     expect(tapRecord(row, cfg, cfg.columns).vendor).toBe('Kennametal')
     expect(tapRecord(row, { ...cfg, brand: 'widia' }, cfg.columns).vendor).toBe('WIDIA')
+
+    // And the brand key travels with it, because the guid is minted in that
+    // brand's namespace and `vendor` is a display string nothing can look one
+    // up by. WIDIA's six tools moved namespace on 2026-08-07 for the same
+    // reason: a material number is a vendor-local integer.
+    const widia = tapRecord(row, { ...cfg, brand: 'widia' }, cfg.columns)
+    expect(widia.brand).toBe('widia')
+    expect(widia.guid).not.toBe(tapRecord(row, cfg, cfg.columns).guid)
   })
 
   it('freezes the record it returns', () => {

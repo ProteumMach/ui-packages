@@ -15,7 +15,8 @@ import { describe, expect, it } from 'vitest'
 
 import { CAD_DXF_COLUMN, checkIdentityColumns } from '../src/conventions.js'
 import { PRODUCT_PAGES } from '../src/families/harvey.js'
-import { boundFamily } from '../src/registry.js'
+import { UNSPECIFIED } from '../src/records.js'
+import { boundFamily, toRecords } from '../src/registry.js'
 import { TOOL_NUMBER_COLUMN } from '../src/vendors/harvey/scrape.js'
 import { rows } from './corpus.js'
 
@@ -52,11 +53,20 @@ describe('the scraped Harvey catalog', () => {
   for (const name of NAMES) {
     it(`${name}: turns every row into a record`, (ctx) => {
       const cfg = boundFamily(name)
+      const scraped = rows(ctx, name)
       const warnings: string[] = []
 
-      for (const row of rows(ctx, name)) {
-        const record = cfg.records(row, cfg, cfg.columns, { warn: (m) => warnings.push(m) })
+      // Through `toRecords` rather than the mapper directly: it is what a
+      // consumer calls, so the identity and column checks it runs first are
+      // exercised against 52 real headers rather than only against a fixture.
+      const records = toRecords(
+        name,
+        { header: Object.keys(scraped[0] ?? {}), rows: scraped, source: name, familyCode: null },
+        { warn: (m) => warnings.push(m) },
+      )
 
+      expect(records).toHaveLength(scraped.length)
+      for (const record of records) {
         // The relationships a mis-read column breaks first. Deliberately not
         // `reach >= LCF`: a keyseat cutter is a wide disc on a short neck, and
         // eight real parts have a cutter width greater than their neck length.
@@ -70,6 +80,11 @@ describe('the scraped Harvey catalog', () => {
         )
         expect(record.unit).toBe(cfg.unit)
         expect(record.substrate).toBe('carbide')
+        // No evidence, over the whole catalog: a Harvey variant table carries no
+        // material index, and the per-part page's list varies by coating within a
+        // family, so no family fact stands in for it.
+        expect(record.materialGroups, record.materialNumber).toBeNull()
+        expect(record.materialGroupsSource, record.materialNumber).toBe(UNSPECIFIED)
       }
     })
   }

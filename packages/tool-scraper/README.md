@@ -26,17 +26,29 @@ pnpm add @toolpath/tool-scraper
 
 ## Two entry points
 
-**`@toolpath/tool-scraper` returns records.** Every scrape hands back rows and enough provenance to
-say where they came from; nothing in it touches the filesystem, so a backend can embed it and do
-what it likes with the result.
+**`@toolpath/tool-scraper` returns records.** Every scrape hands back the vendor's own rows and
+enough provenance to say where they came from; `toRecords` turns one family's scrape into
+`ToolRecord[]` — canonical ISO 13399 geometry, one shape whatever the vendor. Nothing in either
+touches the filesystem, so a backend can embed it and do what it likes with the result.
 
 ```ts
-import { createFetcher } from '@toolpath/tool-scraper'
+import { createFetcher, type ToolRecord } from '@toolpath/tool-scraper'
+import { toRecords } from '@toolpath/tool-scraper/registry'
 import { scrapeFamily } from '@toolpath/tool-scraper/vendors/kennametal'
 
 const fetcher = createFetcher() // or your own: retries, proxy, rate limits
-const { header, rows, source } = await scrapeFamily(fetcher, '100003658')
+const scrape = await scrapeFamily(fetcher, '100003658')
+
+const records: ToolRecord[] = toRecords('godrill_3xd_metric.csv', scrape)
+// { brand: 'kennametal', guid: '…', geometry: { DC: 10, OAL: 89, … },
+//   materialGroups: ['P', 'N'], materialGroupsSource: 'vendor-stated', … }
 ```
+
+`toRecords` is on the `./registry` subpath because it is the one place that knows both the family
+table and the vendor adapters; the main entry point deliberately imports no vendor. It checks the
+scrape's header for the identity and mapped columns before it maps a single row, so a re-scrape
+whose part-number column was renamed fails by name instead of minting every guid off an empty
+string.
 
 The transport is a parameter, not a module global. Supply your own `Fetcher` and the vendor
 adapters read through it — which is also how every test in this package runs without a network.
@@ -73,6 +85,14 @@ definition and names the three that are Autodesk's rather than the standard's.
 
 Vendor CSVs keep the **vendor's** own column labels. Nothing reads a vendor's CSV but that vendor's
 adapter, and `conventions.ts` holds the short list of rules that do hold across all of them.
+
+`materialGroups` has three states, and they are different claims: `null` labelled `unspecified` is
+"we do not know what this tool is for" — not indexed, not published, or not swept — `[]` is a vendor
+index that rates the part for nothing, and a non-empty list is a rating. `materialGroupsSource` is
+never absent: it is `unspecified`, or it says whether the rating was `vendor-stated` or `derived`
+here. Every Harvey record is `unspecified`: Harvey's material index is published per part rather
+than in a variant table, and a scrape cannot reach it — see
+[`docs/HARVEY_PRODUCT_TABLE.md`](docs/HARVEY_PRODUCT_TABLE.md) §1.5.1.
 
 Every per-family constant no vendor table states carries its provenance — whether it was
 vendor-stated, derived or assumed, and by whom on what date. The types enforce it: an assumed fact

@@ -15,10 +15,11 @@
  *   Number` are Kennametal's header text — the labels
  *   `conventions.IDENTITY_COLUMNS` took as the convention because this vendor
  *   was first, and which Destiny Tool then did not follow.
- * - **Which column is the grade.** A drill and an end mill carry a carbide
- *   `Grade`; a tap has no carbide grade and carries `Coating`, the surface
- *   treatment, in the record's `grade` field. That is Kennametal's table
- *   shape, not a rule about taps everywhere.
+ * - **Which column is the coating.** `Coating` on every table that publishes
+ *   one, which is every tap table and some of the others. The carbide `Grade`
+ *   a drill and an end mill table also carry reaches no record: it is what the
+ *   tool is made of in Kennametal's own vocabulary, nothing downstream reads
+ *   it, and `substrate` already carries the cutting material as a fact.
  * - **That a tap's unit system is per row.** `Thread System` is a constant tag
  *   column this package appends at scrape time, and a metric and an inch tap
  *   can sit in one family — so a tap's `unit` is read per row where a drill's
@@ -36,10 +37,16 @@
  */
 
 import type { UnitSystem } from '../../conventions.js'
-import { ScraperConfigError, VendorResponseError } from '../../errors.js'
-import { familyBrand, type BoundFamily, type RecordMappers } from '../../family.js'
+import { VendorResponseError } from '../../errors.js'
+import { fact, familyBrand, type BoundFamily, type RecordMappers } from '../../family.js'
 import { BRANDS } from '../../identity.js'
-import { toolRecord, type ColumnMap, type GeometryName, type ToolRecord } from '../../records.js'
+import {
+  toolRecord,
+  UNSPECIFIED,
+  type ColumnMap,
+  type GeometryName,
+  type ToolRecord,
+} from '../../records.js'
 import type { ScrapedRow } from '../../scrape.js'
 import { threadMajorDiameter, type ThreadSystem } from '../../thread.js'
 import { MATERIALS_COLUMN, materialClasses } from './materials.js'
@@ -50,6 +57,15 @@ import { MATERIALS_COLUMN, materialClasses } from './materials.js'
  */
 export const MATERIAL_NUMBER = 'Material Number'
 export const CATALOG_NUMBER = 'ISO Catalog Number'
+
+/**
+ * The surface-treatment column, on the tables that publish one.
+ *
+ * Every tap table does; a drill or an end mill table may not, which is why the
+ * mappers read it with a `?? ''` rather than through a required column — an
+ * absent coating column is a table that states no coating, not a scrape fault.
+ */
+export const COATING = 'Coating'
 
 /**
  * One canonical dimension, or null when this family maps or publishes none.
@@ -98,12 +114,31 @@ function require_(
   return value
 }
 
-/** A per-family constant a mapper cannot proceed without. */
-function fact<T>(family: BoundFamily, key: string, value: T | undefined): T {
-  if (value === undefined) {
-    throw new ScraperConfigError(family.id, `a ${family.kind} family must state ${key} as a fact`)
-  }
-  return value
+/**
+ * The workpiece-material groups, and how they were arrived at.
+ *
+ * **The distinction the column cannot make on its own is present versus
+ * blank.** The material groups are not scraped with the variant table: they
+ * come from a second CLI step (`toolpath-scrape materials`) that sweeps the
+ * `workpieceMaterialDetail` facet and writes {@link MATERIALS_COLUMN} into the
+ * CSV. A family that step never ran over has **no such column**, and
+ * `node/csv.parseCsv` fills `''` only for cells under a column that is in the
+ * header — so the cell is `undefined` on an unswept CSV and `''` on a swept
+ * one whose part the vendor rates for nothing.
+ *
+ * Those are different claims and the record now keeps them apart: an
+ * `unspecified` label says this package has no evidence, `[]` says the vendor's
+ * own index has none. All
+ * 129 taps land on the second after a sweep — Kennametal indexes no tap by
+ * workpiece material at all — and reading that as "unconstrained" would put
+ * every tap under every material.
+ */
+function materialGroups(
+  row: ScrapedRow,
+): Pick<ToolRecord, 'materialGroups' | 'materialGroupsSource'> {
+  const cell = row[MATERIALS_COLUMN]
+  if (cell === undefined) return { materialGroups: null, materialGroupsSource: UNSPECIFIED }
+  return { materialGroups: materialClasses(cell), materialGroupsSource: 'vendor-stated' }
 }
 
 /**
@@ -155,6 +190,7 @@ export function drillRecord(row: ScrapedRow, family: BoundFamily, columns: Colum
   const what = row[MATERIAL_NUMBER] ?? ''
 
   return toolRecord({
+    brand: familyBrand(family),
     vendor: BRANDS[familyBrand(family)].vendor,
     materialNumber: what,
     catalogNumber: row[CATALOG_NUMBER] ?? '',
@@ -162,8 +198,8 @@ export function drillRecord(row: ScrapedRow, family: BoundFamily, columns: Colum
     kind: 'drill',
     unit,
     substrate: fact(family, 'bmc', family.bmc),
-    grade: row['Grade'] ?? '',
-    materialGroups: materialClasses(row[MATERIALS_COLUMN]),
+    coating: row[COATING] ?? '',
+    ...materialGroups(row),
     coolantThrough: fact(family, 'coolantThrough', family.coolantThrough),
     nonFerrous: fact(family, 'nonFerrous', family.nonFerrous),
     geometry: {
@@ -198,6 +234,7 @@ export function tapRecord(row: ScrapedRow, family: BoundFamily, columns: ColumnM
   const what = row[MATERIAL_NUMBER] ?? ''
 
   return toolRecord({
+    brand: familyBrand(family),
     vendor: BRANDS[familyBrand(family)].vendor,
     materialNumber: what,
     catalogNumber: row[CATALOG_NUMBER] ?? '',
@@ -207,10 +244,9 @@ export function tapRecord(row: ScrapedRow, family: BoundFamily, columns: ColumnM
     kind: 'tap',
     unit,
     substrate: fact(family, 'bmc', family.bmc),
-    // A tap has no carbide grade; the record's grade carries the coating.
-    grade: row['Coating'] ?? '',
-    materialGroups: materialClasses(row[MATERIALS_COLUMN]),
-    coolantThrough: false,
+    coating: row[COATING] ?? '',
+    ...materialGroups(row),
+    coolantThrough: fact(family, 'coolantThrough', family.coolantThrough),
     geometry: {
       DC: threadMajorDiameter(tdz, system),
       TP: require_(row, columns, 'TP', unit, what),
@@ -246,6 +282,7 @@ export function endmillRecord(
   const fluteLength = require_(row, columns, 'LCF', unit, what)
 
   return toolRecord({
+    brand: familyBrand(family),
     vendor: BRANDS[familyBrand(family)].vendor,
     materialNumber: what,
     catalogNumber: row[CATALOG_NUMBER] ?? '',
@@ -253,8 +290,8 @@ export function endmillRecord(
     kind: 'endmill',
     unit,
     substrate: fact(family, 'bmc', family.bmc),
-    grade: row['Grade'] ?? '',
-    materialGroups: materialClasses(row[MATERIALS_COLUMN]),
+    coating: row[COATING] ?? '',
+    ...materialGroups(row),
     coolantThrough: fact(family, 'coolantThrough', family.coolantThrough),
     geometry: {
       DC: dc,

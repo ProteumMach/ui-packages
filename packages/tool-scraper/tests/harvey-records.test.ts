@@ -13,6 +13,7 @@ import { describe, expect, it } from 'vitest'
 import { identityColumns } from '../src/conventions.js'
 import { VendorResponseError } from '../src/errors.js'
 import { recordGuid } from '../src/identity.js'
+import { UNSPECIFIED } from '../src/records.js'
 import { boundFamily } from '../src/registry.js'
 import type { ScrapedRow } from '../src/scrape.js'
 import { endmillRecord } from '../src/vendors/harvey/records.js'
@@ -66,20 +67,26 @@ describe('one part', () => {
     })
   })
 
-  it('takes the coating as the grade, because no grade is published', () => {
-    expect(record.grade).toBe('AlTiN COATED')
+  it('carries the coating, because no carbide grade is published anywhere', () => {
+    expect(record.coating).toBe('AlTiN COATED')
     expect(record.substrate).toBe('carbide')
   })
 
-  it('publishes no workpiece-material groups, which is a real answer', () => {
-    // Nothing on a product page or a part page rates a Harvey tool to ISO 513
-    // groups. Two keyseat families name a material class in their titles, and
-    // inferring groups from a product name is a guess this package will not make.
-    expect(record.materialGroups).toEqual([])
+  it('states no workpiece-material groups at all, which is no evidence', () => {
+    // Nothing in a Harvey variant table rates a tool to ISO 513 groups, so this
+    // is `null` — no evidence — and not `[]`, which is what a vendor index that
+    // rates a part for nothing produces. Every Harvey record lands here: the
+    // per-part page does publish a materials list, and a 2026-08-29 probe found
+    // it varying by coating *within* a family, so there is nothing a family fact
+    // could honestly say. See the mapper's module docstring.
+    expect(record.materialGroups).toBeNull()
+    expect(record.materialGroupsSource).toBe(UNSPECIFIED)
   })
 
   it('mints its guid in the Harvey namespace', () => {
     expect(record.materialNumber).toBe('14916')
+    expect(record.brand).toBe('harvey')
+    expect(record.guid).toBe(recordGuid('harvey', '14916'))
     expect(recordGuid('harvey', '14916')).not.toBe(recordGuid('kennametal', '14916'))
   })
 })

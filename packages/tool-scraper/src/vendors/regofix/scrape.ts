@@ -57,6 +57,7 @@
 import { CAD_COLUMN, DIN_PREFIX } from '../../conventions.js'
 import { VendorResponseError } from '../../errors.js'
 import { statusOf, type Fetcher } from '../../fetch.js'
+import { compare } from '../../order.js'
 import { consoleWarn, type ScrapeResult, type ScrapedRow, type Warn } from '../../scrape.js'
 
 export const MM_PER_INCH = 25.4
@@ -567,9 +568,7 @@ export async function scrapeHolders(
 
   const wanted = sources
     .filter((s) => SCRAPED_TAPERS.some((taper) => text(s, 'title').startsWith(taper)))
-    .sort((a, b) =>
-      text(a, 'field_sku_fulltext').localeCompare(text(b, 'field_sku_fulltext'), 'en'),
-    )
+    .sort((a, b) => compare(text(a, 'field_sku_fulltext'), text(b, 'field_sku_fulltext')))
 
   const rows: ScrapedRow[] = []
   for (const source of wanted) {
@@ -610,9 +609,7 @@ export async function scrapeCollets(
 
   const wanted = sources
     .filter((s) => sizes.includes(String(one(s, 'norm_size'))))
-    .sort((a, b) =>
-      text(a, 'field_sku_fulltext').localeCompare(text(b, 'field_sku_fulltext'), 'en'),
-    )
+    .sort((a, b) => compare(text(a, 'field_sku_fulltext'), text(b, 'field_sku_fulltext')))
 
   return finish(
     // `options.warn` unguarded: `colletRow` owns the fallback, and defaulting

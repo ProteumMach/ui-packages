@@ -17,9 +17,16 @@ import { describe, expect, it } from 'vitest'
 import { ScraperConfigError } from '../src/errors.js'
 import { familyId } from '../src/family.js'
 import { ALL_FAMILIES, COLLET_FAMILIES, FAMILIES, HOLDER_FAMILIES } from '../src/families/index.js'
-import { BRANDS, type BrandName } from '../src/identity.js'
+import { BRANDS, recordGuid, type BrandName } from '../src/identity.js'
 import { ColumnMap, REQUIRED_GEOMETRY, type ToolKind } from '../src/records.js'
-import { ADAPTERS, boundFamilies, boundFamily, boundToolholding } from '../src/registry.js'
+import type { ScrapeResult, ScrapedRow } from '../src/scrape.js'
+import {
+  ADAPTERS,
+  boundFamilies,
+  boundFamily,
+  boundToolholding,
+  toRecords,
+} from '../src/registry.js'
 
 describe('what binding produces', () => {
   it('gives every family a validated map and an adapter', () => {
@@ -53,6 +60,66 @@ describe('what binding produces', () => {
   it('refuses an unknown family by listing what it knows', () => {
     expect(() => boundFamily('nothing.csv')).toThrow(ScraperConfigError)
     expect(() => boundFamily('nothing.csv')).toThrow(/unknown cutting-tool family/)
+  })
+})
+
+describe('a scrape, as records', () => {
+  /** A ball family with no radius column: `harvey_endmill_025.csv`. */
+  const FAMILY = 'harvey_endmill_025.csv'
+
+  function row(over: Partial<Record<string, string>> = {}): ScrapedRow {
+    return {
+      'Tool #': '14916',
+      Description: 'Miniature End Mills - Ball - Extra Long Length',
+      Coating: 'AlTiN COATED',
+      FLUTES: '4',
+      'CUTTER DIA._in': '.250 (1/4)',
+      LOC_in: '.375',
+      'OVERALL REACH_in': '4.375',
+      'SHANK DIA._in': '1/4',
+      OAL_in: '6',
+      ...over,
+    }
+  }
+
+  function scrape(rows: ScrapedRow[], header = Object.keys(row())): ScrapeResult {
+    return { header, rows, source: 'https://example.test', familyCode: null }
+  }
+
+  it('maps every row of the scrape it is handed', () => {
+    // The uniform output the package produces and nothing shipped until now:
+    // four vendors' CSVs in four column vocabularies, one record type out.
+    const records = toRecords(FAMILY, scrape([row(), row({ 'Tool #': '14917' })]), {
+      warn: () => {},
+    })
+
+    expect(records).toHaveLength(2)
+    expect(records[0]?.vendor).toBe('Harvey Tool')
+    expect(records[0]?.brand).toBe('harvey')
+    expect(records[0]?.guid).toBe(recordGuid('harvey', '14916'))
+    expect(records[0]?.geometry.DC).toBe(0.25)
+  })
+
+  it('refuses a header whose identity column moved, before the first row', () => {
+    // The failure this prevents is silent: a re-scrape whose part-number column
+    // was renamed still parses, still has the right row count, and mints every
+    // guid off an empty string.
+    const header = Object.keys(row()).filter((column) => column !== 'Tool #')
+
+    expect(() => toRecords(FAMILY, scrape([row()], header))).toThrow(ScraperConfigError)
+    expect(() => toRecords(FAMILY, scrape([row()], header))).toThrow(/identity column/)
+  })
+
+  it('refuses a header missing a mapped column, naming the family and the field', () => {
+    // From inside a mapper this names one row out of ninety-three; here it names
+    // the family and the canonical field, which is what a person can act on.
+    const header = Object.keys(row()).filter((column) => column !== 'OAL_in')
+
+    expect(() => toRecords(FAMILY, scrape([row()], header))).toThrow(/OAL -> OAL_in/)
+  })
+
+  it('refuses an unknown family rather than mapping nothing', () => {
+    expect(() => toRecords('nothing.csv', scrape([]))).toThrow(/unknown cutting-tool family/)
   })
 })
 
@@ -106,11 +173,13 @@ describe('the catalog sources what no table states', () => {
   it('gives every family provenance for its per-kind constants', () => {
     // Listed per kind rather than as one set, because what a table omits
     // differs: a tap has no `unit` — its rows carry their own `Thread System`
-    // — and no `flutes` constant, because it publishes a `Z` column.
+    // — and no `flutes` constant, because it publishes a `Z` column. It does
+    // need `coolantThrough`: the tap mapper hardcoded `false` until 2026-08-29,
+    // which is the same claim with nothing standing behind it.
     const required: Record<ToolKind, string[]> = {
       drill: ['unit', 'flutes', 'pointAngle', 'coolantThrough', 'nonFerrous', 'bmc'],
       endmill: ['unit', 'coolantThrough', 'bmc'],
-      tap: ['bmc'],
+      tap: ['bmc', 'coolantThrough'],
     }
 
     for (const [name, cfg] of Object.entries(FAMILIES)) {

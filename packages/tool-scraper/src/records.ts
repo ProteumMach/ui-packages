@@ -45,6 +45,8 @@
 
 import { dimensionalColumn, type UnitSystem } from './conventions.js'
 import { ScraperConfigError } from './errors.js'
+import { recordGuid, type BrandName } from './identity.js'
+import type { FactSource } from './provenance.js'
 
 /** The kinds of cutting tool this package maps. */
 export type ToolKind = 'drill' | 'tap' | 'endmill'
@@ -60,6 +62,37 @@ export type ToolKind = 'drill' | 'tap' | 'endmill'
  * and a tool's own list from another has no way to notice the two disagree.
  */
 export const ISO_MATERIAL_GROUPS = ['P', 'M', 'K', 'N', 'S', 'H', 'C'] as const
+
+/**
+ * The material-groups label for **we do not know what this tool is for**.
+ *
+ * Not an ISO 513 group and deliberately not one of {@link ISO_MATERIAL_GROUPS}:
+ * it is a statement about this package's evidence, not about the tool. It sits
+ * in {@link ToolRecord.materialGroupsSource} rather than in the group list,
+ * because a consumer filtering a catalog down to "cuts steel" must not have to
+ * know that one of the letters is not a letter.
+ *
+ * **Why a label and not a bare `null`.** The absence was expressible before —
+ * `materialGroups === null` — and an absence is the one thing a reader has to
+ * interpret. Every Harvey part is here, and so is every Kennametal family whose
+ * material sweep has not been run: two different reasons for the same honest
+ * answer, and neither is "rated for nothing". A named value says that out loud
+ * in a UI, a log line and a filter, which `null` never does.
+ */
+export const UNSPECIFIED = 'unspecified'
+
+/**
+ * How a record's material groups were arrived at.
+ *
+ * A fact's own three sources plus {@link UNSPECIFIED}, which provenance has no
+ * word for because a `Fact` only exists once somebody has stated something. A
+ * record exists either way, so it needs the fourth.
+ *
+ * Only `vendor-stated`, `derived` and `unspecified` occur today; `assumed` is
+ * reachable the moment a family fact supplies the groups, and is kept in the
+ * type so that the vocabularies cannot drift apart.
+ */
+export type MaterialGroupsSource = FactSource | typeof UNSPECIFIED
 
 /** One canonical geometry name: what it measures, and whose name it is. */
 export interface GeometryField {
@@ -203,23 +236,73 @@ export const DIMENSIONAL_COLUMNS: ReadonlySet<GeometryName> = new Set(
  * it and hands it over, and a mapper that mutated one would be reaching back
  * across the seam this type exists to draw.
  *
- * `geometry` holds {@link GEOMETRY_FIELDS} names in `unit`. An **empty**
- * `materialGroups` is a real answer — Kennametal indexes no tap by workpiece
- * material, so all 129 carry none, and reading empty as "unconstrained" would
- * put every tap under every material on no evidence.
+ * `geometry` holds {@link GEOMETRY_FIELDS} names in `unit`.
+ *
+ * ## The workpiece-material groups have three states, not two
+ *
+ * They were `string[]` until this contract, and an empty array carried two
+ * incompatible claims at once. Kennametal's 129 taps are empty because the
+ * vendor's own index rates them for nothing; every Harvey part was empty
+ * because Harvey publishes no index a scrape can reach, and a Kennametal family
+ * whose material sweep was never run was empty for a third reason. A consumer
+ * reading the first as "not rated for steel" is right and reading the second
+ * the same way is wrong, and nothing in the record told the two apart.
+ *
+ * So:
+ *
+ * - **`null`, labelled {@link UNSPECIFIED}** — we do not know what this tool is
+ *   for. Not indexed, not published, or not swept. Says nothing about what it
+ *   cuts, and is not a claim that it cuts nothing.
+ * - **`[]`** — the vendor's index exists and rates this part for nothing.
+ * - **non-empty** — rated, in {@link ISO_MATERIAL_GROUPS} order.
+ *
+ * {@link ToolRecord.materialGroupsSource} is never absent: it is `unspecified`
+ * in the first case and, in the other two, how the answer was arrived at in the
+ * same vocabulary a family fact uses — `vendor-stated` where the vendor's own
+ * index said so, `derived` where this package computed it. A consumer that will
+ * not act on a guess filters on it, and one that will not show an unknown as an
+ * empty facet filters on it too.
  */
 export interface ToolRecord {
+  /**
+   * The brand key the record was minted under — `identity.BRANDS`'s own key,
+   * not the display name.
+   *
+   * Here because {@link ToolRecord.guid} is the join key for every downstream
+   * consumer and it is minted in this brand's namespace: without the key on
+   * the record, the guid is underivable from the record and `vendor` is a
+   * display string nothing can look a namespace up by.
+   */
+  readonly brand: BrandName
+  /** What this brand's records call the vendor — `identity.BRANDS[brand].vendor`. */
   readonly vendor: string
+  /**
+   * `identity.recordGuid(brand, materialNumber)`, minted by {@link toolRecord}
+   * rather than by an adapter: one mint path is what makes a guid collision
+   * across brands structurally impossible instead of merely unlikely.
+   */
+  readonly guid: string
   readonly materialNumber: string
   readonly catalogNumber: string
   readonly description: string
   readonly kind: ToolKind
   readonly unit: UnitSystem
   readonly substrate: string
-  readonly grade: string
+  /**
+   * The vendor's own coating string, `''` where the table publishes none.
+   *
+   * Raw, and never inferred from: `AlTiN COATED`, `TiN` and a Destiny Tool
+   * coating id are three vendors' vocabularies, and mapping them onto a shared
+   * one here would be this package inventing a standard rather than recording
+   * what was published.
+   */
+  readonly coating: string
   readonly geometry: Readonly<Partial<Record<GeometryName, number | boolean>>>
   readonly coolantThrough: boolean
-  readonly materialGroups: readonly string[]
+  /** ISO 513 main groups in {@link ISO_MATERIAL_GROUPS} order — see above. */
+  readonly materialGroups: readonly string[] | null
+  /** How the groups were arrived at. {@link UNSPECIFIED} exactly when they are null. */
+  readonly materialGroupsSource: MaterialGroupsSource
   /**
    * Drills only, and deliberately `null` elsewhere rather than `false`: it
    * drops the two ferrous presets downstream, and a default would ship them on
@@ -229,27 +312,51 @@ export interface ToolRecord {
 }
 
 /**
- * Build a {@link ToolRecord}, defaulting the two fields that have a meaningful
- * absence.
+ * Build a {@link ToolRecord}: mint its guid, default the fields that have a
+ * meaningful absence, and refuse the one state that cannot be true.
  *
  * An interface cannot carry a default, and requiring every adapter to write
- * `materialGroups: []` would put the decision back in the three places least
+ * `materialGroups: null` would put the decision back in the three places least
  * able to notice it was wrong. They stay **required on the type** so a
  * consumer reading a record never handles `undefined` — only the construction
- * is optional.
+ * is optional. The default is `null`/{@link UNSPECIFIED} and not `[]`, because
+ * an adapter that says nothing about workpiece materials has produced no
+ * evidence, which is the one thing the three-state rule exists to distinguish.
+ *
+ * `guid` is not an input at all. Every adapter minting it would be three
+ * copies of `recordGuid(brand, materialNumber)` to drift, on the value that is
+ * the join key for every downstream consumer.
  *
  * The result is frozen, geometry and material groups included: a record is an
  * interchange value, and a mapper that mutated one would be reaching back
  * across the seam this type exists to draw.
  */
 export function toolRecord(
-  fields: Omit<ToolRecord, 'materialGroups' | 'nonFerrous'> &
-    Partial<Pick<ToolRecord, 'materialGroups' | 'nonFerrous'>>,
+  fields: Omit<ToolRecord, 'guid' | 'materialGroups' | 'materialGroupsSource' | 'nonFerrous'> &
+    Partial<Pick<ToolRecord, 'materialGroups' | 'materialGroupsSource' | 'nonFerrous'>>,
 ): ToolRecord {
+  const groups = fields.materialGroups ?? null
+  const source = fields.materialGroupsSource ?? UNSPECIFIED
+
+  // The invariant is what keeps the three states three: groups labelled
+  // `unspecified` are groups nobody stated, and an attributed source with no
+  // groups attributes nothing. Either would land as a record whose material
+  // index reads as the opposite of what the adapter meant.
+  if ((groups === null) !== (source === UNSPECIFIED)) {
+    throw new ScraperConfigError(
+      fields.materialNumber,
+      `materialGroups is ${groups === null ? 'null' : JSON.stringify([...groups])} ` +
+        `and materialGroupsSource is ${JSON.stringify(source)} — ` +
+        `groups are ${JSON.stringify(UNSPECIFIED)} exactly when there are none`,
+    )
+  }
+
   return Object.freeze({
     ...fields,
+    guid: recordGuid(fields.brand, fields.materialNumber),
     geometry: Object.freeze({ ...fields.geometry }),
-    materialGroups: Object.freeze([...(fields.materialGroups ?? [])]),
+    materialGroups: groups === null ? null : Object.freeze([...groups]),
+    materialGroupsSource: source,
     nonFerrous: fields.nonFerrous ?? null,
   })
 }

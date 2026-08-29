@@ -14,15 +14,26 @@
  * number and the catalog number on a record — see
  * `conventions.IDENTITY_DEVIATIONS.harvey`.
  *
- * **No carbide grade.** The coating fills `grade`, exactly as Destiny Tool's
- * coating id does, and `substrate` comes from the family's `bmc` fact.
+ * **No carbide grade.** `substrate` comes from the family's `bmc` fact and the
+ * `COATING` column fills `coating`, exactly as Destiny Tool's coating id does.
  *
- * **No workpiece-material index.** Nothing on a product page or a part page
- * rates a tool to ISO 513 groups, so `materialGroups` is empty — which is a real
- * answer here, the same one Kennametal's 129 taps carry. Two keyseat families
- * are named for a material class in their titles ("For Hardened Steels", "For
- * Non - Ferrous Materials") and inferring groups from a product name is the kind
- * of guess this package writes down rather than makes.
+ * **No workpiece-material index a scrape can reach.** Nothing in a variant
+ * table rates a tool to ISO 513 groups, so every Harvey record is labelled
+ * `records.UNSPECIFIED` — *we do not know what this tool is for*, which is a
+ * different claim from Kennametal's swept taps being rated for nothing.
+ *
+ * The per-part page does publish one, and it is **per part and not per family**:
+ * a 192-request probe on 2026-08-29 found `harvey_endmill_005.csv` splitting by
+ * coating column, uncoated tools rated for steel, stainless, cast iron and
+ * titanium where the amorphous-diamond-coated tools of the same geometry are
+ * rated for aluminium, wood and composites alone. That is correct metallurgy —
+ * diamond cannot cut ferrous — and flattening it to one answer per family would
+ * put a diamond-coated end mill under steel. So there is no family fact to
+ * write, and the two keyseat pages titled for a material class do not get one
+ * either: the "For Non - Ferrous Materials" line's own part pages rate it for
+ * steel and stainless steel, so the title does not predict the index.
+ * `docs/HARVEY_PRODUCT_TABLE.md` §1.5 has the measurement and what reaching it
+ * would cost.
  *
  * **No corner radius on a ball nose.** A ball family publishes no radius column
  * at all, so `RE` comes from the family's `profile` fact — see
@@ -31,8 +42,9 @@
  * in the page title, for the whole product line.
  */
 
+import type { UnitSystem } from '../../conventions.js'
 import { VendorResponseError } from '../../errors.js'
-import { familyBrand, type BoundFamily, type RecordMappers } from '../../family.js'
+import { fact, familyBrand, type BoundFamily, type RecordMappers } from '../../family.js'
 import { BRANDS } from '../../identity.js'
 import { toolRecord, type ColumnMap, type GeometryName, type ToolRecord } from '../../records.js'
 import { consoleWarn, type MapperOptions, type ScrapedRow } from '../../scrape.js'
@@ -42,11 +54,23 @@ import { count, dimension } from './value.js'
 /** The `profile` fact value that means a ball nose. Harvey's own word. */
 export const BALL_PROFILE = 'Ball'
 
+/**
+ * The family's declared unit, refused rather than asserted when it is absent.
+ *
+ * Every Harvey family declares one — the `harvey` CLI command will not scrape a
+ * family without it — so `familyUnits` would return exactly this one and a
+ * tap's two-system case cannot arise here. It was `family.unit!` until
+ * 2026-08-29, which is the same claim with no check behind it: a family added
+ * without the fact would have read `undefined` straight into
+ * `dimensionalColumn` and asked the CSV for a column called `CUTTER DIA._`.
+ */
+function unitOf(family: BoundFamily): UnitSystem {
+  return fact(family, 'unit', family.unit)
+}
+
 /** One mapped column's display cell, or undefined where the family maps none. */
 function cell(row: ScrapedRow, family: BoundFamily, canonical: GeometryName): string | undefined {
-  // Every Harvey family declares a unit, so `familyUnits` would return exactly
-  // this one — a tap's two-system case cannot arise here.
-  const column = family.columns.column(canonical, family.unit!)
+  const column = family.columns.column(canonical, unitOf(family))
   return column === null ? undefined : row[column]
 }
 
@@ -59,7 +83,7 @@ function required(
   options: MapperOptions,
 ): number {
   const raw = cell(row, family, canonical)
-  const value = raw === undefined ? null : dimension(raw, family.unit!, what, options.warn)
+  const value = raw === undefined ? null : dimension(raw, unitOf(family), what, options.warn)
   if (value === null) {
     throw new VendorResponseError(
       what,
@@ -78,7 +102,7 @@ function optional(
   options: MapperOptions,
 ): number | null {
   const raw = cell(row, family, canonical)
-  return raw === undefined ? null : dimension(raw, family.unit!, what, options.warn)
+  return raw === undefined ? null : dimension(raw, unitOf(family), what, options.warn)
 }
 
 /**
@@ -162,16 +186,19 @@ export function endmillRecord(
   if (nof !== null) geometry.NOF = nof
 
   return toolRecord({
+    brand: familyBrand(family),
     vendor: BRANDS[familyBrand(family)].vendor,
     materialNumber: what,
     catalogNumber: what,
     description: row[DESCRIPTION_COLUMN] ?? '',
     kind: 'endmill',
-    unit: family.unit!,
-    substrate: family.bmc ?? '',
-    // No carbide grade is published anywhere; the coating fills GRADE instead.
-    grade: row[COATING_COLUMN] ?? '',
-    coolantThrough: family.coolantThrough ?? false,
+    unit: unitOf(family),
+    substrate: fact(family, 'bmc', family.bmc),
+    coating: row[COATING_COLUMN] ?? '',
+    // `materialGroups` and its source are left to the factory's `null`: see the
+    // module docstring for what a Harvey part page publishes and why none of it
+    // can be stated per family.
+    coolantThrough: fact(family, 'coolantThrough', family.coolantThrough),
     geometry,
   })
 }

@@ -118,10 +118,10 @@ structural behaviour of the adapter.
 
 Two flute patterns, and it is a clean binary:
 
-| sub-label            | flutes come from                                     |
-| -------------------- | ---------------------------------------------------- |
-| `TOOL #`             | a separate `FLUTES` geometry column on the row       |
-| `2 FL` / `4FL` / ... | the sub-label itself — per part, not per row         |
+| sub-label            | flutes come from                               |
+| -------------------- | ---------------------------------------------- |
+| `TOOL #`             | a separate `FLUTES` geometry column on the row |
+| `2 FL` / `4FL` / ... | the sub-label itself — per part, not per row   |
 
 Four tables carry both; they agree, and the adapter checks that they do.
 Two families (`EndMill-015`, `EndMill-023`, the deburring end mills) publish
@@ -152,10 +152,74 @@ the tool number, which is why the inline list is the only source.
 The variant list has exactly 12,773 entries, one per real part. The 26 cart
 entries with no DXF are the 26 that are not parts at all — see §3.
 
-The per-part `/products/tool-details-<n>` page adds only: a coating code, the
-profile, a catalog page number, quantity available, an operations list and a
-materials list. Everything else on it is already in the table. **Do not crawl
-it** — that is 12,799 requests to learn what the header already says.
+The per-part `/products/tool-details-<n>` page adds: a coating code, the profile,
+a catalog page number, quantity available, an operations list and a **materials
+list**. Everything but the last is already in the table.
+
+### 1.5.1 The materials list — measured 2026-08-29, 192 requests
+
+The one thing on a part page the variant table does not carry, so it is the one
+thing worth the requests. The markup:
+
+```html
+<div class="option-section">
+  <h5 class="h5 subtitle">Materials</h5>
+  <div class="option-content">
+    <div class="option-list">
+      <span class="material-option ">Aluminum</span>
+      <span class="material-option active">Steel</span>
+      ...
+    </div>
+  </div>
+</div>
+```
+
+`active` on the `<span>` is the whole signal. Every page renders **all thirteen**
+terms in the same order, so a short list is a parse failure and not a vendor
+omission: Aluminum, Non-Ferrous Metal, Cast Iron, Steel, Stainless Steel, Exotic
+Metal, Titanium, Plastic, Wood, Composites, Graphite, Hardened Alloys, Green
+(unfired). Across 101 sampled parts, `Plastic`, `Graphite` and `Green (unfired)`
+were never active on any of them.
+
+An unknown tool number **302s to `/products/all-products?tool-not-found`**, whose
+shell has no Materials section at all.
+
+**It is per part, not per family, and the axis is the coating.** This is what
+kills the cheap version of the idea — one part page per family, 52 requests,
+recorded as a per-family fact. On `harvey_endmill_005.csv` the parts split
+cleanly by coating column:
+
+| part     | column                   | rated for                                                                             |
+| -------- | ------------------------ | ------------------------------------------------------------------------------------- |
+| `750410` | UNCOATED (`s0`)          | Aluminum, Cast Iron, Steel, Stainless Steel, Exotic Metal, Titanium, Wood, Composites |
+| `10230`  | AMORPHOUS DIAMOND (`s2`) | Aluminum, Wood, Composites                                                            |
+
+Same geometry line, opposite answers, and the vendor is right: diamond dissolves
+into ferrous carbon, so a diamond-coated end mill must not be recommended for
+steel. A per-family fact would flatten exactly that.
+
+Two further findings from the same run, both of which refute reading a **page
+title** as a material rating:
+
+- `keyseat-cutters---square---for-non-ferrous-materials` — its own part pages
+  rate it for **Steel and Stainless Steel** as well as aluminium.
+- `keyseat-cutters---square---for-hardened-steels` — its part pages carry **no
+  Materials section at all**, and the only four families whose parts are marked
+  `Hardened Alloys` are end mills (`EndMill-009`, `-010`, `-021`, `-022`).
+
+51 of 52 families agreed across their first and last part; five-sample runs over
+six families found one family varying (the `EndMill-005` split above). So the
+data is orderly — it is just keyed per part.
+
+**Reaching it costs 12,773 requests**, one per part, and would land as a CSV
+column filled by a separate enrichment step — the shape
+`vendors/kennametal/materials.ts` already has for the same kind of data. That is
+a decision nobody has taken; until somebody does, `ToolRecord.materialGroups` is
+`null` for every Harvey part, which is the record contract's way of saying _no
+evidence_ rather than _rated for nothing_.
+
+**Do not crawl the part page for anything else** — the other five fields are
+12,799 requests to learn what the header already says.
 
 ### 1.6 Dead ends
 
@@ -171,9 +235,9 @@ Each of these was tried first.
   DataTables is initialised from the inline `tableData<N>` arrays — client-side,
   not server-side.
 - **No conditional requests.** Cloudflare serves `cache-control: no-cache,
-  no-store`, `cf-cache-status: DYNAMIC`, and **no `ETag` or `Last-Modified`**, so
+no-store`, `cf-cache-status: DYNAMIC`, and **no `ETag` or `Last-Modified`**, so
   a re-scrape cannot be made cheaper with `If-None-Match`. `vary:
-  Accept-Encoding` — gzip works, and it is the 13x saving (720 KB -> 55 KB) that
+Accept-Encoding` — gzip works, and it is the 13x saving (720 KB -> 55 KB) that
   makes the whole scrape about 3 MB over the wire.
 - **`productLink = "93981__CatalogContent"`** in the page suggests an
   Optimizely/EPiServer content id. Not pursued: the inline data is complete, so a
@@ -189,15 +253,15 @@ fronts the site, so **raising** request volume is the only real risk.
 ## 2. The `v` trap — read this before touching a number
 
 `v` is a pre-parsed-looking numeric string and it is **the wrong field.** It
-changes unit basis *within a single row*. Measured on
+changes unit basis _within a single row_. Measured on
 `/products/miniature-end-mills-ball-stub--standard-metric`:
 
-| cell | header               | display `d` | `v`           | `v` is actually |
-| ---- | -------------------- | ----------- | ------------- | --------------- |
-| `a0` | `D1 +.00/-.02`       | `.500 mm`   | `000000.0197` | **inches**      |
-| `a1` | `L2 +.25mm/-.00mm`   | `.75`       | `000000.7500` | **mm**          |
-| `a3` | `D2`                 | `3 mm`      | `000000.1181` | **inches**      |
-| `a4` | `L1`                 | `38 mm`     | `000001.4961` | **inches**      |
+| cell | header             | display `d` | `v`           | `v` is actually |
+| ---- | ------------------ | ----------- | ------------- | --------------- |
+| `a0` | `D1 +.00/-.02`     | `.500 mm`   | `000000.0197` | **inches**      |
+| `a1` | `L2 +.25mm/-.00mm` | `.75`       | `000000.7500` | **mm**          |
+| `a3` | `D2`               | `3 mm`      | `000000.1181` | **inches**      |
+| `a4` | `L1`               | `38 mm`     | `000001.4961` | **inches**      |
 
 `v` is the inch equivalent where the display carries a unit suffix, and the raw
 display number where it does not. Anything reading `v` gets a clean conversion
@@ -274,7 +338,7 @@ and touches no record.
 This resolves the apparent "imperial pages contain mm cells" alarm: almost all of
 those are imperial values carrying a parenthesised metric equivalent.
 
-**46 cells are the real thing, though.** Six imperial families publish a *leading*
+**46 cells are the real thing, though.** Six imperial families publish a _leading_
 metric value in an otherwise imperial column: `Keyseat-006` (`NECK DIA.` 15,
 `NECK LENGTH` 15, `CUTTER DIA.` 9), `EndMill-003` (`SHANK DIAMETER` 3),
 `EndMill-001` and `EndMill-002` (2 each) — metric-shank or metric-neck tools
@@ -289,16 +353,16 @@ because **every dimension's sub-label carries Harvey's own ISO-ish symbol**.
 
 ### 5.1 Geometry labels
 
-| Harvey top label (all spellings observed)                   | symbol | canonical            |
-| ----------------------------------------------------------- | ------ | -------------------- |
-| `CUTTER DIA.`, `CUTTER DIAMETER`                            | `D1`   | `DC`                 |
-| `LOC`, `LENGTH OF CUT`, `CUTTER WIDTH`                      | `L2`   | `LCF`                |
-| `SHANK DIA.`, `SHANK DIAMETER` (one page adds `(h6)`)       | `D2`   | `SFDM`               |
-| `OAL`, `OVERALL LENGTH`                                     | `L1`   | `OAL`                |
-| `CORNER RADIUS`, `RADIUS`                                   | `R`    | `RE`                 |
-| `NECK DIA.`                                                 | —      | `shoulder-diameter`  |
-| `NECK LENGTH`, `OVERALL REACH`                              | `L3`, `L4` | `shoulder-length` |
-| `FLUTES`                                                    | `#`    | `NOF`                |
+| Harvey top label (all spellings observed)             | symbol     | canonical           |
+| ----------------------------------------------------- | ---------- | ------------------- |
+| `CUTTER DIA.`, `CUTTER DIAMETER`                      | `D1`       | `DC`                |
+| `LOC`, `LENGTH OF CUT`, `CUTTER WIDTH`                | `L2`       | `LCF`               |
+| `SHANK DIA.`, `SHANK DIAMETER` (one page adds `(h6)`) | `D2`       | `SFDM`              |
+| `OAL`, `OVERALL LENGTH`                               | `L1`       | `OAL`               |
+| `CORNER RADIUS`, `RADIUS`                             | `R`        | `RE`                |
+| `NECK DIA.`                                           | —          | `shoulder-diameter` |
+| `NECK LENGTH`, `OVERALL REACH`                        | `L3`, `L4` | `shoulder-length`   |
+| `FLUTES`                                              | `#`        | `NOF`               |
 
 `CUTTER WIDTH` is what the keyseat families call the length of cut; `OVERALL
 REACH` carries `L4` rather than `L3` on the two tapered-reach families.
@@ -306,14 +370,14 @@ REACH` carries `L4` rather than `L3` on the two tapered-reach families.
 Labels kept verbatim and mapped to nothing, because nothing available says what
 they measure or they are not a canonical field:
 
-| label                                                  | holds                        |
-| ------------------------------------------------------ | ---------------------------- |
-| `RADIAL DOC*`, `Radial DOC*`, `Radial DOC**`           | a length, inches             |
-| `TYPE`                                                 | `I` / `II` / `III`, see §6   |
-| `ANGLE PER SIDE` (`A1`)                                | degrees                      |
-| `EFFECTIVE WALL ANGLE*`, `EFF WALL ANGLE`              | degrees                      |
-| `Interference Depth At Wall Angle*` (`0°`…`4°`)        | six lengths, inches          |
-| `RIGHT HAND TEETH`, `LEFT HAND TEETH`                  | counts                       |
+| label                                           | holds                      |
+| ----------------------------------------------- | -------------------------- |
+| `RADIAL DOC*`, `Radial DOC*`, `Radial DOC**`    | a length, inches           |
+| `TYPE`                                          | `I` / `II` / `III`, see §6 |
+| `ANGLE PER SIDE` (`A1`)                         | degrees                    |
+| `EFFECTIVE WALL ANGLE*`, `EFF WALL ANGLE`       | degrees                    |
+| `Interference Depth At Wall Angle*` (`0°`…`4°`) | six lengths, inches        |
+| `RIGHT HAND TEETH`, `LEFT HAND TEETH`           | counts                     |
 
 Sub-labels observed that carry no information at all and are ignored: `.`, `"`,
 `X`, `&nbsp;`, empty.
@@ -369,16 +433,16 @@ number per part and no second catalog designation, which is why
 `conventions.IDENTITY_DEVIATIONS.harvey` is `['Tool #']` rather than an invented
 `ISO Catalog Number`.
 
-| Column                                  | Source                                            |
-| --------------------------------------- | ------------------------------------------------- |
-| `Tool #`                                | the `s*` cell's link text, footnote marker removed |
-| `Description`                           | the page's own `productTitle`                     |
-| `Coating`                               | the coating group's top header label               |
-| `FLUTES`                                | the group sub-label, else the row's `FLUTES` column |
-| `CUTTER DIA._in`, `LOC_in`, ...         | `a*` cells; the suffix comes from the family `unit` |
-| `RADIAL DOC*`, `TYPE`, ...              | Harvey's own label, unmapped, verbatim             |
-| `PRICE_USD`                             | the `p*` cell of that part's coating group          |
-| `CAD_STEP_URL`, `CAD_DXF_URL`           | `variantSimFileViewModel`, joined on tool number    |
+| Column                          | Source                                              |
+| ------------------------------- | --------------------------------------------------- |
+| `Tool #`                        | the `s*` cell's link text, footnote marker removed  |
+| `Description`                   | the page's own `productTitle`                       |
+| `Coating`                       | the coating group's top header label                |
+| `FLUTES`                        | the group sub-label, else the row's `FLUTES` column |
+| `CUTTER DIA._in`, `LOC_in`, ... | `a*` cells; the suffix comes from the family `unit` |
+| `RADIAL DOC*`, `TYPE`, ...      | Harvey's own label, unmapped, verbatim              |
+| `PRICE_USD`                     | the `p*` cell of that part's coating group          |
+| `CAD_STEP_URL`, `CAD_DXF_URL`   | `variantSimFileViewModel`, joined on tool number    |
 
 **Cells are the vendor's own display strings, not parsed numbers** — `.250 (1/4)`
 reaches the CSV as `.250 (1/4)`, and `vendors/harvey/value.ts` is what resolves it
@@ -386,7 +450,7 @@ when a record is built. The CSV is the receipt; keeping Harvey's own fractional
 and metric annotations costs nothing and loses nothing.
 
 **Three columns are synthesised rather than lifted**, and each is a fact encoded
-in a column's *position* with no cell to copy: `Coating` always, `FLUTES` on the
+in a column's _position_ with no cell to copy: `Coating` always, `FLUTES` on the
 matrix tables, and the `... RATIO` / `... NOTE` names in §5.3. `Description` is
 lifted from the page rather than the row, because Harvey states it once per page.
 
@@ -409,7 +473,10 @@ Each row's `atc.j` independently lists every tool number on that row, in the sam
 order as the non-empty `s*` cells:
 
 ```json
-[{"T":"690508","C":"690508","Q":"1"},{"T":"679608","C":"679608","Q":"1"}]
+[
+  { "T": "690508", "C": "690508", "Q": "1" },
+  { "T": "679608", "C": "679608", "Q": "1" }
+]
 ```
 
 So the matrix explosion is checked against Harvey's own list **5,033 times per
