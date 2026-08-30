@@ -1,12 +1,29 @@
 /**
  * The layout, asserted from the package tree rather than from a list.
  *
- * The claim this package rests on is that its three adapters share the core
- * and never each other — so a REGO-FIX change cannot break a Kennametal
- * scrape, and a constant two vendors both need has one home. A rostered test
- * would go stale the first time somebody added a file; these derive their
- * module lists by walking `src/`, so a new adapter is covered the moment it
- * lands.
+ * The claim this package rests on is that its adapters share the core and
+ * never each other — so a REGO-FIX change cannot break a Kennametal scrape,
+ * and a constant two vendors both need has one home. A rostered test would go
+ * stale the first time somebody added a file; these derive their module lists
+ * by walking `src/`, so a new adapter is covered the moment it lands. The
+ * count is deliberately not written down here for the same reason.
+ *
+ * ## Both halves of the claim, not just the first
+ *
+ * "No vendor imports another" was asserted from the start; **"a constant two
+ * vendors both need has one home" was not**, and the rule as stated only forces
+ * the first. With the import barred, the second vendor to need something does
+ * not reach for the first's copy — it writes its own. That is exactly what
+ * happened by 2026-08-29: `MM_PER_INCH` was declared and exported twice,
+ * `unionHeader` existed byte for byte in two adapters, `plain` was one name with
+ * two behaviours, and three vendors had three fraction readers that disagreed on
+ * real inputs. Nothing failed, because nothing was looking.
+ *
+ * {@link SHARED_BY_CONTRACT} and the collision case below are what look. They
+ * cannot tell a genuine duplicate from a name two adapters happen to reuse, so
+ * the answer is an allowlist with a reason per entry — the same shape
+ * {@link COMPOSITION_ROOTS} uses, and for the same reason: an exception is a
+ * deliberate edit here rather than a thing that quietly accumulates.
  *
  * ## How imports are read
  *
@@ -18,7 +35,7 @@
  * is a guard somebody switches off.
  */
 
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -52,6 +69,30 @@ const VENDORS = join(SRC, 'vendors')
  * here with a reason beside it.
  */
 const COMPOSITION_ROOTS = ['registry.ts', 'node/cli.ts']
+
+/**
+ * Names more than one adapter may export, and why each is not a duplicate.
+ *
+ * Every entry is a name whose **meaning is per vendor** — two adapters
+ * answering the same question about different catalogs — rather than one
+ * answer that got written twice. A name that is not here and appears in two
+ * manufacturers is the second kind, and belongs in the core.
+ */
+const SHARED_BY_CONTRACT = new Map([
+  // The `RecordMappers` contract: `registry` looks these up by brand and kind.
+  // `drillRecord` and `tapRecord` are deliberately absent — only Kennametal
+  // ships either today, and an allowlist entry nobody needs is one nobody
+  // checks. The second vendor to publish a drill adds it back, with a reason.
+  ['RECORD_MAPPERS', 'the mapper table every cutting-tool adapter exports'],
+  ['endmillRecord', 'the end mill half of that contract'],
+  // Each vendor's own transport, one name per shape of scrape.
+  ['BASE', "the vendor's own origin — different string, same job"],
+  ['CATEGORY_ROOTS', 'where a vendor’s catalog walk starts; a different tree each'],
+  ['scrapeHolders', 'the toolholding scrape, which two vendors publish'],
+  ['holderRow', 'one holder -> one row, against two different vendor vocabularies'],
+  // Per-vendor readings of a value the vendor states its own way.
+  ['cornerRadius', 'the radius fallback, whose priority order is a vendor fact'],
+])
 
 /** Every `.ts` file under `where`. */
 function modules(where: string): string[] {
@@ -126,6 +167,33 @@ describe('the tree is the shape these rules assume', () => {
     }
   })
 
+  it('gives every manufacturer a subpath a consumer can import', () => {
+    // The direction `tests/packaging.test.ts` cannot check. That one walks
+    // `exports` and proves each entry has a module behind it, which catches a
+    // subpath added for a file that is not there. The failure this catches is
+    // the other one: an adapter that builds into `dist`, ships in the tarball,
+    // and cannot be reached — `import '@toolpath/tool-scraper/vendors/maritool'`
+    // throws ERR_PACKAGE_PATH_NOT_EXPORTED at a consumer, and nothing before
+    // that says so. Derived from the tree rather than rostered, so the sixth
+    // vendor is covered without anybody remembering this test exists.
+    const manifest = JSON.parse(readFileSync(join(SRC, '../package.json'), 'utf8')) as {
+      exports: Record<string, { types: string; import: string }>
+    }
+
+    for (const brand of BRANDS) {
+      expect(existsSync(join(VENDORS, brand, 'index.ts')), `${brand} has no index.ts`).toBe(true)
+      expect(
+        Object.keys(manifest.exports),
+        `src/vendors/${brand} builds and ships, but no ./vendors/${brand} subpath ` +
+          `exports it — a consumer cannot import it`,
+      ).toContain(`./vendors/${brand}`)
+      expect(manifest.exports[`./vendors/${brand}`]).toEqual({
+        types: `./dist/vendors/${brand}/index.d.ts`,
+        import: `./dist/vendors/${brand}/index.js`,
+      })
+    }
+  })
+
   it('names a composition root that really is one', () => {
     // An exception nobody uses is an exception that has quietly stopped being
     // needed.
@@ -187,6 +255,67 @@ describe('no vendor imports another vendor', () => {
       }
     },
   )
+
+  it('declares no name twice that is not part of the adapter contract', () => {
+    // The half the import rule cannot reach. Barring the import stops one
+    // vendor *reading* another's constant; it does nothing to stop the second
+    // vendor writing its own copy, which is how 25.4 came to be exported from
+    // two subpaths of one package at once. A name in two manufacturers is
+    // either the adapter contract — allowlisted above, with a reason — or a
+    // core concern that has not been moved up yet.
+    const declared = new Map<string, Set<string>>()
+
+    for (const brand of BRANDS) {
+      for (const path of modules(join(VENDORS, brand))) {
+        const source = readFileSync(path, 'utf8')
+        const exported = source.matchAll(
+          /^export (?:declare )?(?:async )?(?:const|function|class|interface|type|enum) ([A-Za-z_0-9$]+)/gm,
+        )
+        for (const [, name] of exported) {
+          if (SHARED_BY_CONTRACT.has(name!)) continue
+          declared.set(name!, (declared.get(name!) ?? new Set()).add(brand))
+        }
+      }
+    }
+
+    const shared = [...declared]
+      .filter(([, brands]) => brands.size > 1)
+      .map(([name, brands]) => `${name} (${[...brands].sort().join(', ')})`)
+      .sort()
+
+    expect(
+      shared,
+      `exported by more than one manufacturer: ${shared.join('; ')} — either it ` +
+        `is one thing two vendors need, and belongs in the core beside ` +
+        `MM_PER_INCH and unionHeader, or it is the adapter contract and belongs ` +
+        `in SHARED_BY_CONTRACT with a reason`,
+    ).toEqual([])
+  })
+
+  it('keeps its allowlist honest: every entry is really shared', () => {
+    // An exception nobody uses is an exception that has quietly stopped being
+    // needed — the same check `COMPOSITION_ROOTS` gets above.
+    const count = new Map<string, number>()
+    for (const brand of BRANDS) {
+      const names = new Set<string>()
+      for (const path of modules(join(VENDORS, brand))) {
+        for (const [, name] of readFileSync(path, 'utf8').matchAll(
+          /^export (?:declare )?(?:async )?(?:const|function|class|interface|type|enum) ([A-Za-z_0-9$]+)/gm,
+        )) {
+          names.add(name!)
+        }
+      }
+      for (const name of names) count.set(name, (count.get(name) ?? 0) + 1)
+    }
+
+    for (const [name, why] of SHARED_BY_CONTRACT) {
+      expect(
+        count.get(name) ?? 0,
+        `${name} is allowlisted as "${why}" but no longer appears in two ` +
+          `manufacturers — drop it from SHARED_BY_CONTRACT`,
+      ).toBeGreaterThan(1)
+    }
+  })
 
   it('really do share no code, stated once as a total', () => {
     // The claim the whole layout rests on. REGO-FIX's scraper is an

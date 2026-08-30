@@ -18,6 +18,7 @@
  */
 
 import type { UnitSystem } from './conventions.js'
+import { ScraperConfigError } from './errors.js'
 import type { BrandName } from './identity.js'
 import type { Fact } from './provenance.js'
 import type { ColumnMap, ToolKind, ToolRecord } from './records.js'
@@ -26,7 +27,7 @@ import type { MapperOptions, ScrapedRow } from './scrape.js'
 /**
  * The per-family constants a fact can carry, and their types.
  *
- * Ten keys, which is the whole vocabulary the catalog uses. Naming them rather
+ * Eleven keys, which is the whole vocabulary the catalog uses. Naming them rather
  * than accepting any string is what lets a mapper read `family.coolantThrough`
  * as a `boolean` instead of casting an `unknown` out of a bag — and what makes
  * a fact whose value is the wrong type a compile error where the family is
@@ -37,6 +38,18 @@ export interface FamilyFacts {
   unit?: UnitSystem
   /** Cutting-material code — `carbide`, `hss`, `diamond`. */
   bmc?: string
+  /**
+   * The end profile, as the vendor names it — `Ball`, `Square`,
+   * `Corner Radius`.
+   *
+   * A per-family constant here rather than a per-row derivation because some
+   * vendors state it once for a whole product line and never in the variant
+   * table: Harvey Tool's 52 product pages each publish one profile in the page
+   * title and no profile column, where Destiny Tool publishes an `endStyle`
+   * per row and needs none of this. It is what tells a mapper that a family
+   * with no corner-radius column has `RE = DC / 2` rather than `RE = 0`.
+   */
+  profile?: string
   coolantThrough?: boolean
   flutes?: number
   /** Degrees included. */
@@ -143,6 +156,34 @@ export type BoundToolholding = ToolholdingDefinition & FamilyFacts
  */
 export function familyId(cfg: FamilyDefinition | BoundFamily): string {
   return `${cfg.brand ?? 'kennametal'}:${cfg.id}`
+}
+
+/**
+ * A per-family constant a mapper cannot proceed without.
+ *
+ * The projection is what makes this readable — a mapper says `family.unit` and
+ * never learns about provenance — but a projected key is still optional on the
+ * type, because {@link FamilyFacts} is one vocabulary shared by four vendors
+ * and a tap states no `unit`. So the check is per read, and it belongs here
+ * rather than in one adapter: it lived in `vendors/kennametal/records.ts` until
+ * 2026-08-29, which is why the other two adapters each invented their own
+ * weaker answer instead — `family.unit!`, `family.bmc ?? ''`,
+ * `family.coolantThrough ?? false`, a hardcoded `'inches'`.
+ *
+ * **Every one of those defaults is a claim the family never made.** A missing
+ * `coolantThrough` becoming `false` ships a through-coolant drill with its
+ * coolant presets dropped; a missing `bmc` becoming `''` ships a tool with no
+ * cutting material at all. Refusing names the family and the key, at the one
+ * place that can fix it — the config table.
+ *
+ * Same move `scrape.pause` and `conventions.CAD_COLUMN` already made, and for
+ * the same reason: a core concern does not live in one manufacturer's folder.
+ */
+export function fact<T>(family: BoundFamily, key: string, value: T | undefined): T {
+  if (value === undefined) {
+    throw new ScraperConfigError(family.id, `a ${family.kind} family must state ${key} as a fact`)
+  }
+  return value
 }
 
 /** The brand that published a family, defaulting as the catalog does. */

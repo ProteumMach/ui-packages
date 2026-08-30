@@ -358,28 +358,51 @@ describe('neck diameter, from the description’s NECK annotation', () => {
 })
 
 describe('material groups', () => {
-  it('uses the vendor cell when populated', () => {
-    expect(materialGroups({ isoMaterialGroups: 'P M S' }, 5)).toEqual(['P', 'M', 'S'])
+  it('uses the vendor cell when populated, and says the vendor stated it', () => {
+    expect(materialGroups({ isoMaterialGroups: 'P M S' }, 5)).toEqual({
+      materialGroups: ['P', 'M', 'S'],
+      materialGroupsSource: 'vendor-stated',
+    })
   })
 
   it('reorders the vendor cell onto the ISO sequence', () => {
     // Destiny Tool's own array order is not the ISO 513 sequence every other
     // list in the catalog agrees on — real values seen include
     // `['M', 'P', 'S']` — so a populated cell is reordered, not passed through.
-    expect(materialGroups({ isoMaterialGroups: 'M P S K H' }, 5)).toEqual(['P', 'M', 'K', 'S', 'H'])
+    expect(materialGroups({ isoMaterialGroups: 'M P S K H' }, 5).materialGroups).toEqual([
+      'P',
+      'M',
+      'K',
+      'S',
+      'H',
+    ])
   })
 
-  it('falls back to non-ferrous at or below three flutes', () => {
-    expect(materialGroups({ isoMaterialGroups: '' }, 2)).toEqual(['N'])
-    expect(materialGroups({ isoMaterialGroups: '' }, 3)).toEqual(['N'])
+  it('falls back to non-ferrous at or below three flutes, labelled derived', () => {
+    // The label is what lets a consumer that will not route a cut off this
+    // package's arithmetic filter the fallback out. It was indistinguishable
+    // from a vendor statement until the record carried a source.
+    expect(materialGroups({ isoMaterialGroups: '' }, 2)).toEqual({
+      materialGroups: ['N'],
+      materialGroupsSource: 'derived',
+    })
+    expect(materialGroups({ isoMaterialGroups: '' }, 3).materialGroups).toEqual(['N'])
   })
 
   it('falls back to ferrous above three flutes', () => {
-    expect(materialGroups({ isoMaterialGroups: '' }, 4)).toEqual(['P', 'M', 'K', 'S', 'H'])
+    expect(materialGroups({ isoMaterialGroups: '' }, 4)).toEqual({
+      materialGroups: ['P', 'M', 'K', 'S', 'H'],
+      materialGroupsSource: 'derived',
+    })
   })
 
-  it('treats a missing cell as blank', () => {
-    expect(materialGroups({}, 2)).toEqual(['N'])
+  it('treats a missing cell as blank, and is never without an answer', () => {
+    // Unlike Kennametal and Harvey, this vendor always states something: the
+    // fallback covers every blank cell, so `null` cannot occur here.
+    expect(materialGroups({}, 2)).toEqual({
+      materialGroups: ['N'],
+      materialGroupsSource: 'derived',
+    })
   })
 })
 

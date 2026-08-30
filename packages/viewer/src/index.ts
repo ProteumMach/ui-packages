@@ -126,11 +126,13 @@ export type {
   FeatureTag,
   FeatureType,
   KnownFeatureType,
+  KnownShapeKind,
   PartMeshRefs,
   PartModel,
   PartModelFeature,
   PartModelRegion,
   RegionIndex,
+  ShapeKind,
   TriangleRange,
   Vec3,
 } from './model/types.js'

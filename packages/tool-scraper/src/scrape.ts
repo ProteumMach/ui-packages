@@ -58,6 +58,30 @@ export const consoleWarn: Warn = (message) => {
 }
 
 /**
+ * Rows to the header they imply: the union of their keys, in first-seen order.
+ *
+ * A union rather than the first row's keys, and the reason is the same for both
+ * vendors that build a `ScrapeResult` this way. A REGO-FIX collet family is
+ * mixed-unit — `D1_mm` on its metric rows and `D1_in` on its inch ones — and a
+ * MariTool CSV mixes three holder styles, so which spec keys a part publishes is
+ * a function of its style. Keying off row one drops whichever came second.
+ *
+ * It lived in both adapters, byte for byte, until 2026-08-29. Building the
+ * header of a {@link ScrapeResult} is this module's business rather than any
+ * manufacturer's — the same call `pause` and `conventions.CAD_COLUMN` already
+ * got, and the one `tests/vendor-boundary.test.ts` now makes automatically.
+ */
+export function unionHeader(rows: readonly ScrapedRow[]): string[] {
+  const header: string[] = []
+  for (const row of rows) {
+    for (const key of Object.keys(row)) {
+      if (!header.includes(key)) header.push(key)
+    }
+  }
+  return header
+}
+
+/**
  * Milliseconds between requests, wherever a scrape or a mirror loops.
  *
  * Politeness, not rate-limit avoidance, and one number rather than a copy per

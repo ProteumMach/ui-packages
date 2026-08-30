@@ -15,7 +15,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { ScraperConfigError } from '../src/errors.js'
+import { recordGuid } from '../src/identity.js'
 import {
+  RECORD_GEOMETRY,
   DIMENSIONAL,
   DIMENSIONAL_COLUMNS,
   GEOMETRY_FIELDS,
@@ -27,6 +29,7 @@ import {
   checkColumnsExist,
   familyUnits,
   toolRecord,
+  UNSPECIFIED,
 } from '../src/records.js'
 
 describe('the vocabulary is ISO 13399’s', () => {
@@ -295,8 +298,24 @@ describe('the column check that needs the CSV', () => {
   })
 })
 
+/** Every key an end mill record always carries, per `RECORD_GEOMETRY`. */
+const ENDMILL = {
+  DC: 6.0,
+  RE: 0,
+  SFDM: 6.0,
+  OAL: 57,
+  LCF: 13,
+  'shoulder-length': 13,
+  'shoulder-diameter': 6.0,
+  NOF: 4,
+}
+
+/** The same for a tap, whose kind declares `TP` and no shoulder at all. */
+const TAP = { DC: 6.0, TP: 1, SFDM: 6.0, OAL: 80, LCF: 20, NOF: 3 }
+
 describe('the record itself', () => {
   const base = {
+    brand: 'kennametal' as const,
     vendor: 'Kennametal',
     materialNumber: '4151623',
     catalogNumber: 'X',
@@ -304,15 +323,17 @@ describe('the record itself', () => {
     kind: 'endmill' as ToolKind,
     unit: 'millimeters' as const,
     substrate: 'carbide',
-    grade: 'KC7325',
-    geometry: { DC: 6.0 },
+    coating: 'AlTiN',
+    // A whole end mill's geometry, because `RECORD_GEOMETRY` now refuses a
+    // partial one — a field a kind always has is not a field a mapper may skip.
+    geometry: ENDMILL,
     coolantThrough: false,
   }
 
   it('is frozen', () => {
     // It is an interchange value. A mapper that mutated one would be reaching
     // back across the seam this type exists to draw.
-    const record = toolRecord(base)
+    const record = toolRecord({ ...base, materialGroups: ['P'], materialGroupsSource: 'derived' })
 
     expect(Object.isFrozen(record)).toBe(true)
     expect(Object.isFrozen(record.geometry)).toBe(true)
@@ -321,22 +342,110 @@ describe('the record itself', () => {
     expect(() => (record.unit = 'inches')).toThrow(TypeError)
   })
 
-  it('treats no material groups as a real answer rather than a missing one', () => {
-    // Kennametal indexes no tap by workpiece material, so all 129 carry none.
-    // Reading empty as "unconstrained" would put every tap under every
-    // material on no evidence.
-    const record = toolRecord({ ...base, kind: 'tap', grade: '', geometry: {} })
+  it('mints the guid itself, in the record’s own brand namespace', () => {
+    // Not an adapter's input: three copies of `recordGuid(brand, material)`
+    // would be three places to drift on the join key every downstream consumer
+    // uses. The brand is on the record for the same reason — `vendor` is a
+    // display string, and no namespace can be looked up by one.
+    const record = toolRecord(base)
 
-    expect(record.materialGroups).toEqual([])
+    expect(record.guid).toBe(recordGuid('kennametal', '4151623'))
+    expect(record.guid).not.toBe(recordGuid('widia', '4151623'))
+  })
+
+  it('defaults to the unspecified label rather than to an empty index', () => {
+    // The default that matters: an adapter that says nothing about workpiece
+    // materials has produced no evidence, which is not the same claim as a
+    // vendor index that rates the part for nothing. The source is a label and
+    // never absent, so "we do not know what this is for" is something a reader
+    // sees rather than something it has to infer from a null.
+    const record = toolRecord({ ...base, kind: 'tap', coating: '', geometry: TAP })
+
+    expect(record.materialGroups).toBeNull()
+    expect(record.materialGroupsSource).toBe(UNSPECIFIED)
+    expect(UNSPECIFIED).not.toBeNull()
+    expect(ISO_MATERIAL_GROUPS).not.toContain(UNSPECIFIED)
     expect(record.nonFerrous).toBeNull()
   })
 
-  it('copies the geometry it was handed', () => {
+  it('keeps an empty index as a real answer, distinct from no index', () => {
+    // Kennametal's 129 taps are swept and rated for nothing. Reading that as
+    // "unconstrained" would put every tap under every material; reading it as
+    // "not swept" would drop the one thing the sweep established.
+    const rated = toolRecord({ ...base, materialGroups: [], materialGroupsSource: 'vendor-stated' })
+
+    expect(rated.materialGroups).toEqual([])
+    expect(rated.materialGroupsSource).toBe('vendor-stated')
+  })
+
+  it('refuses groups labelled unspecified, and a label attributing nothing', () => {
+    // Stated groups the label calls unspecified, and an attributed source with
+    // no groups behind it, are the two ways the three states collapse back into
+    // an unreadable one. Neither is constructible.
+    expect(() => toolRecord({ ...base, materialGroups: ['P'] })).toThrow(ScraperConfigError)
+    expect(() => toolRecord({ ...base, materialGroups: ['P'] })).toThrow(/4151623.*materialGroups/)
+    expect(() =>
+      toolRecord({ ...base, materialGroups: ['P'], materialGroupsSource: UNSPECIFIED }),
+    ).toThrow(ScraperConfigError)
+    expect(() => toolRecord({ ...base, materialGroupsSource: 'derived' })).toThrow(
+      ScraperConfigError,
+    )
+  })
+
+  it('refuses a kind’s geometry with a field missing', () => {
+    // The failure this replaces was silent: a mapper that stopped writing
+    // `shoulder-length` produced a record a consumer read as a tool with none,
+    // and nothing anywhere said whether that was the vendor's silence or a bug.
+    const { LCF: _dropped, ...short } = ENDMILL
+
+    expect(() => toolRecord({ ...base, geometry: short })).toThrow(ScraperConfigError)
+    expect(() => toolRecord({ ...base, geometry: short })).toThrow(/4151623.*LCF/)
+  })
+
+  it('refuses a field the kind does not declare at all', () => {
+    // A measurement written into a record nothing downstream expects to find
+    // there is invisible until a consumer does not read it.
+    expect(() => toolRecord({ ...base, geometry: { ...ENDMILL, SIG: 140 } })).toThrow(
+      /does not carry SIG/,
+    )
+  })
+
+  it('lets a declared-optional field be absent, and only that one', () => {
+    // Harvey's two deburring families publish right- and left-hand tooth counts
+    // and no flute count. `NOF` is the end mill's one `sometimes` entry, so its
+    // absence is the vendor's silence rather than a gap.
+    const { NOF: _none, ...deburring } = ENDMILL
+    const record = toolRecord({ ...base, geometry: deburring })
+
+    expect(record.geometry.NOF).toBeUndefined()
+    expect(RECORD_GEOMETRY.endmill.sometimes).toEqual(['NOF'])
+    expect(RECORD_GEOMETRY.drill.sometimes).toEqual([])
+  })
+
+  it('states a geometry a drill and a tap really differ on', () => {
+    // The two kinds are not narrower end mills: a drill states a point angle
+    // and no corner radius, a tap states a thread pitch and no shoulder. The
+    // table is what says so, rather than each mapper deciding for itself.
+    expect(RECORD_GEOMETRY.drill.always).toContain('SIG')
+    expect(RECORD_GEOMETRY.drill.always).not.toContain('RE')
+    expect(RECORD_GEOMETRY.tap.always).toContain('TP')
+    expect(RECORD_GEOMETRY.tap.always).not.toContain('shoulder-length')
+  })
+
+  it('copies the geometry and the groups it was handed', () => {
     // The adapter's working object must not stay reachable through the record.
-    const geometry: Record<string, number> = { DC: 6.0 }
-    const record = toolRecord({ ...base, geometry })
+    const geometry: Record<string, number> = { ...ENDMILL }
+    const groups = ['P']
+    const record = toolRecord({
+      ...base,
+      geometry,
+      materialGroups: groups,
+      materialGroupsSource: 'vendor-stated',
+    })
 
     geometry.DC = 99
+    groups.push('N')
     expect(record.geometry.DC).toBe(6.0)
+    expect(record.materialGroups).toEqual(['P'])
   })
 })

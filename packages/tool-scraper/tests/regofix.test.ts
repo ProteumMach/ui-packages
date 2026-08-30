@@ -27,7 +27,6 @@ import {
   parseSize,
   scrapeHolders,
   search,
-  unionHeader,
   type Source,
 } from '../src/vendors/regofix/scrape.js'
 import { asFetcher } from './stubs.js'
@@ -477,20 +476,6 @@ describe('a size designation', () => {
     expect(() => parseSize('3/')).toThrow(RangeError)
     expect(() => parseSize('')).toThrow(RangeError)
     expect(parseSize('1/4')).toBe(0.25)
-  })
-})
-
-describe('the header', () => {
-  it('is the union of every row’s keys, in first-seen order', () => {
-    // Keying the header off the first row would drop `D1_in` from a group
-    // whose metric collets happen to come first — which is every group, since
-    // the rows are sorted by part number.
-    expect(
-      unionHeader([
-        { a: '1', D1_mm: '3' },
-        { a: '2', D1_in: '0.125' },
-      ]),
-    ).toEqual(['a', 'D1_mm', 'D1_in'])
   })
 })
 

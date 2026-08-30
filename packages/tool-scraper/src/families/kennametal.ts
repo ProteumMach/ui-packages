@@ -78,6 +78,14 @@ const PCD_SUBSTRATE = {
   cite: 'grade KD1415 is PCD — the cutting material, not the carbide body it is brazed to',
 } as const satisfies Fact<string>
 
+const NO_COOLANT_THROUGH_TAP = {
+  value: false,
+  source: 'assumed',
+  note: "HSS taps; no coolant-through variant appears in the family's variant table, and the table publishes no coolant column",
+  checked: '2026-08-29',
+  by: 'JG',
+} as const satisfies Fact<boolean>
+
 const HSS_ASSUMED = {
   value: 'hss',
   source: 'assumed',
@@ -323,6 +331,7 @@ export const FAMILIES = {
     columns: { SFDM: 'D', OAL: 'L', LCF: 'L3', TP: 'Thread Pitch' },
     facts: {
       bmc: HSS_ASSUMED,
+      coolantThrough: NO_COOLANT_THROUGH_TAP,
     },
   },
   'khsst_hand_metric_plug.csv': {
@@ -333,6 +342,7 @@ export const FAMILIES = {
     columns: { SFDM: 'D', OAL: 'L', LCF: 'L3', TP: 'Thread Pitch' },
     facts: {
       bmc: HSS_ASSUMED,
+      coolantThrough: NO_COOLANT_THROUGH_TAP,
     },
   },
   'spiral_point_metric_plug.csv': {
@@ -343,6 +353,7 @@ export const FAMILIES = {
     columns: { SFDM: 'D', OAL: 'L', LCF: 'L3', TP: 'Thread Pitch' },
     facts: {
       bmc: HSS_ASSUMED,
+      coolantThrough: NO_COOLANT_THROUGH_TAP,
     },
   },
   'gomill_pro_radiused_4fl_necked_metric.csv': {

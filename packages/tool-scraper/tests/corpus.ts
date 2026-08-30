@@ -35,7 +35,7 @@ import { describeRoot } from '../src/node/paths.js'
  * fails instead of skipping, which is the difference between "not checked
  * here" and "checked, and it is gone".
  */
-export const REQUIRE_ENV = 'TOOLPATH_REQUIRE_CORPUS'
+const REQUIRE_ENV = 'TOOLPATH_REQUIRE_CORPUS'
 
 /**
  * One family's scraped CSV, or a skip naming what is absent and where.

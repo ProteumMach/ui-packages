@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   CAD_COLUMN,
+  CAD_DXF_COLUMN,
   DIN_PREFIX,
   IDENTITY_COLUMNS,
   IDENTITY_DEVIATIONS,
@@ -51,15 +52,21 @@ describe('identity columns', () => {
     }
   })
 
-  it('writes down the one vendor that broke the convention', () => {
+  it('writes down every vendor that broke the convention', () => {
     // REGO-FIX adopted Kennametal's identity labels; Destiny Tool passes
-    // Firestore's own `itemNumber` straight through. The convention was real
-    // but informal, and it eroded the first time a vendor did not resemble the
-    // first two — so the deviation is a table entry, and the fourth vendor's
-    // drift has to be a decision somebody made rather than a thing that
-    // happened.
-    expect(Object.keys(IDENTITY_DEVIATIONS)).toEqual(['destinytool'])
+    // Firestore's own `itemNumber` straight through, and Harvey Tool and
+    // MariTool each genuinely publish one number per part and no catalog
+    // designation at all — MariTool keeps `Material Number` and drops only the
+    // second column, which is a deviation all the same: a header check that
+    // did not know would fail every MariTool CSV. The
+    // convention was real but informal, and it eroded the first time a vendor
+    // did not resemble the first two — so each deviation is a table entry, and
+    // the next vendor's drift has to be a decision somebody made rather than a
+    // thing that happened.
+    expect(Object.keys(IDENTITY_DEVIATIONS).sort()).toEqual(['destinytool', 'harvey', 'maritool'])
     expect(identityColumns('destinytool')).toEqual(['itemNumber'])
+    expect(identityColumns('harvey')).toEqual(['Tool #'])
+    expect(identityColumns('maritool')).toEqual(['Material Number'])
     expect(identityColumns('regofix')).toEqual(IDENTITY_COLUMNS)
   })
 
@@ -118,6 +125,15 @@ describe('the advisory rules', () => {
     expect(CAD_COLUMN).toBe('CAD_STEP_URL')
     expect(CAD_COLUMN.endsWith('_mm')).toBe(false)
     expect(CAD_COLUMN.endsWith('_in')).toBe(false)
+  })
+
+  it('keeps a 2D profile out of the STEP column', () => {
+    // Harvey publishes a DXF for almost every part and a STEP for none, and
+    // writing that link into `CAD_STEP_URL` would repeat the mistake the
+    // `CAD_STP_LWM` rename fixed: a column name that is a claim about the data,
+    // and false. Two columns, both vendor-neutral, neither owned by a vendor.
+    expect(CAD_DXF_COLUMN).toBe('CAD_DXF_URL')
+    expect(CAD_DXF_COLUMN).not.toBe(CAD_COLUMN)
   })
 
   it('keeps an unmapped vendor code from reading as a dimension', () => {

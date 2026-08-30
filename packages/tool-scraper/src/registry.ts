@@ -27,12 +27,20 @@
  * entry point into this package goes through here.
  */
 
-import type { BoundFamily, BoundToolholding, RecordMappers } from './family.js'
+import { checkIdentityColumns } from './conventions.js'
+import {
+  familyBrand,
+  type BoundFamily,
+  type BoundToolholding,
+  type RecordMappers,
+} from './family.js'
 import { COLLET_FAMILIES, FAMILIES, HOLDER_FAMILIES } from './families/index.js'
 import { ScraperConfigError } from './errors.js'
 import { checkFact, type Fact } from './provenance.js'
-import { checkColumnMap } from './records.js'
+import { checkColumnMap, checkColumnsExist, type ToolRecord } from './records.js'
+import type { MapperOptions, ScrapeResult } from './scrape.js'
 import { RECORD_MAPPERS as DESTINYTOOL } from './vendors/destinytool/records.js'
+import { RECORD_MAPPERS as HARVEY } from './vendors/harvey/records.js'
 import { RECORD_MAPPERS as KENNAMETAL } from './vendors/kennametal/records.js'
 
 /**
@@ -48,6 +56,7 @@ export const ADAPTERS: Record<string, RecordMappers> = {
   kennametal: KENNAMETAL,
   widia: KENNAMETAL,
   destinytool: DESTINYTOOL,
+  harvey: HARVEY,
 }
 
 /**
@@ -152,6 +161,46 @@ export function boundFamily(name: string): BoundFamily {
     )
   }
   return cfg
+}
+
+/**
+ * One family's scrape, as {@link ToolRecord}s — the package's uniform output.
+ *
+ * **This is what a consumer wants and what nothing shipped until now.** Every
+ * CLI command ends at a vendor-labelled CSV, and a CSV is the receipt: four
+ * vendors, four column vocabularies, and a `D1_mm` that means one thing in
+ * Kennametal's table and another in ISO 13399's dictionary. The adapters that
+ * resolve that have been here the whole time and only the tests called them.
+ *
+ * It lives in the registry rather than beside `toolRecord` because it needs
+ * both halves — the config table and the vendor mappers — and the main entry
+ * point deliberately imports no vendor. Reach it through the `./registry`
+ * subpath.
+ *
+ * The two checks run **before the first row**, in the order a failure is
+ * cheapest to read:
+ *
+ * 1. {@link checkIdentityColumns} — a re-scrape whose part-number column was
+ *    renamed still parses, still has the right row count, and mints every guid
+ *    off an empty string.
+ * 2. {@link checkColumnsExist} — a mapped column the CSV does not carry names
+ *    the family and the field here, instead of naming one row out of ninety-three
+ *    from inside a mapper.
+ *
+ * `familyName` is the CSV filename the catalog is keyed by
+ * (`'harvey_endmill_025.csv'`), which is what `boundFamily` takes.
+ */
+export function toRecords(
+  familyName: string,
+  scrape: ScrapeResult,
+  options?: MapperOptions,
+): ToolRecord[] {
+  const cfg = boundFamily(familyName)
+
+  checkIdentityColumns(familyBrand(cfg), scrape.header)
+  checkColumnsExist(familyName, cfg, scrape.header)
+
+  return scrape.rows.map((row) => cfg.records(row, cfg, cfg.columns, options))
 }
 
 /**

@@ -42,3 +42,39 @@ export function recorder(): {
   }
   return { io, out, err, all: () => [...out, ...err].join('\n') }
 }
+
+/**
+ * The politeness delay, observed instead of waited out.
+ *
+ * `scrape.pause` resolves on a `setTimeout`, so a timer that fires at once
+ * takes the wait out of the suite without taking the code path out: the loop
+ * still awaits every pause it would make, in the same order, and what it asked
+ * to wait for is recorded rather than slept through.
+ *
+ * **This is the only way the pacing is asserted.** Passing `delayMs: 0` — what
+ * every scrape test does, and rightly, when the subject is the parsing — makes
+ * `pause` return without touching a timer at all, so a dropped `await pause()`
+ * is invisible to it. A test that means to check the pacing has to leave the
+ * delay at its default and read the record.
+ *
+ * The delays are recorded rather than counted because 400 ms is the number
+ * `REQUEST_DELAY_MS` states and a loop that paced itself by one millisecond
+ * would satisfy a count.
+ */
+export function recordPauses(): { waits: number[]; restore: () => void } {
+  const waits: number[] = []
+  const real = globalThis.setTimeout
+
+  globalThis.setTimeout = ((fn: () => void, ms?: number) => {
+    waits.push(ms ?? 0)
+    fn()
+    return 0
+  }) as unknown as typeof globalThis.setTimeout
+
+  return {
+    waits,
+    restore: () => {
+      globalThis.setTimeout = real
+    },
+  }
+}

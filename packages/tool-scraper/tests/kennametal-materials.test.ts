@@ -8,7 +8,7 @@
 
 import { describe, expect, it, vi } from 'vitest'
 
-import type { ScrapeResult } from '../src/scrape.js'
+import { REQUEST_DELAY_MS, type ScrapeResult } from '../src/scrape.js'
 import {
   MATERIALS_COLUMN,
   MATERIAL_GROUPS,
@@ -18,7 +18,7 @@ import {
   materialsInGroup,
   parseMaterialGroups,
 } from '../src/vendors/kennametal/materials.js'
-import { asFetcher } from './stubs.js'
+import { asFetcher, recordPauses } from './stubs.js'
 
 const NO_RESULTS = '<div class="no-results"></div>'
 
@@ -118,6 +118,24 @@ describe('the sweep', () => {
     await groupsByMaterial(fetcher, '1', { delayMs: 0 })
 
     expect(queries).toHaveLength(MATERIAL_GROUPS.length)
+  })
+
+  it('waits between the group queries, and not before the first', async () => {
+    // The one test here that leaves `delayMs` at its default. A sweep is one
+    // facet query per group against a vendor that fronts its search, and at
+    // zero `pause` never reaches a timer — so this is what says the sweep is
+    // still paced.
+    const { fetcher } = serve({})
+    const { waits, restore } = recordPauses()
+
+    try {
+      await groupsByMaterial(fetcher, '1')
+    } finally {
+      restore()
+    }
+
+    expect(waits).toHaveLength(MATERIAL_GROUPS.length - 1)
+    expect(new Set(waits)).toEqual(new Set([REQUEST_DELAY_MS]))
   })
 })
 

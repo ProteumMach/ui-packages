@@ -94,6 +94,36 @@ export const BRANDS = {
     vendor: 'Destiny Tool',
     productLink: 'https://destinytool.com/products?search={material}',
   },
+  // Harvey Tool is the first brand here whose per-part link is a real page the
+  // vendor already publishes: every tool number in a product table is rendered
+  // as `<a href="/products/tool-details-14916">`, so the template below is the
+  // vendor's own URL rather than a search standing in for one. The 26 parts
+  // whose table cell carries no link are the exception, and the link is still
+  // the right thing to offer for them — see `docs/HARVEY_PRODUCT_TABLE.md` §3.
+  harvey: {
+    host: 'harveytool.com',
+    home: 'https://www.harveytool.com',
+    vendor: 'Harvey Tool',
+    productLink: 'https://www.harveytool.com/products/tool-details-{material}',
+  },
+  // MariTool is an osCommerce-family storefront, and its per-part page is
+  // addressable three ways: `product_info.php?products_id=100`, the
+  // SEO-rewritten `/p100/<slug>/product_info.html`, and a keyword search. The
+  // first two are keyed on an internal store id rather than on the part
+  // number, and that id is the one thing about a MariTool part that is not
+  // stable — a re-created product changes it. So the link is a search for the
+  // part number, the same call REGO-FIX and Destiny Tool got, and here it is a
+  // search the vendor really answers: `advanced_search_result.php?keywords=`
+  // is the storefront's own search endpoint and a part number matches exactly
+  // one product (JG 2026-08-29).
+  //
+  // No `node`: that key is Kennametal's AEM platform and nothing else.
+  maritool: {
+    host: 'maritool.com',
+    home: 'https://www.maritool.com',
+    vendor: 'MariTool',
+    productLink: 'https://www.maritool.com/advanced_search_result.php?keywords={material}',
+  },
 } as const satisfies Record<string, Brand>
 
 /**

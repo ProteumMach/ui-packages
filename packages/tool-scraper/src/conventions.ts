@@ -12,14 +12,19 @@
  * *across* the CSVs anyway, and the reason to make them explicit is that
  * vendor #3 already drifted from one:
  *
- * | Convention                                        | Held by                   |
- * | ------------------------------------------------- | ------------------------- |
- * | `_mm`/`_in` carries the unit on a dimension       | all three                 |
- * | Multi-value cells are space-separated             | all three                 |
- * | One row per orderable part                        | all three                 |
- * | `CAD_STEP_URL` names a CAD model where one exists | Kennametal, REGO-FIX      |
- * | Unmapped vendor codes keep a `DIN_` prefix        | REGO-FIX; rule is general |
- * | The identity columns                              | **broken** — see below    |
+ * | Convention                                         | Held by                   |
+ * | -------------------------------------------------- | ------------------------- |
+ * | `_mm`/`_in` carries the unit on a dimension        | all five                  |
+ * | Multi-value cells are space-separated              | all five                  |
+ * | One row per orderable part                         | all five                  |
+ * | `CAD_STEP_URL` names a CAD model where one exists  | Kennametal, REGO-FIX      |
+ * | `CAD_DXF_URL` names a 2D profile where one exists  | Harvey, MariTool          |
+ * | `Description` carries the vendor's own free text   | Harvey, MariTool          |
+ * | `contact` says how a holder seats                  | REGO-FIX, MariTool        |
+ * | `CST` names the collet series a holder takes       | REGO-FIX, MariTool        |
+ * | `L1_in`/`L1_mm` carry a holder's gage length       | REGO-FIX, MariTool        |
+ * | Unmapped vendor codes keep a `DIN_` prefix         | REGO-FIX; rule is general |
+ * | The identity columns                               | **broken** — see below    |
  *
  * Identity and units are the two worth enforcing; the rest are advisory, and
  * are here so that "advisory" is a decision on the page rather than an
@@ -73,6 +78,77 @@ export const UNIT_SUFFIX: Record<UnitSystem, string> = {
 export const CAD_COLUMN = 'CAD_STEP_URL'
 
 /**
+ * The CSV column holding a part's downloadable 2D DXF profile.
+ *
+ * A second column rather than a second thing written into {@link CAD_COLUMN},
+ * because a DXF is not a STEP model: one is a flat profile a machinist prints
+ * or traces, the other is the solid a CAM system imports. Harvey Tool publishes
+ * a DXF for 12,773 of its 12,799 parts and a STEP for none of them, so writing
+ * its link into `CAD_STEP_URL` would repeat exactly the mistake the
+ * `CAD_STP_LWM` -> `CAD_STEP_URL` rename fixed on 2026-08-08 — a column name
+ * that is a claim about the data, and false.
+ *
+ * Vendor-neutral and beside `CAD_COLUMN` for the same reason that one is: a
+ * format is not one manufacturer's fact, and the second vendor to publish a DXF
+ * must write it into this column rather than inventing another.
+ */
+export const CAD_DXF_COLUMN = 'CAD_DXF_URL'
+
+/**
+ * The CSV column holding the vendor's own free text about one part.
+ *
+ * Harvey Tool writes a product title here and MariTool a product name; both are
+ * the vendor's own prose rather than a designation this package composed. It is
+ * here and not in either adapter for the reason {@link CAD_COLUMN} is: two of
+ * them write it and neither owns it.
+ *
+ * **Not every vendor publishes one, and `''` is the answer where none does** —
+ * a description that restates the catalog number is not a description. See
+ * `records.ToolRecord.description`, which states the same rule for the record.
+ */
+export const DESCRIPTION_COLUMN = 'Description'
+
+/**
+ * The CSV column saying how a holder seats in the spindle: `taper` or `face`.
+ *
+ * `face` is dual contact — the flange face seats at the same time as the cone.
+ * REGO-FIX resolves it from its own `form_name` and MariTool from its `Taper`
+ * cell, which is the right shape: **how** a vendor states it is that vendor's
+ * business, and what the column is called is not.
+ */
+export const CONTACT_COLUMN = 'contact'
+
+/**
+ * The CSV column naming the collet series a holder accepts — `ER16`, `PG25`.
+ *
+ * The join key between a holder family and a collet family, which is exactly
+ * why it cannot be spelled twice: `families/kennametal.ts` states the join
+ * against this column, and two spellings of it join to nothing. Both vendors
+ * that publish it close the vendor's own spacing before writing it here, for
+ * the same reason.
+ */
+export const COLLET_SERIES_COLUMN = 'CST'
+
+/**
+ * The CSV columns carrying a holder's gage length, one per unit system.
+ *
+ * A **pair** with exactly one cell filled, rather than one column and a unit
+ * tag, because a single catalog page can publish both: MariTool gages
+ * `HSK40E-ER11-40` in millimetres and `HSK40E-ER16-3.0M` in inches on one
+ * listing. Nothing is converted between them — the vendor's own imperial
+ * conversion is unusable and computing one here would put a number in the file
+ * the vendor never published.
+ *
+ * REGO-FIX fills only the millimetre cell, because its DIN 4000 documents are
+ * metric throughout; the pair is still the shape, so the two vendors' holder
+ * CSVs answer the same question with the same columns.
+ */
+export const GAGE_COLUMNS: Record<UnitSystem, string> = {
+  inches: 'L1_in',
+  millimeters: 'L1_mm',
+}
+
+/**
  * The prefix an unmapped vendor code keeps, so it cannot read as a dimension.
  *
  * REGO-FIX's per-part DIN 4000 XML publishes codes — `A2`, `B1`, `B2` — whose
@@ -96,16 +172,38 @@ export const IDENTITY_COLUMNS = ['Material Number', 'ISO Catalog Number'] as con
  * Where a vendor's CSV does not use {@link IDENTITY_COLUMNS}, and what it uses
  * instead.
  *
- * **One entry, and it is a record of drift rather than a licence.** REGO-FIX
- * adopted Kennametal's identity labels; Destiny Tool passes Firestore's own
- * `itemNumber` straight through and publishes no catalog designation at all —
- * the convention was real but informal, and it eroded the first time a vendor
- * did not resemble the first two. Writing the deviation down is what makes the
- * fourth vendor's drift a decision somebody made rather than a thing that
- * happened.
+ * **Three entries, and they are a record of drift rather than a licence.**
+ * REGO-FIX adopted Kennametal's identity labels; Destiny Tool passes
+ * Firestore's own `itemNumber` straight through and publishes no catalog
+ * designation at all — the convention was real but informal, and it eroded the
+ * first time a vendor did not resemble the first two. Writing the deviation
+ * down is what makes the next vendor's drift a decision somebody made rather
+ * than a thing that happened.
+ *
+ * Harvey Tool and MariTool are the honest kind, and they are now the majority:
+ * both genuinely publish one identifier per part, so their entries record a
+ * fact about the vendor rather than a shortcut taken here. Two of the two
+ * vendors added since the convention was written have needed one, which says
+ * the two-column shape is Kennametal's rather than the industry's.
  */
 export const IDENTITY_DEVIATIONS: Partial<Record<BrandName, readonly string[]>> = {
   destinytool: ['itemNumber'],
+  // Harvey Tool publishes exactly one number per part — the `Tool #` its own
+  // table column is headed with, which is also the segment of its per-part URL
+  // — and no second catalog designation anywhere on a product page or a part
+  // page. Inventing an `ISO Catalog Number` to satisfy the convention would put
+  // a column in the CSV that the vendor does not publish, which is the one
+  // thing a receipt must not do.
+  harvey: ['Tool #'],
+  // MariTool publishes one number per part — the `Part#` line its own listing
+  // rows are headed with, which is also what its `Available Downloads for …`
+  // header restates and what its search endpoint matches on — and no second
+  // catalog designation anywhere on a category page or a product page. The
+  // store's `products_id` is not that second number: it is an internal id a
+  // re-created product would change, and every guid minted off it with it.
+  // Same call as Harvey's, and the honest kind: the entry records a fact about
+  // the vendor rather than a shortcut taken here.
+  maritool: ['Material Number'],
 }
 
 /**

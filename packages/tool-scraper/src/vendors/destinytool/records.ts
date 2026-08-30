@@ -23,8 +23,10 @@
  * row.
  */
 
+import type { UnitSystem } from '../../conventions.js'
 import { VendorResponseError } from '../../errors.js'
-import { familyBrand, type BoundFamily, type RecordMappers } from '../../family.js'
+import { fractionValue } from '../../measure.js'
+import { fact, familyBrand, type BoundFamily, type RecordMappers } from '../../family.js'
 import { BRANDS } from '../../identity.js'
 import {
   ISO_MATERIAL_GROUPS,
@@ -100,30 +102,14 @@ export function parseFractionInches(text: string): number {
   const s = text.trim().replace(/"+$/, '')
   if (!s) throw new RangeError(`empty dimension: ${JSON.stringify(text)}`)
 
-  const value = s.includes('.')
-    ? Number(s)
-    : s.includes('-')
-      ? mixed(s)
-      : s.includes('/')
-        ? fraction(s)
-        : Number(s)
-
-  if (!Number.isFinite(value)) {
+  // The trailing quote is the only thing Destiny Tool puts around a dimension
+  // that `measure.fractionValue` does not read; the grammar itself is the one
+  // every vendor here publishes, and it is read in one place.
+  const value = fractionValue(s)
+  if (value === null) {
     throw new RangeError(`unrecognized dimension: ${JSON.stringify(text)}`)
   }
   return value
-}
-
-/** `1-1/2` — a whole number and a simple fraction. */
-function mixed(s: string): number {
-  const cut = s.indexOf('-')
-  return Number(s.slice(0, cut)) + fraction(s.slice(cut + 1))
-}
-
-/** `3/4`. */
-function fraction(s: string): number {
-  const [num, den] = s.split('/')
-  return Number(num) / Number(den)
 }
 
 /** A dimension the kind requires, parsed as an inch fraction. */
@@ -131,9 +117,10 @@ function required(
   row: ScrapedRow,
   columns: ColumnMap,
   canonical: GeometryName,
+  unit: UnitSystem,
   what: string,
 ): number {
-  const column = columns.column(canonical, 'inches')
+  const column = columns.column(canonical, unit)
   const raw = column === null ? undefined : row[column]
   if (raw === undefined || raw.trim() === '') {
     throw new VendorResponseError(
@@ -228,6 +215,13 @@ export function shoulderDiameter(description: string, dc: number): number {
  * column when populated, or a fallback keyed on flute count when it is not
  * (blank on 423 of 3,898 rows, 2026-08-19).
  *
+ * **The two answers are labelled, not blended.** A populated cell is
+ * `vendor-stated` and the flute-count fallback is `derived`, so a consumer that
+ * will not route a cut off this package's arithmetic can filter on the source
+ * rather than having to know which rows Destiny Tool left blank. Neither is
+ * ever `null`: the fallback covers every blank cell, so this vendor always has
+ * an answer.
+ *
  * The fallback is not a new rule invented for this vendor — it is the split
  * cutting-data presets are routed by downstream (≤3 flutes non-ferrous, >3
  * ferrous), applied here to the material-groups facet instead. Real vendor
@@ -243,19 +237,30 @@ export function shoulderDiameter(description: string, dc: number): number {
  * array and a tool's own list from another has no way to notice the two
  * disagree.
  */
-export function materialGroups(row: ScrapedRow, flutes: number): string[] {
+export function materialGroups(
+  row: ScrapedRow,
+  flutes: number,
+): Pick<ToolRecord, 'materialGroups' | 'materialGroupsSource'> {
   const cell = row['isoMaterialGroups'] ?? ''
   if (cell.trim()) {
     const present = new Set(cell.split(/\s+/).filter(Boolean))
-    return ISO_MATERIAL_GROUPS.filter((group) => present.has(group))
+    return {
+      materialGroups: ISO_MATERIAL_GROUPS.filter((group) => present.has(group)),
+      materialGroupsSource: 'vendor-stated',
+    }
   }
-  if (flutes <= NON_FERROUS_MAX_FLUTES) return ['N']
-  return ['P', 'M', 'K', 'S', 'H']
+  return {
+    materialGroups: flutes <= NON_FERROUS_MAX_FLUTES ? ['N'] : ['P', 'M', 'K', 'S', 'H'],
+    materialGroupsSource: 'derived',
+  }
 }
 
 /**
- * A solid end mill, always in inches — Destiny Tool publishes no metric line
- * (the `unit` fact on the family).
+ * A solid end mill, in the family's declared unit.
+ *
+ * Which is inches on the one family there is — Destiny Tool publishes no metric
+ * line — but read from the `unit` fact rather than hardcoded, so the fact stays
+ * the single authored copy the way it is for every other vendor here.
  */
 export function endmillRecord(
   row: ScrapedRow,
@@ -263,13 +268,14 @@ export function endmillRecord(
   columns: ColumnMap,
   options: MapperOptions = {},
 ): ToolRecord {
+  const unit = fact(family, 'unit', family.unit)
   const what = row[ITEM_NUMBER] ?? ''
   const description = row['description'] ?? ''
-  const dc = required(row, columns, 'DC', what)
-  const fluteLength = required(row, columns, 'LCF', what)
-  const oal = required(row, columns, 'OAL', what)
+  const dc = required(row, columns, 'DC', unit, what)
+  const fluteLength = required(row, columns, 'LCF', unit, what)
+  const oal = required(row, columns, 'OAL', unit, what)
 
-  const radColumn = columns.column('RE', 'inches')
+  const radColumn = columns.column('RE', unit)
   const radRaw = radColumn === null ? undefined : row[radColumn]
   const radCell = radRaw && radRaw.trim() ? parseFractionInches(radRaw) : null
 
@@ -283,17 +289,18 @@ export function endmillRecord(
   }
 
   return toolRecord({
+    brand: familyBrand(family),
     vendor: BRANDS[familyBrand(family)].vendor,
     materialNumber: what,
     catalogNumber: what,
     description,
     kind: 'endmill',
-    unit: 'inches',
-    substrate: (row['material'] || (family.bmc ?? '')).toLowerCase(),
-    // No carbide grade is published; the coating id fills GRADE instead.
-    grade: row['coatingId'] ?? '',
-    materialGroups: materialGroups(row, flutes),
-    coolantThrough: family.coolantThrough ?? false,
+    unit,
+    substrate: (row['material'] || fact(family, 'bmc', family.bmc)).toLowerCase(),
+    // No carbide grade is published; the coating id is what there is.
+    coating: row['coatingId'] ?? '',
+    ...materialGroups(row, flutes),
+    coolantThrough: fact(family, 'coolantThrough', family.coolantThrough),
     geometry: {
       DC: dc,
       RE: cornerRadius(

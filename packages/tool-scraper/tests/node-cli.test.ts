@@ -16,12 +16,18 @@ import { dirname, join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { REQUEST_DELAY_MS } from '../src/scrape.js'
+import { CATEGORY_ROOTS as HARVEY_ROOTS } from '../src/vendors/harvey/catalog.js'
+import { checkIdentityColumns } from '../src/conventions.js'
+import { parseCsv } from '../src/node/csv.js'
 import { HOLDER_FAMILIES } from '../src/families/index.js'
+import { LEAVES as MARITOOL_LEAVES } from '../src/families/maritool.js'
+import { categoryUrl } from '../src/vendors/maritool/scrape.js'
 import { toCsv } from '../src/node/csv.js'
 import { SCRAPE_ROOT_ENV, describeRoot, familyCsv } from '../src/node/paths.js'
 import * as receipts from '../src/node/receipts.js'
 import { run } from '../src/node/cli.js'
-import { asFetcher, recorder, stub } from './stubs.js'
+import { asFetcher, recordPauses, recorder, stub } from './stubs.js'
 
 /** A family whose CSV the in-place commands can be pointed at. */
 const TAPS = 'khsst_spiral_point_plug_inch.csv'
@@ -47,6 +53,7 @@ describe('every command states where scraped data lands', () => {
     ['kennametal'],
     ['regofix'],
     ['destinytool'],
+    ['harvey'],
     ['thread-pitch'],
     ['cad'],
     ['materials'],
@@ -234,6 +241,330 @@ describe('receipts', () => {
 
     const keys = Object.keys(JSON.parse(readFileSync(receipts.pathFor(csv), 'utf8')) as object)
     expect(keys).toEqual([...keys].sort())
+  })
+})
+
+describe('the harvey command', () => {
+  const HEAD = `<table id="Harvey-EndMill-025_1"><thead>
+  <tr><th colspan="1" rowspan="1">CUTTER DIA.</th>
+      <th colspan="1" rowspan="1">LOC</th>
+      <th colspan="1" rowspan="1">SHANK DIA.</th>
+      <th colspan="1" rowspan="1">OAL</th>
+      <th colspan="2" rowspan="1">UNCOATED</th>
+      <th rowspan="2">Add to Cart</th></tr>
+  <tr><th colspan="1"><b>D</b><sub>1</sub></th><th colspan="1"><b>L</b><sub>2</sub></th>
+      <th colspan="1"><b>D</b><sub>2</sub></th><th colspan="1"><b>L</b><sub>1</sub></th>
+      <th colspan="1">4 FL</th>
+      <th class="product-table-th-price" colspan="1">PRICE</th></tr>
+</thead><tbody><tr><td>x</td></tr></tbody></table>`
+
+  /** One HTML row carrying one part, the way the smallest real page does. */
+  const row = (number: string) =>
+    `{a0:{d:".250 (1/4)"},a1:{d:".375"},a2:{d:"1/4"},a3:{d:"6"},` +
+    `s0:{d:"<a href=\\"/products/tool-details-${number}\\">${number}</a>"},` +
+    `p0:{d:"$148.40 "},` +
+    `atc:{j:"[{\\"T\\":\\"${number}\\",\\"C\\":\\"${number}\\",\\"Q\\":\\"1\\"}]"}}`
+
+  /** `harvey_endmill_025.csv` declares 10 parts; `parts` says how many to serve. */
+  const page = (parts: number) => {
+    const numbers = Array.from({ length: parts }, (_, i) => String(14916 + i))
+    return `<html><body>${HEAD}<script>
+var cols1 = [{data:"a0"},{data:"a1"},{data:"a2"},{data:"a3"},{data:"s0"},{data:"p0"},{data:"atc"}];
+var cols2 = [];
+var tableData1 = [${numbers.map(row).join(',')}];
+var tableData2 = [];
+var viewModel = {simFileViewModel:{productCode:"HT-Harvey-EndMill-025",productTitle:"Miniature End Mills - Ball - Extra Long Length",variantSimFileViewModel:[
+${numbers.map((n) => `{variantName:"${n}",variantDxfFileLink:"https://cdn.example/${n}.dxf",variantStepFileLink:""}`).join(',\n')}]}};
+</script></body></html>`
+  }
+
+  const serving = (parts: number) => {
+    const asked: string[] = []
+    return {
+      asked,
+      fetcher: asFetcher({
+        text: (url: string) => {
+          asked.push(url)
+          return Promise.resolve(page(parts))
+        },
+      }),
+    }
+  }
+
+  it('scrapes a family into the CSV its own config names', async () => {
+    // The page to fetch and the unit system come from the family's config, so
+    // neither is typed again and neither can be typed wrong.
+    const { io, all } = recorder()
+    const { asked, fetcher } = serving(10)
+
+    expect(await run(['harvey', 'harvey_endmill_025.csv'], io, fetcher)).toBe(0)
+
+    expect(asked).toEqual([
+      'https://www.harveytool.com/products/miniature-end-mills---ball---extra-long-length',
+    ])
+    const written = readFileSync(familyCsv('harvey_endmill_025.csv'), 'utf8')
+    expect(written).toContain('CUTTER DIA._in')
+    expect(written).toContain('14916')
+    expect(all()).toContain('wrote 10 rows')
+  })
+
+  it('records a receipt naming the vendor family code', async () => {
+    const { io } = recorder()
+
+    await run(['harvey', 'harvey_endmill_025.csv'], io, serving(10).fetcher)
+
+    expect(receipts.read(familyCsv('harvey_endmill_025.csv'))).toMatchObject({
+      brand: 'harvey',
+      familyCode: 'HT-Harvey-EndMill-025',
+      rows: 10,
+    })
+  })
+
+  it('refuses a scrape that lost rows against the declared count', async () => {
+    // The one check nothing computes from the file it is checking. Harvey's own
+    // add-to-cart payloads are where the declared number came from.
+    const { io } = recorder()
+
+    await expect(run(['harvey', 'harvey_endmill_025.csv'], io, serving(9).fetcher)).rejects.toThrow(
+      /declares 10/,
+    )
+  })
+
+  it('refuses a CSV name no Harvey family claims', async () => {
+    const { io } = recorder()
+
+    await expect(run(['harvey', 'not_a_family.csv'], io, noNetwork)).rejects.toThrow(
+      /Harvey family/,
+    )
+  })
+
+  it('waits between families, and not before the first', async () => {
+    // The per-page scrape is one request and does not pace itself, so this loop
+    // is the only thing between a caller naming eight families and eight
+    // requests going out back to back. Nowhere else exercises it: every other
+    // test here names one family, and the pause is guarded on the index.
+    const { io } = recorder()
+    const counts: Record<string, number> = {
+      '/products/miniature-end-mills---ball---extra-long-length': 10,
+      '/products/miniature-end-mills---corner-radius---extra-long-length': 12,
+    }
+    const fetcher = asFetcher({
+      text: (url: string) => {
+        const path = Object.keys(counts).find((p) => url.endsWith(p))
+        return Promise.resolve(page(counts[path!]!))
+      },
+    })
+    const { waits, restore } = recordPauses()
+
+    try {
+      expect(
+        await run(['harvey', 'harvey_endmill_025.csv', 'harvey_endmill_026.csv'], io, fetcher),
+      ).toBe(0)
+    } finally {
+      restore()
+    }
+
+    expect(waits).toEqual([REQUEST_DELAY_MS])
+  })
+
+  it('prints the product pages the category walk finds, paced', async () => {
+    // The command passes the walk no delay, so this runs the vendor-facing
+    // default. Recording the waits rather than sleeping them is what keeps four
+    // roots from costing the suite 1.6 seconds, and it asserts the pacing at
+    // the same time.
+    const { io, out } = recorder()
+    const fetcher = asFetcher({
+      text: () =>
+        Promise.resolve(
+          '<div class="product-grid-component">' +
+            '<div class="col-md-4 col-12 item-wrapper"><a href="/products/thing"></a></div>' +
+            '</div>',
+        ),
+    })
+    const { waits, restore } = recordPauses()
+
+    try {
+      expect(await run(['harvey', '--catalog'], io, fetcher)).toBe(0)
+    } finally {
+      restore()
+    }
+
+    expect(out).toContain('/products/thing')
+    expect(waits).toEqual(HARVEY_ROOTS.map(() => REQUEST_DELAY_MS))
+  })
+})
+
+describe('the maritool command', () => {
+  // A MariTool family is 6 listing pages and 11 product pages, and the command
+  // paces itself between every one of them — 17 real waits, which is seven
+  // seconds of a suite that otherwise runs in two. `recordPauses` is what takes
+  // the wait out without taking the code path out, and it keeps what was asked
+  // for: `waits` below is the same record `tests/maritool.test.ts` asserts the
+  // pacing against, so this block is not the one place the delay disappears.
+  let paused: ReturnType<typeof recordPauses>
+
+  beforeEach(() => {
+    paused = recordPauses()
+  })
+  afterEach(() => {
+    paused.restore()
+  })
+
+  /** One listing row, in MariTool's own markup. */
+  const row = (id: string, part: string) => {
+    const link = `https://www.maritool.com/x/c23/p${id}/${part}/product_info.html`
+    return `<tr class="product-info">
+      <td><a href="${link}"><img/></a></td>
+      <td><div><a href="${link}" title="${part}">${part} TOOL HOLDER</a></div>
+        <div class="product-info-detail"><p>Part#: ${part}</p><p>Brand: MariTool</p></div></td>
+    </tr>`
+  }
+
+  const listing = (parts: string[][]) =>
+    `<html><body>Displaying <b>1</b> to <b>${parts.length}</b> (of <b>${parts.length}</b> products)
+     <table><tbody>${parts.map(([id, part]) => row(id!, part!)).join('')}</tbody></table></body></html>`
+
+  const product = (specs: boolean) =>
+    specs
+      ? `<html><body><div class="product-info-box"><div class="header">Product Specifications</div>
+         <table><tr><td><b>Taper:&nbsp;</b></td><td>CAT50</td></tr>
+                <tr><td><b>Gage Length:&nbsp;</b></td><td>3.0</td></tr></table></div></body></html>`
+      : '<html><body><div class="header">Product Info</div></body></html>'
+
+  /**
+   * The CAT50 catalog as MariTool really publishes it: six leaves, eleven
+   * parts, and the two in `c23_24_45` publishing no spec table.
+   */
+  function catalog(): Record<string, string> {
+    const counts = [2, 1, 1, 1, 3, 3]
+    const pages: Record<string, string> = {}
+    let next = 1
+
+    MARITOOL_LEAVES['maritool_cat50_holders.csv'].forEach((leaf, index) => {
+      const parts = Array.from({ length: counts[index]! }, () => {
+        const id = String(next++)
+        return [id, `CAT50-PART-${id.padStart(2, '0')}`]
+      })
+      pages[categoryUrl(leaf.cPath)] = listing(parts)
+      for (const [id, part] of parts) {
+        // The first leaf is `c23_24_45`, whose two parts publish no table.
+        pages[`https://www.maritool.com/x/c23/p${id}/${part}/product_info.html`] = product(
+          index > 0,
+        )
+      }
+    })
+    return pages
+  }
+
+  const serving = (pages: Record<string, string>) =>
+    asFetcher({
+      text: (url: string) => {
+        const page = pages[url]
+        return page === undefined
+          ? Promise.reject(new Error(`no fixture for ${url}`))
+          : Promise.resolve(page)
+      },
+    })
+
+  it('scrapes a family into the CSV its own config names, and skips what has no table', async () => {
+    // The leaf cPaths come from the family's config, so none is typed again
+    // and none can be typed wrong. The declared `rows` is 9 against the
+    // vendor's 11 — the two skipped parts are the difference, and
+    // `receipts.checkRows` is what holds the two numbers together.
+    const { io, all } = recorder()
+
+    expect(await run(['maritool', 'maritool_cat50_holders.csv'], io, serving(catalog()))).toBe(0)
+
+    const written = readFileSync(familyCsv('maritool_cat50_holders.csv'), 'utf8')
+    expect(written).toContain('Material Number')
+    expect(written).toContain('L1_in')
+    expect(all()).toContain('wrote 9 rows')
+    expect(all()).toContain('SKIPPED CAT50-PART-01')
+
+    // The identity check against the header the command really wrote, rather
+    // than against one a mapper built in memory. Nothing in the write path runs
+    // it: `checkIdentityColumns` has one production caller, `registry.toRecords`,
+    // and only cutting-tool families reach it — MariTool and REGO-FIX ship
+    // toolholding and no column map, so for them this assertion is the whole
+    // sensor. A re-scrape whose `Part#` line moved would still parse, still
+    // have the right row count, and mint every guid off an empty string.
+    expect(() => checkIdentityColumns('maritool', parseCsv(written).header)).not.toThrow()
+    // And it fails where the column is gone, so the line above is not passing
+    // on a header it never looked at.
+    expect(() => checkIdentityColumns('maritool', ['L1_in', 'taper'])).toThrow(/Material Number/)
+  })
+
+  it('paces itself between every request the family takes', async () => {
+    // 6 listing pages and 11 product pages: a pause before each product page,
+    // one closing each leaf, and none before the first request of a leaf whose
+    // roster is a single page. The vendor is a small shop and the rule is that
+    // a scrape does not raise request volume.
+    const { io } = recorder()
+
+    await run(['maritool', 'maritool_cat50_holders.csv'], io, serving(catalog()))
+
+    expect(paused.waits).toHaveLength(17)
+    expect(new Set(paused.waits)).toEqual(new Set([REQUEST_DELAY_MS]))
+  })
+
+  it('records a receipt naming every leaf it paged', async () => {
+    // A MariTool family is scraped from several categories, so the receipt
+    // carries all of their cPaths rather than one.
+    const { io } = recorder()
+
+    await run(['maritool', 'maritool_cat50_holders.csv'], io, serving(catalog()))
+
+    expect(receipts.read(familyCsv('maritool_cat50_holders.csv'))).toMatchObject({
+      brand: 'maritool',
+      familyCode: '23_24_45 23_24_429_430 23_24_1978 23_24_429_1979 23_24_957 23_24_429_1512',
+      rows: 9,
+    })
+  })
+
+  it('refuses a scrape that lost rows against the declared count', async () => {
+    const { io } = recorder()
+    const pages = catalog()
+    // The last leaf now publishes two parts where the family declares three.
+    const last = MARITOOL_LEAVES['maritool_cat50_holders.csv'].at(-1)!
+    pages[categoryUrl(last.cPath)] = listing([
+      ['90', 'CAT50-PART-90'],
+      ['91', 'CAT50-PART-91'],
+    ])
+    for (const id of ['90', '91']) {
+      pages[`https://www.maritool.com/x/c23/p${id}/CAT50-PART-${id}/product_info.html`] =
+        product(true)
+    }
+
+    await expect(
+      run(['maritool', 'maritool_cat50_holders.csv'], io, serving(pages)),
+    ).rejects.toThrow(/declares 9/)
+  })
+
+  it('refuses a CSV name no MariTool family claims', async () => {
+    const { io } = recorder()
+
+    await expect(run(['maritool', 'not_a_family.csv'], io, noNetwork)).rejects.toThrow(
+      /MariTool family/,
+    )
+  })
+
+  it('prints the categories the walk finds, and which are leaves', async () => {
+    const { io, out } = recorder()
+    const fetcher = asFetcher({
+      text: (url: string) =>
+        Promise.resolve(
+          url.includes('cPath=23_25_42')
+            ? '<html><head><title>x ER Collet Chucks - MariTool</title></head>' +
+                '<body>Displaying <b>1</b> to <b>1</b> (of <b>7</b> products)</body></html>'
+            : '<html><head><title>x CAT40 - MariTool</title></head><body>' +
+                '<a href="https://www.maritool.com/s/c23_25_42/index.html">ER</a></body></html>',
+        ),
+    })
+
+    expect(await run(['maritool', '--catalog'], io, fetcher)).toBe(0)
+
+    expect(out.join('\n')).toContain('cPath=23_25_42')
+    expect(out.join('\n')).toContain('of them leaves')
   })
 })
 
