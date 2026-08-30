@@ -64,9 +64,10 @@ substitute `npm`, `npx`, or a bare `tsc`.
 | Verify the pinned OpenAPI document   | `pnpm openapi:verify`                               |
 | Regenerate the SDKs                  | `pnpm generate`                                     |
 | Prove the generated SDKs are current | `pnpm generate:check`                               |
+| Find dead code and unused deps       | `pnpm knip`                                         |
 | Add a Changeset                      | `pnpm changeset`                                    |
 
-`pnpm check` runs `openapi:verify`, `generate:check`, `lint`, `build`, `check-types`, and
+`pnpm check` runs `openapi:verify`, `generate:check`, `lint`, `knip`, `build`, `check-types`, and
 `test`, in that order, so the cheap contract checks fail before a build does.
 
 **Docker must be running for `pnpm check` and for `pnpm generate`.** `scripts/generate-sdks.mjs`
@@ -104,6 +105,7 @@ judgment rule starts being violated, give it a check rather than restating it he
 | `@toolpath/ui` ships its theme, `dist`, and `src` in the tarball       | `pnpm test` (`test-ui-package`)   |
 | `@toolpath/ui` theme tokens and the built bundle agree                 | `pnpm test` (`tailwind-preset`)   |
 | `@toolpath/tool-scraper` resolves and its errors are `instanceof`-safe | `pnpm test` (`packaging`)         |
+| No unreferenced export, file, or dependency                            | `pnpm knip`                       |
 | A change under a package's `src/` carries a Changeset                  | CI (`release-intent.yml`)         |
 | Formatting                                                             | Prettier, via the pre-commit hook |
 | TypeScript style beyond the above                                      | judgment                          |
@@ -123,6 +125,14 @@ What the sensors cannot carry:
   that second copy is the check being lost.
 - The ESLint config carries `react-hooks/exhaustive-deps` partly so the viewer's two deliberate
   suppressions stay legal. A disable comment naming an unresolvable or disabled rule fails lint.
+- **`pnpm knip` proves a symbol is unreferenced, not that it should go.** In a published package
+  an unreferenced export has two correct fixes — drop the `export` keyword, or add it to the
+  package's public entry — and knip cannot tell them apart. Ask which the symbol was for: a
+  `Context` object or a provider's internal value type is plumbing, so un-export it; a type named
+  by a public signature a consumer cannot otherwise write is a gap in the public surface, so
+  publish it. `knip.json` models each package's entry points by hand because every manifest's
+  `exports` map points at `dist/`; an entry point added to a manifest needs its `src/` counterpart
+  added there too, or knip will call a whole live module dead.
 - **The Changeset check watches `src/` and not the manifests.** `scripts/check-release-intent.mjs`
   lists `packages/ui/src/`, `packages/ui/tailwind-preset.cjs`, `packages/viewer/src/`,
   `packages/tool-scraper/src/`, `packages/sdk-typescript/src/`, `openapi/`,

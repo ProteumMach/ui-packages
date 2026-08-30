@@ -75,12 +75,44 @@ in one is the rule being broken rather than a flaky test:
 - `packages/ui/tests/tailwind-preset.test.ts` — that the built bundle and `theme.css` agree.
 - `scripts/test-ui-package.mjs` — that the published tarball still contains what it must.
 - `pnpm generate:check` and `pnpm openapi:verify` — the generated SDKs and the pinned contract.
+- `pnpm knip` — that no file, export, or dependency sits unreferenced. It is a rule about reach,
+  not about tests: a symbol one test imports counts as referenced, so a green run says nothing
+  about whether anything is asserted.
 
 Separately from missing tests, report which behaviors and which AGENTS.md rules have no
 automated proof at all — nothing in Vitest, Playwright, `eslint.config.js`, or a script that
 would fail if they were broken. Naming that set is itself the finding, because those are the
 rules a long session drifts off first. Check the AGENTS.md sensor table in both directions: a
 rule marked judgment that now has a sensor is as stale as one claiming a sensor it lacks.
+
+## The public surface no test reaches
+
+`pnpm knip` exempts each package's entry points, because a published export having no in-repo
+caller is the normal state of a library. Drop that exemption and the same graph answers a
+different question:
+
+```sh
+pnpm exec knip --no-config-hints --include-entry-exports
+```
+
+What it lists is every public export that no source file **and no test** in this repository
+mentions. That is the closest thing here to a map of untested public surface, and it is large —
+around 400 symbols, most of them in `packages/viewer` and `packages/ui`, because the suites drive
+behavior through a handful of entry points rather than touching each export by name. Get the
+current set rather than trusting that number.
+
+It is a pointer, not a metric, and it is **not coverage** — do not present it as one, and do not
+report a percentage from it:
+
+- It is not a gate and never should be. Do not propose wiring it into `pnpm check`.
+- It answers "is this name mentioned anywhere", not "is this behavior asserted". An export a test
+  imports and never exercises does not appear.
+- `export *` chains and namespace imports hide references, so a symbol's absence from the list is
+  much weaker evidence than its presence on it.
+
+Use it to ask which _behaviors_ on the list deserve a test. A viewer camera, picking, or section
+export sitting there is a finding; a type alias or a constant is not. Naming three or four real
+ones beats reproducing the list.
 
 ## Known gaps — state them, do not rediscover them
 

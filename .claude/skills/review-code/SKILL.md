@@ -22,6 +22,7 @@ repository does not have.
 
 - `pnpm lint` — ESLint, Ruff, and yamllint.
 - `pnpm check-types` — every workspace.
+- `pnpm knip` — files, exports, and dependencies nothing references. Part of `pnpm check`.
 - `pnpm --filter <package> test` for the package under review; `pnpm test` when the change
   crosses packages. `pnpm test` also runs Playwright and the `npm pack` check, so it is slow.
 - `pnpm openapi:verify` and `pnpm generate:check` whenever the diff touches `openapi/`,
@@ -43,6 +44,7 @@ restating them:
   vendor directory with no `scrape.ts`;
 - `@toolpath/ui` dropping a file from its published tarball, or its theme tokens disagreeing with
   the built bundle;
+- an export, file, or dependency that nothing in the repository references;
 - a release-sensitive path changed without a Changeset.
 
 The review is for what no check sees.
@@ -50,11 +52,27 @@ The review is for what no check sees.
 ### The public surface
 
 - What does the diff add to `src/index.ts` — or to `src/engine/index.ts` for the viewer? An
-  export is a permanent commitment. An internal helper exported "for a test" or "for now" ships.
+  export is a permanent commitment, and the diff is the last cheap moment to refuse one.
 - Do `exports`, `files`, `main`, and `types` in the manifest still describe what the build
   actually produces? `packages/viewer` and `packages/ui` are ESM-only with a `types` condition.
 - Does the emitted `.d.ts` leak a type the package does not intend to publish, or reference a
   type from a `devDependency` a consumer will not have installed?
+- `pnpm knip` now catches the helper exported "for a test" or "for now", so do not hunt for it by
+  hand. What it hands you instead is a decision it cannot make. An unreferenced export has two
+  correct fixes and the right one depends on what the symbol was for: a `Context` object or a
+  provider's internal value type is plumbing, and should lose the `export` keyword; a type that a
+  public signature already names — so a consumer can hold the value but cannot write its type — is
+  a hole in the public surface, and should be added to the entry point instead, as a `minor`.
+  Reading every knip finding as "delete it" is how a package loses a type its own exported
+  functions still mention.
+- Un-exporting is not free everywhere. `@toolpath/ui` and `@toolpath/viewer` build with tsup,
+  which keeps a module-private type as a private declaration in the emitted `.d.ts`.
+  `@toolpath/api` and `@toolpath/tool-scraper` build with plain `tsc`, where a non-exported type
+  named by an exported signature can fail declaration emit outright. `pnpm build` is the check
+  either way; require it in the diff's own package before accepting the change.
+- A knip finding under `packages/sdk-typescript/src/generated/` means `knip.json` stopped ignoring
+  that directory, not that there is dead code to remove. Hand edits there last until the next
+  generation and `pnpm generate:check` fails. Report the config change, not the symbol.
 
 ### The version bump
 
