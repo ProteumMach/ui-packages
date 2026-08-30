@@ -1,5 +1,88 @@
 # @toolpath/tool-scraper
 
+## 1.0.0
+
+### Major Changes
+
+- 147ca62: Four things two vendors each declared for themselves now have one home, and a check that keeps it
+  that way.
+  - New `measure` module on the main entry point: `MM_PER_INCH`, `fractionValue` for the decimal,
+    fraction and mixed-number grammar every vendor publishes, and `convertLength`. It replaces three
+    adapter-local readers that disagreed — REGO-FIX refused `1-1/2`, Destiny Tool refused `1.5-1/2`,
+    Harvey read both — and two exported copies of 25.4.
+  - **`MM_PER_INCH` is gone from `./vendors/harvey` and `./vendors/regofix`.** Import it from the
+    package root.
+  - `unionHeader` moves to the main entry point and is gone from `./vendors/regofix` and
+    `./vendors/maritool`. It was byte-identical in both.
+  - `conventions` gains `DESCRIPTION_COLUMN`, `CONTACT_COLUMN`, `COLLET_SERIES_COLUMN` and
+    `GAGE_COLUMNS` — the CSV columns two vendors each write and neither owns, beside `CAD_COLUMN` for
+    the same reason. `./vendors/maritool` no longer exports its own copies of them, and
+    `./vendors/harvey` no longer exports `DESCRIPTION_COLUMN`.
+
+  Harvey's record mapper now reads the `ColumnMap` its caller passes rather than `family.columns`,
+  which is what `registry.toRecords` has just validated. `cornerRadius` and `flutes` on
+  `./vendors/harvey` take that map as a new third argument.
+
+  `tests/vendor-boundary.test.ts` now fails on a name exported by two manufacturers that is not part
+  of the adapter contract, so the next one of these is caught rather than reviewed.
+
+- 4bc7595: `ToolRecord` is now the package's shipped output, and its shape changed.
+  - `toRecords(familyName, scrape, options?)` on the `./registry` subpath maps one family's scrape to
+    `ToolRecord[]`, checking the identity and mapped columns against the header first. Every command
+    previously ended at a vendor-labelled CSV.
+  - `grade` is removed. `coating` replaces it and carries the vendor's own coating string, `''` where
+    none is published; the carbide grade a Kennametal table publishes reaches no record.
+  - `brand` and `guid` are new. `toolRecord()` mints `guid` as `recordGuid(brand, materialNumber)`
+    itself, so an adapter cannot get it wrong and the guid is derivable from a record.
+  - `materialGroups` is `readonly string[] | null`: `null` is "we do not know what this tool is for",
+    `[]` is a vendor index that rates the part for nothing, non-empty is a rating. New
+    `materialGroupsSource` is never absent — the new `UNSPECIFIED` label in the first case, otherwise
+    `vendor-stated` or `derived` — and the label and the null go together or the record is refused.
+    Every Harvey record is `unspecified`: its material index is published per part, not in a variant
+    table, and varies by coating within a family, so nothing a scrape reads can stand in for it.
+  - Every mapper now reads `unit`, `bmc` and `coolantThrough` as required family facts. Harvey's
+    `family.unit!`, Destiny Tool's hardcoded `'inches'`, and the `?? false` / `?? ''` fallbacks are
+    gone, and the three Kennametal tap families state `coolantThrough` rather than the mapper
+    assuming it.
+  - `description` is now the vendor's own free text, `''` where the vendor publishes none, and
+    never a copy of another field on the record. Kennametal publishes no description column, so its
+    drill and end mill records carry `''` where they used to repeat `catalogNumber`; a tap carries
+    its thread designation alone rather than the catalog number and the designation.
+  - `geometry` values are `number`. They were `number | boolean` and no adapter has ever produced a
+    boolean, so every consumer narrowed a type nothing could hold.
+  - New `RECORD_GEOMETRY` states, per tool kind, which geometry a record always carries and which it
+    may omit. `toolRecord()` refuses anything else. An absent key is now a declared claim — an end
+    mill may omit `NOF` where the vendor publishes no flute count (Harvey's two deburring families),
+    a drill carries `SIG` and never `RE` — instead of the ambiguity `materialGroups` had already been
+    given `UNSPECIFIED` to resolve.
+  - REGO-FIX row order no longer depends on the machine's locale.
+
+### Minor Changes
+
+- cba558e: Add the Harvey Tool vendor adapter: 52 miniature end mill and keyseat cutter families, 12,773 orderable parts, scraped from each product page's inline variant table.
+
+  New exports: `@toolpath/tool-scraper/vendors/harvey`, `conventions.CAD_DXF_COLUMN` for a vendor's 2D profile link, and `FamilyFacts.profile` for the end profile a vendor states once per product line. `conventions.IDENTITY_DEVIATIONS` gains a `harvey` entry — Harvey publishes one `Tool #` per part and no catalog designation.
+
+  `toolpath-scrape harvey FAMILY.csv` scrapes one family; `toolpath-scrape harvey --catalog` walks the category trees.
+
+- 54c4144: Add the MariTool vendor adapter: five toolholding families — CAT40, CAT50,
+  BT30, BT40 and HSK — covering 529 ER collet chucks, shrink-fit holders and
+  hydraulic chucks, and a `toolpath-scrape maritool` command that writes them.
+
+  New public surface: the `@toolpath/tool-scraper/vendors/maritool` entry point,
+  `maritool` in `identity.BRANDS` and `conventions.IDENTITY_DEVIATIONS`, and five
+  entries in `families.HOLDER_FAMILIES`. Nothing existing changes shape.
+
+  The gage length is promoted into an `L1_in`/`L1_mm` pair with exactly one cell
+  filled per row, and nothing is converted: MariTool publishes both unit systems
+  in that one column, within a single family and within a single category page.
+
+  MariTool ships toolholding, so like REGO-FIX it binds no record mapper: its
+  scrape ends at rows and a receipt, not at `ToolRecord`. The columns two
+  toolholding vendors now share — `Description`, `contact`, `CST` and the
+  `L1_in`/`L1_mm` pair — are named in `conventions` rather than in either
+  adapter, so a consumer joining the two catalogs has one spelling to read.
+
 ## 0.1.0
 
 ### Minor Changes
