@@ -194,7 +194,10 @@ export function drillRecord(row: ScrapedRow, family: BoundFamily, columns: Colum
     vendor: BRANDS[familyBrand(family)].vendor,
     materialNumber: what,
     catalogNumber: row[CATALOG_NUMBER] ?? '',
-    description: row[CATALOG_NUMBER] ?? '',
+    // Kennametal publishes no description column on any table. The catalog
+    // number is already on the record, and repeating it here said nothing —
+    // see `records.ToolRecord.description`.
+    description: '',
     kind: 'drill',
     unit,
     substrate: fact(family, 'bmc', family.bmc),
@@ -238,9 +241,11 @@ export function tapRecord(row: ScrapedRow, family: BoundFamily, columns: ColumnM
     vendor: BRANDS[familyBrand(family)].vendor,
     materialNumber: what,
     catalogNumber: row[CATALOG_NUMBER] ?? '',
-    // The designation is part of what a tap *is*, and the catalog number alone
-    // does not carry the size.
-    description: `${row[CATALOG_NUMBER] ?? ''} ${tdz}`,
+    // The one Kennametal table that publishes per-part text: the thread
+    // designation is part of what a tap *is*, and the catalog number does not
+    // carry the size. The catalog number no longer leads it — it is already on
+    // the record, and a description that restates one is not a description.
+    description: tdz,
     kind: 'tap',
     unit,
     substrate: fact(family, 'bmc', family.bmc),
@@ -286,7 +291,8 @@ export function endmillRecord(
     vendor: BRANDS[familyBrand(family)].vendor,
     materialNumber: what,
     catalogNumber: row[CATALOG_NUMBER] ?? '',
-    description: row[CATALOG_NUMBER] ?? '',
+    // No description column here either. See the drill mapper.
+    description: '',
     kind: 'endmill',
     unit,
     substrate: fact(family, 'bmc', family.bmc),

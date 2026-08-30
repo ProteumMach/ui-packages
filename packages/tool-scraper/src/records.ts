@@ -230,6 +230,79 @@ export const DIMENSIONAL_COLUMNS: ReadonlySet<GeometryName> = new Set(
 )
 
 /**
+ * What geometry a **record** of each kind carries, as against what a family
+ * must map.
+ *
+ * {@link REQUIRED_GEOMETRY} is about columns: it refuses a family whose config
+ * maps no `LCF`. This is about the record that comes out the other end, and the
+ * two genuinely differ — a Kennametal drill's `NOF` and `SIG` come from facts
+ * and not from any column, so they can never appear in a column map and are
+ * always on the record.
+ *
+ * **`sometimes` is the point of the table.** An absent key was the one thing in
+ * a record a reader had to interpret: `geometry.NOF === undefined` means "Harvey
+ * publishes no flute count for this family" on an end mill and "not part of the
+ * contract" on a drill, and nothing said which. That is exactly the ambiguity
+ * {@link UNSPECIFIED} exists to remove from {@link ToolRecord.materialGroups},
+ * and the record shipped both encodings at once. Now the absence is declared:
+ * a key in `sometimes` may be missing and its absence is the vendor's silence;
+ * a key in neither list is not part of that kind's record at all.
+ *
+ * The one `sometimes` entry today is the end mill's flute count, for Harvey's
+ * two deburring families — they publish right- and left-hand tooth counts and
+ * no flute count, so there is nothing to read and 0 is not a substitute.
+ */
+export const RECORD_GEOMETRY: Record<
+  ToolKind,
+  { readonly always: readonly GeometryName[]; readonly sometimes: readonly GeometryName[] }
+> = {
+  drill: {
+    always: ['DC', 'SFDM', 'OAL', 'LCF', 'NOF', 'SIG'],
+    sometimes: [],
+  },
+  tap: {
+    always: ['DC', 'TP', 'SFDM', 'OAL', 'LCF', 'NOF'],
+    sometimes: [],
+  },
+  endmill: {
+    always: ['DC', 'RE', 'SFDM', 'OAL', 'LCF', 'shoulder-length', 'shoulder-diameter'],
+    sometimes: ['NOF'],
+  },
+}
+
+/**
+ * Refuse a record whose geometry does not match its kind's declared shape.
+ *
+ * Two failures, and the second is the one worth having: a key the kind does not
+ * declare at all means a mapper is writing a measurement into a record nothing
+ * downstream expects to find there, which is invisible until a consumer does
+ * not read it.
+ */
+function checkGeometry(kind: ToolKind, what: string, geometry: object): void {
+  const { always, sometimes } = RECORD_GEOMETRY[kind]
+  const present = new Set(Object.keys(geometry))
+
+  const missing = always.filter((name) => !present.has(name))
+  if (missing.length > 0) {
+    throw new ScraperConfigError(
+      what,
+      `a ${kind} record carries ${missing.join(', ')} and this one does not — ` +
+        `a field a kind always has is not a field a mapper may skip`,
+    )
+  }
+
+  const declared = new Set<string>([...always, ...sometimes])
+  const extra = [...present].filter((name) => !declared.has(name)).sort()
+  if (extra.length > 0) {
+    throw new ScraperConfigError(
+      what,
+      `a ${kind} record does not carry ${extra.join(', ')} — ` +
+        `add it to RECORD_GEOMETRY before a mapper writes one`,
+    )
+  }
+}
+
+/**
  * One orderable cutting tool, in canonical fields, ready for the core.
  *
  * `readonly` throughout because it is an interchange value: an adapter builds
@@ -284,6 +357,23 @@ export interface ToolRecord {
   readonly guid: string
   readonly materialNumber: string
   readonly catalogNumber: string
+  /**
+   * The vendor's own free text about this part, verbatim — `''` where the
+   * vendor publishes none.
+   *
+   * **Never a copy of another field on this record.** It was
+   * `row['ISO Catalog Number']` on every Kennametal drill and end mill until
+   * 2026-08-29, which put the catalog number in two fields and told a consumer
+   * nothing it did not already have: a search index built on it matched a part
+   * number and no words. Kennametal publishes no description column, so the
+   * honest answer is the empty string — the same rule {@link ToolRecord.coating}
+   * already states for a table that publishes no coating.
+   *
+   * **It may be per product line rather than per part.** Harvey states one
+   * title for a whole page and no per-part text, so every record of a Harvey
+   * family carries that family's title. That is what the vendor published; a
+   * consumer that needs a per-part string has `catalogNumber`.
+   */
   readonly description: string
   readonly kind: ToolKind
   readonly unit: UnitSystem
@@ -297,7 +387,20 @@ export interface ToolRecord {
    * what was published.
    */
   readonly coating: string
-  readonly geometry: Readonly<Partial<Record<GeometryName, number | boolean>>>
+  /**
+   * The canonical geometry, in {@link ToolRecord.unit}.
+   *
+   * Numbers only. It was `number | boolean` until 2026-08-29 and no adapter has
+   * ever put a boolean in one — {@link GEOMETRY_FIELDS} defines no boolean
+   * field — so the width bought nothing and cost every consumer a narrowing
+   * before it could do arithmetic on `geometry.DC`.
+   *
+   * **Which keys are present is stated per kind, not left to the mapper**: see
+   * {@link RECORD_GEOMETRY}. An absent key is a claim, and it is the vendor's
+   * silence rather than a gap — the same distinction
+   * {@link ToolRecord.materialGroups} draws with {@link UNSPECIFIED}.
+   */
+  readonly geometry: Readonly<Partial<Record<GeometryName, number>>>
   readonly coolantThrough: boolean
   /** ISO 513 main groups in {@link ISO_MATERIAL_GROUPS} order — see above. */
   readonly materialGroups: readonly string[] | null
@@ -327,6 +430,11 @@ export interface ToolRecord {
  * copies of `recordGuid(brand, materialNumber)` to drift, on the value that is
  * the join key for every downstream consumer.
  *
+ * The geometry is checked against {@link RECORD_GEOMETRY} before anything is
+ * built, so a kind's shape is one table rather than a convention three mappers
+ * each keep separately. That is the same move the material-groups invariant
+ * below makes: the factory is where a record's shape can be refused once.
+ *
  * The result is frozen, geometry and material groups included: a record is an
  * interchange value, and a mapper that mutated one would be reaching back
  * across the seam this type exists to draw.
@@ -350,6 +458,8 @@ export function toolRecord(
         `groups are ${JSON.stringify(UNSPECIFIED)} exactly when there are none`,
     )
   }
+
+  checkGeometry(fields.kind, fields.materialNumber, fields.geometry)
 
   return Object.freeze({
     ...fields,

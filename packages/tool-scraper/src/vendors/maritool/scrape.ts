@@ -78,7 +78,15 @@
 
 import { Parser } from 'htmlparser2'
 
-import { CAD_COLUMN, CAD_DXF_COLUMN, type UnitSystem } from '../../conventions.js'
+import {
+  CAD_COLUMN,
+  CAD_DXF_COLUMN,
+  COLLET_SERIES_COLUMN,
+  CONTACT_COLUMN,
+  DESCRIPTION_COLUMN,
+  GAGE_COLUMNS,
+  type UnitSystem,
+} from '../../conventions.js'
 import { VendorResponseError } from '../../errors.js'
 import type { Fetcher } from '../../fetch.js'
 import { compare } from '../../order.js'
@@ -86,6 +94,7 @@ import {
   consoleWarn,
   pause,
   REQUEST_DELAY_MS,
+  unionHeader,
   type ScrapeResult,
   type ScrapedRow,
   type Warn,
@@ -103,20 +112,11 @@ export const BASE = 'https://www.maritool.com'
  */
 export const MATERIAL_COLUMN = 'Material Number'
 export const STORE_ID_COLUMN = 'products_id'
-export const DESCRIPTION_COLUMN = 'Description'
 export const TAPER_COLUMN = 'taper'
-export const CONTACT_COLUMN = 'contact'
 export const CLAMPING_COLUMN = 'clamping'
 export const STYLE_COLUMN = 'style'
-export const COLLET_SERIES_COLUMN = 'CST'
 
-/** The promoted gage length, one cell per unit system and one of them filled. */
-export const GAGE_COLUMNS: Record<UnitSystem, string> = {
-  inches: 'L1_in',
-  millimeters: 'L1_mm',
-}
-
-/** MariTool's own label for the cell {@link GAGE_COLUMNS} is promoted from. */
+/** MariTool's own label for the cell `conventions.GAGE_COLUMNS` is promoted from. */
 export const GAGE_LABEL = 'Gage Length'
 
 /** MariTool's own label for the cell {@link COLLET_SERIES_COLUMN} comes from. */
@@ -595,16 +595,6 @@ export function colletSeries(cell: string): string {
 }
 
 /**
- * A number as the vendor printed it: no trailing `.0` on an integer.
- *
- * The CSV is read back as a number, so this only decides what a human and a
- * git diff see.
- */
-function plain(value: number): string {
-  return String(value)
-}
-
-/**
  * One listing row plus its spec table -> one CSV row.
  *
  * The vendor's own labels are carried verbatim and in the order the page
@@ -677,7 +667,7 @@ export function holderRow(
   const gage = specs[GAGE_LABEL]
   if (gage !== undefined && gage !== '') {
     const { value, unit } = parseGageLength(gage)
-    row[GAGE_COLUMNS[unit]] = plain(value)
+    row[GAGE_COLUMNS[unit]] = String(value)
   }
 
   for (const [label, value] of Object.entries(specs)) {
@@ -699,24 +689,6 @@ export function holderRow(
   row[CAD_COLUMN] = listing.assets['STP'] ?? ''
   row[CAD_DXF_COLUMN] = listing.assets['DXF'] ?? ''
   return row
-}
-
-/**
- * Rows to a header that is the union of their keys, in first-seen order.
- *
- * A union rather than the first row's keys, because which spec keys a part
- * publishes is a function of its style and all three share a CSV: keying off
- * row one would drop `Hydraulic Type` from every family whose collet chucks
- * happen to sort first.
- */
-export function unionHeader(rows: readonly ScrapedRow[]): string[] {
-  const header: string[] = []
-  for (const row of rows) {
-    for (const key of Object.keys(row)) {
-      if (!header.includes(key)) header.push(key)
-    }
-  }
-  return header
 }
 
 /**

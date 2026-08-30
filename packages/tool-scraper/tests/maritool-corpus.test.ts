@@ -18,13 +18,15 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { checkIdentityColumns } from '../src/conventions.js'
-import { HOLDER_FAMILIES } from '../src/families/maritool.js'
 import {
-  CLAMPING_COLUMN,
   COLLET_SERIES_COLUMN,
   CONTACT_COLUMN,
   GAGE_COLUMNS,
+  checkIdentityColumns,
+} from '../src/conventions.js'
+import { HOLDER_FAMILIES } from '../src/families/maritool.js'
+import {
+  CLAMPING_COLUMN,
   MATERIAL_COLUMN,
   STORE_ID_COLUMN,
   STYLE_COLUMN,

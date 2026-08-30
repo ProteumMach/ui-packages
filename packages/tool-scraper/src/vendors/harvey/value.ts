@@ -30,9 +30,8 @@
  */
 
 import type { UnitSystem } from '../../conventions.js'
+import { convertLength, fractionValue } from '../../measure.js'
 import { consoleWarn, type Warn } from '../../scrape.js'
-
-export const MM_PER_INCH = 25.4
 
 /**
  * Footnote references Harvey appends to a value or a tool number. 62 cells
@@ -81,15 +80,6 @@ const NOTHING: HarveyValue = {
   code: null,
 }
 
-/** `1-1/2` -> 1.5, `3/4` -> 0.75, `.250` -> 0.25. */
-function toNumber(token: string): number {
-  const mixed = token.indexOf('-')
-  if (mixed > 0) return Number(token.slice(0, mixed)) + toNumber(token.slice(mixed + 1))
-  const slash = token.indexOf('/')
-  if (slash > 0) return Number(token.slice(0, slash)) / Number(token.slice(slash + 1))
-  return Number(token)
-}
-
 /**
  * One cell's display text, read.
  *
@@ -113,23 +103,21 @@ export function parseValue(display: string): HarveyValue {
   }
 
   const number = NUMBER.exec(head)
-  if (number === null) return { ...NOTHING, annotation, code: head }
+  // `measure.fractionValue` is stricter than {@link NUMBER} in one place — it
+  // refuses a division by zero — so a token that matched here can still have no
+  // reading, and that is a code cell rather than a number.
+  const value = number === null ? null : fractionValue(number[1]!)
+  if (number === null || value === null) return { ...NOTHING, annotation, code: head }
 
   const unit = number[2]
   return {
-    value: toNumber(number[1]!),
+    value,
     stated: unit === 'mm' ? 'millimeters' : null,
     degrees: unit === '°',
     annotation,
     ratio: null,
     code: null,
   }
-}
-
-/** `parsed`, converted from `from` to `to`. */
-function convert(value: number, from: UnitSystem, to: UnitSystem): number {
-  if (from === to) return value
-  return to === 'inches' ? value / MM_PER_INCH : value * MM_PER_INCH
 }
 
 /**
@@ -166,7 +154,7 @@ export function dimension(
       `  WARNING: ${what}: ${JSON.stringify(display)} states ${parsed.stated} ` +
         `in a family published in ${unit} — converted`,
     )
-    return convert(parsed.value, parsed.stated, unit)
+    return convertLength(parsed.value, parsed.stated, unit)
   }
 
   return parsed.value

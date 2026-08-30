@@ -12,15 +12,19 @@
  * *across* the CSVs anyway, and the reason to make them explicit is that
  * vendor #3 already drifted from one:
  *
- * | Convention                                        | Held by                   |
- * | ------------------------------------------------- | ------------------------- |
- * | `_mm`/`_in` carries the unit on a dimension       | all three                 |
- * | Multi-value cells are space-separated             | all three                 |
- * | One row per orderable part                        | all three                 |
- * | `CAD_STEP_URL` names a CAD model where one exists | Kennametal, REGO-FIX      |
- * | `CAD_DXF_URL` names a 2D profile where one exists  | Harvey                    |
- * | Unmapped vendor codes keep a `DIN_` prefix        | REGO-FIX; rule is general |
- * | The identity columns                              | **broken** — see below    |
+ * | Convention                                         | Held by                   |
+ * | -------------------------------------------------- | ------------------------- |
+ * | `_mm`/`_in` carries the unit on a dimension        | all five                  |
+ * | Multi-value cells are space-separated              | all five                  |
+ * | One row per orderable part                         | all five                  |
+ * | `CAD_STEP_URL` names a CAD model where one exists  | Kennametal, REGO-FIX      |
+ * | `CAD_DXF_URL` names a 2D profile where one exists  | Harvey, MariTool          |
+ * | `Description` carries the vendor's own free text   | Harvey, MariTool          |
+ * | `contact` says how a holder seats                  | REGO-FIX, MariTool        |
+ * | `CST` names the collet series a holder takes       | REGO-FIX, MariTool        |
+ * | `L1_in`/`L1_mm` carry a holder's gage length       | REGO-FIX, MariTool        |
+ * | Unmapped vendor codes keep a `DIN_` prefix         | REGO-FIX; rule is general |
+ * | The identity columns                               | **broken** — see below    |
  *
  * Identity and units are the two worth enforcing; the rest are advisory, and
  * are here so that "advisory" is a decision on the page rather than an
@@ -89,6 +93,60 @@ export const CAD_COLUMN = 'CAD_STEP_URL'
  * must write it into this column rather than inventing another.
  */
 export const CAD_DXF_COLUMN = 'CAD_DXF_URL'
+
+/**
+ * The CSV column holding the vendor's own free text about one part.
+ *
+ * Harvey Tool writes a product title here and MariTool a product name; both are
+ * the vendor's own prose rather than a designation this package composed. It is
+ * here and not in either adapter for the reason {@link CAD_COLUMN} is: two of
+ * them write it and neither owns it.
+ *
+ * **Not every vendor publishes one, and `''` is the answer where none does** —
+ * a description that restates the catalog number is not a description. See
+ * `records.ToolRecord.description`, which states the same rule for the record.
+ */
+export const DESCRIPTION_COLUMN = 'Description'
+
+/**
+ * The CSV column saying how a holder seats in the spindle: `taper` or `face`.
+ *
+ * `face` is dual contact — the flange face seats at the same time as the cone.
+ * REGO-FIX resolves it from its own `form_name` and MariTool from its `Taper`
+ * cell, which is the right shape: **how** a vendor states it is that vendor's
+ * business, and what the column is called is not.
+ */
+export const CONTACT_COLUMN = 'contact'
+
+/**
+ * The CSV column naming the collet series a holder accepts — `ER16`, `PG25`.
+ *
+ * The join key between a holder family and a collet family, which is exactly
+ * why it cannot be spelled twice: `families/kennametal.ts` states the join
+ * against this column, and two spellings of it join to nothing. Both vendors
+ * that publish it close the vendor's own spacing before writing it here, for
+ * the same reason.
+ */
+export const COLLET_SERIES_COLUMN = 'CST'
+
+/**
+ * The CSV columns carrying a holder's gage length, one per unit system.
+ *
+ * A **pair** with exactly one cell filled, rather than one column and a unit
+ * tag, because a single catalog page can publish both: MariTool gages
+ * `HSK40E-ER11-40` in millimetres and `HSK40E-ER16-3.0M` in inches on one
+ * listing. Nothing is converted between them — the vendor's own imperial
+ * conversion is unusable and computing one here would put a number in the file
+ * the vendor never published.
+ *
+ * REGO-FIX fills only the millimetre cell, because its DIN 4000 documents are
+ * metric throughout; the pair is still the shape, so the two vendors' holder
+ * CSVs answer the same question with the same columns.
+ */
+export const GAGE_COLUMNS: Record<UnitSystem, string> = {
+  inches: 'L1_in',
+  millimeters: 'L1_mm',
+}
 
 /**
  * The prefix an unmapped vendor code keeps, so it cannot read as a dimension.

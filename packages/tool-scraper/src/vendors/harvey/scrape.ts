@@ -51,6 +51,7 @@
 import {
   CAD_COLUMN,
   CAD_DXF_COLUMN,
+  DESCRIPTION_COLUMN,
   dimensionalColumn,
   type UnitSystem,
 } from '../../conventions.js'
@@ -77,7 +78,6 @@ export const MAX_TABLES = 10
 
 /** The CSV columns this adapter synthesises or lifts from the page itself. */
 export const TOOL_NUMBER_COLUMN = 'Tool #'
-export const DESCRIPTION_COLUMN = 'Description'
 export const COATING_COLUMN = 'Coating'
 export const FLUTES_COLUMN = 'FLUTES'
 export const PRICE_COLUMN = 'PRICE_USD'

@@ -25,6 +25,7 @@
 
 import type { UnitSystem } from '../../conventions.js'
 import { VendorResponseError } from '../../errors.js'
+import { fractionValue } from '../../measure.js'
 import { fact, familyBrand, type BoundFamily, type RecordMappers } from '../../family.js'
 import { BRANDS } from '../../identity.js'
 import {
@@ -101,30 +102,14 @@ export function parseFractionInches(text: string): number {
   const s = text.trim().replace(/"+$/, '')
   if (!s) throw new RangeError(`empty dimension: ${JSON.stringify(text)}`)
 
-  const value = s.includes('.')
-    ? Number(s)
-    : s.includes('-')
-      ? mixed(s)
-      : s.includes('/')
-        ? fraction(s)
-        : Number(s)
-
-  if (!Number.isFinite(value)) {
+  // The trailing quote is the only thing Destiny Tool puts around a dimension
+  // that `measure.fractionValue` does not read; the grammar itself is the one
+  // every vendor here publishes, and it is read in one place.
+  const value = fractionValue(s)
+  if (value === null) {
     throw new RangeError(`unrecognized dimension: ${JSON.stringify(text)}`)
   }
   return value
-}
-
-/** `1-1/2` — a whole number and a simple fraction. */
-function mixed(s: string): number {
-  const cut = s.indexOf('-')
-  return Number(s.slice(0, cut)) + fraction(s.slice(cut + 1))
-}
-
-/** `3/4`. */
-function fraction(s: string): number {
-  const [num, den] = s.split('/')
-  return Number(num) / Number(den)
 }
 
 /** A dimension the kind requires, parsed as an inch fraction. */

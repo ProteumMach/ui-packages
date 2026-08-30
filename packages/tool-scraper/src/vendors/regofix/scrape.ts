@@ -54,13 +54,24 @@
  *    from the vendor's own designation and `o_mm` is only ever a cross-check.
  */
 
-import { CAD_COLUMN, DIN_PREFIX } from '../../conventions.js'
+import {
+  CAD_COLUMN,
+  COLLET_SERIES_COLUMN,
+  CONTACT_COLUMN,
+  DIN_PREFIX,
+  GAGE_COLUMNS,
+} from '../../conventions.js'
 import { VendorResponseError } from '../../errors.js'
 import { statusOf, type Fetcher } from '../../fetch.js'
+import { convertLength, fractionValue } from '../../measure.js'
 import { compare } from '../../order.js'
-import { consoleWarn, type ScrapeResult, type ScrapedRow, type Warn } from '../../scrape.js'
-
-export const MM_PER_INCH = 25.4
+import {
+  consoleWarn,
+  unionHeader,
+  type ScrapeResult,
+  type ScrapedRow,
+  type Warn,
+} from '../../scrape.js'
 
 /**
  * The Searchkit proxy the ProductFinder posts its Elasticsearch queries to.
@@ -292,15 +303,17 @@ export function plain(value: string | number | null | undefined): string {
   return String(value)
 }
 
-/** `1/4` or `3.5` — the vendor prints both, and both are exact here. */
+/**
+ * `1/4` or `3.5` — the vendor prints both, and both are exact here.
+ *
+ * The grammar is `measure.fractionValue`'s; what stays here is the refusal.
+ * `3/` divides by zero and an absent regex capture arrives as `''`, and both
+ * would otherwise travel into a row as a nominal size — as would `0`, which
+ * reads as a number and is not a collet this vendor makes.
+ */
 export function parseSize(size: string): number {
-  const value = size.includes('/')
-    ? Number(size.split('/')[0]) / Number(size.split('/')[1])
-    : Number(size)
-  // `3/` divides by zero and reaches here as Infinity, and an absent regex
-  // capture as `''` -> 0; both would travel into a row as a nominal size. Neither is a collet this
-  // vendor makes, so an unreadable size is refused rather than carried.
-  if (!Number.isFinite(value) || value <= 0) {
+  const value = fractionValue(size)
+  if (value === null || value <= 0) {
     throw new RangeError(`unrecognized size: ${JSON.stringify(size)}`)
   }
   return value
@@ -405,9 +418,9 @@ export function holderRow(
   const row: Record<string, string> = {
     'Material Number': sku,
     'ISO Catalog Number': title,
-    CST: (parsed['series'] ?? '').replaceAll(' ', ''),
-    contact,
-    L1_mm: plain(gauge),
+    [COLLET_SERIES_COLUMN]: (parsed['series'] ?? '').replaceAll(' ', ''),
+    [CONTACT_COLUMN]: contact,
+    [GAGE_COLUMNS.millimeters]: plain(gauge),
     D2_mm: plain(pinned(properties, 'A1', sku)),
     B3_mm: plain(projection),
     [CAD_COLUMN]: cadUrl(source),
@@ -482,7 +495,7 @@ export function colletRow(source: Source, warn: Warn = consoleWarn): ScrapedRow 
 
   const nominal = parseSize(parsed['size'] ?? '')
   const unit = inches ? 'inches' : 'millimeters'
-  const nominalMm = inches ? round(nominal * MM_PER_INCH, 6) : nominal
+  const nominalMm = inches ? round(convertLength(nominal, 'inches', 'millimeters'), 6) : nominal
 
   // A powRgrip collet clamps one size to h6 (h9 on the turning and tapping
   // lines) rather than closing over a range, so its capacity is its nominal
@@ -514,29 +527,11 @@ export function colletRow(source: Source, warn: Warn = consoleWarn): ScrapedRow 
     row[inches ? 'Square_in' : 'Square_mm'] = plain(square)
     // Projected for the same reason `D1` is: an inch tapping collet whose
     // square sits only in `Square_in` is invisible to mm-side fit arithmetic.
-    if (inches) row['Square_mm'] = plain(round(square * MM_PER_INCH, 6))
+    if (inches) row['Square_mm'] = plain(round(convertLength(square, 'inches', 'millimeters'), 6))
   }
 
   crossCheckOmm(row, nominalMm, warn)
   return row
-}
-
-/**
- * Rows to a result whose header is the union of their keys, in first-seen
- * order.
- *
- * A union rather than the first row's keys: a mixed-unit collet family has
- * `D1_mm` on its metric rows and `D1_in` on its inch ones, and keying off row
- * one would drop whichever came second.
- */
-export function unionHeader(rows: readonly ScrapedRow[]): string[] {
-  const header: string[] = []
-  for (const row of rows) {
-    for (const key of Object.keys(row)) {
-      if (!header.includes(key)) header.push(key)
-    }
-  }
-  return header
 }
 
 /** Options every REGO-FIX scrape accepts. */

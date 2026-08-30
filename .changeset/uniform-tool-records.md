@@ -21,4 +21,15 @@
   `family.unit!`, Destiny Tool's hardcoded `'inches'`, and the `?? false` / `?? ''` fallbacks are
   gone, and the three Kennametal tap families state `coolantThrough` rather than the mapper
   assuming it.
+- `description` is now the vendor's own free text, `''` where the vendor publishes none, and
+  never a copy of another field on the record. Kennametal publishes no description column, so its
+  drill and end mill records carry `''` where they used to repeat `catalogNumber`; a tap carries
+  its thread designation alone rather than the catalog number and the designation.
+- `geometry` values are `number`. They were `number | boolean` and no adapter has ever produced a
+  boolean, so every consumer narrowed a type nothing could hold.
+- New `RECORD_GEOMETRY` states, per tool kind, which geometry a record always carries and which it
+  may omit. `toolRecord()` refuses anything else. An absent key is now a declared claim — an end
+  mill may omit `NOF` where the vendor publishes no flute count (Harvey's two deburring families),
+  a drill carries `SIG` and never `RE` — instead of the ambiguity `materialGroups` had already been
+  given `UNSPECIFIED` to resolve.
 - REGO-FIX row order no longer depends on the machine's locale.

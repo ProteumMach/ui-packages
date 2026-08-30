@@ -10,7 +10,8 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { MM_PER_INCH, count, dimension, parseValue } from '../src/vendors/harvey/value.js'
+import { MM_PER_INCH } from '../src/measure.js'
+import { count, dimension, parseValue } from '../src/vendors/harvey/value.js'
 
 const silent = () => {}
 

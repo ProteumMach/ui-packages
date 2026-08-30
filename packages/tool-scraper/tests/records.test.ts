@@ -17,6 +17,7 @@ import { describe, expect, it } from 'vitest'
 import { ScraperConfigError } from '../src/errors.js'
 import { recordGuid } from '../src/identity.js'
 import {
+  RECORD_GEOMETRY,
   DIMENSIONAL,
   DIMENSIONAL_COLUMNS,
   GEOMETRY_FIELDS,
@@ -297,6 +298,21 @@ describe('the column check that needs the CSV', () => {
   })
 })
 
+/** Every key an end mill record always carries, per `RECORD_GEOMETRY`. */
+const ENDMILL = {
+  DC: 6.0,
+  RE: 0,
+  SFDM: 6.0,
+  OAL: 57,
+  LCF: 13,
+  'shoulder-length': 13,
+  'shoulder-diameter': 6.0,
+  NOF: 4,
+}
+
+/** The same for a tap, whose kind declares `TP` and no shoulder at all. */
+const TAP = { DC: 6.0, TP: 1, SFDM: 6.0, OAL: 80, LCF: 20, NOF: 3 }
+
 describe('the record itself', () => {
   const base = {
     brand: 'kennametal' as const,
@@ -308,7 +324,9 @@ describe('the record itself', () => {
     unit: 'millimeters' as const,
     substrate: 'carbide',
     coating: 'AlTiN',
-    geometry: { DC: 6.0 },
+    // A whole end mill's geometry, because `RECORD_GEOMETRY` now refuses a
+    // partial one — a field a kind always has is not a field a mapper may skip.
+    geometry: ENDMILL,
     coolantThrough: false,
   }
 
@@ -341,7 +359,7 @@ describe('the record itself', () => {
     // vendor index that rates the part for nothing. The source is a label and
     // never absent, so "we do not know what this is for" is something a reader
     // sees rather than something it has to infer from a null.
-    const record = toolRecord({ ...base, kind: 'tap', coating: '', geometry: {} })
+    const record = toolRecord({ ...base, kind: 'tap', coating: '', geometry: TAP })
 
     expect(record.materialGroups).toBeNull()
     expect(record.materialGroupsSource).toBe(UNSPECIFIED)
@@ -374,9 +392,49 @@ describe('the record itself', () => {
     )
   })
 
+  it('refuses a kind’s geometry with a field missing', () => {
+    // The failure this replaces was silent: a mapper that stopped writing
+    // `shoulder-length` produced a record a consumer read as a tool with none,
+    // and nothing anywhere said whether that was the vendor's silence or a bug.
+    const { LCF: _dropped, ...short } = ENDMILL
+
+    expect(() => toolRecord({ ...base, geometry: short })).toThrow(ScraperConfigError)
+    expect(() => toolRecord({ ...base, geometry: short })).toThrow(/4151623.*LCF/)
+  })
+
+  it('refuses a field the kind does not declare at all', () => {
+    // A measurement written into a record nothing downstream expects to find
+    // there is invisible until a consumer does not read it.
+    expect(() => toolRecord({ ...base, geometry: { ...ENDMILL, SIG: 140 } })).toThrow(
+      /does not carry SIG/,
+    )
+  })
+
+  it('lets a declared-optional field be absent, and only that one', () => {
+    // Harvey's two deburring families publish right- and left-hand tooth counts
+    // and no flute count. `NOF` is the end mill's one `sometimes` entry, so its
+    // absence is the vendor's silence rather than a gap.
+    const { NOF: _none, ...deburring } = ENDMILL
+    const record = toolRecord({ ...base, geometry: deburring })
+
+    expect(record.geometry.NOF).toBeUndefined()
+    expect(RECORD_GEOMETRY.endmill.sometimes).toEqual(['NOF'])
+    expect(RECORD_GEOMETRY.drill.sometimes).toEqual([])
+  })
+
+  it('states a geometry a drill and a tap really differ on', () => {
+    // The two kinds are not narrower end mills: a drill states a point angle
+    // and no corner radius, a tap states a thread pitch and no shoulder. The
+    // table is what says so, rather than each mapper deciding for itself.
+    expect(RECORD_GEOMETRY.drill.always).toContain('SIG')
+    expect(RECORD_GEOMETRY.drill.always).not.toContain('RE')
+    expect(RECORD_GEOMETRY.tap.always).toContain('TP')
+    expect(RECORD_GEOMETRY.tap.always).not.toContain('shoulder-length')
+  })
+
   it('copies the geometry and the groups it was handed', () => {
     // The adapter's working object must not stay reachable through the record.
-    const geometry: Record<string, number> = { DC: 6.0 }
+    const geometry: Record<string, number> = { ...ENDMILL }
     const groups = ['P']
     const record = toolRecord({
       ...base,

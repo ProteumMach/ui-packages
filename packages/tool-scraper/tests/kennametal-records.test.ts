@@ -210,10 +210,15 @@ describe('a tap', () => {
     expect(tapRecord(metric, cfg, cfg.columns).substrate).toBe('hss')
   })
 
-  it('puts the designation in the description', () => {
+  it('puts the designation in the description, and nothing else', () => {
     // The designation is part of what a tap *is*, and the catalog number alone
-    // does not carry the size.
-    expect(tapRecord(metric, cfg, cfg.columns).description).toBe('T100 M6X1')
+    // does not carry the size. It no longer *leads* with the catalog number:
+    // that is already `catalogNumber`, and a description restating another
+    // field on the same record is the thing `ToolRecord.description` refuses.
+    const record = tapRecord(metric, cfg, cfg.columns)
+
+    expect(record.description).toBe('M6X1')
+    expect(record.description).not.toContain(record.catalogNumber)
   })
 
   it('refuses a Thread System that is not one of the two', () => {

@@ -42,13 +42,13 @@
  * in the page title, for the whole product line.
  */
 
-import type { UnitSystem } from '../../conventions.js'
+import { DESCRIPTION_COLUMN, type UnitSystem } from '../../conventions.js'
 import { VendorResponseError } from '../../errors.js'
 import { fact, familyBrand, type BoundFamily, type RecordMappers } from '../../family.js'
 import { BRANDS } from '../../identity.js'
 import { toolRecord, type ColumnMap, type GeometryName, type ToolRecord } from '../../records.js'
 import { consoleWarn, type MapperOptions, type ScrapedRow } from '../../scrape.js'
-import { COATING_COLUMN, DESCRIPTION_COLUMN, TOOL_NUMBER_COLUMN } from './scrape.js'
+import { COATING_COLUMN, TOOL_NUMBER_COLUMN } from './scrape.js'
 import { count, dimension } from './value.js'
 
 /** The `profile` fact value that means a ball nose. Harvey's own word. */
@@ -68,9 +68,23 @@ function unitOf(family: BoundFamily): UnitSystem {
   return fact(family, 'unit', family.unit)
 }
 
-/** One mapped column's display cell, or undefined where the family maps none. */
-function cell(row: ScrapedRow, family: BoundFamily, canonical: GeometryName): string | undefined {
-  const column = family.columns.column(canonical, unitOf(family))
+/**
+ * One mapped column's display cell, or undefined where the family maps none.
+ *
+ * The map comes from the caller, not from `family.columns`. They are the same
+ * object through `registry.toRecords` — but `RecordMapper` passes one as an
+ * argument, `registry` validates *that* one with `checkColumnsExist`, and a
+ * mapper reading a different reference is validating one map and reading
+ * another. Kennametal's and Destiny Tool's mappers already took the parameter;
+ * this one asserted it was unused with an underscore until 2026-08-29.
+ */
+function cell(
+  row: ScrapedRow,
+  family: BoundFamily,
+  columns: ColumnMap,
+  canonical: GeometryName,
+): string | undefined {
+  const column = columns.column(canonical, unitOf(family))
   return column === null ? undefined : row[column]
 }
 
@@ -78,11 +92,12 @@ function cell(row: ScrapedRow, family: BoundFamily, canonical: GeometryName): st
 function required(
   row: ScrapedRow,
   family: BoundFamily,
+  columns: ColumnMap,
   canonical: GeometryName,
   what: string,
   options: MapperOptions,
 ): number {
-  const raw = cell(row, family, canonical)
+  const raw = cell(row, family, columns, canonical)
   const value = raw === undefined ? null : dimension(raw, unitOf(family), what, options.warn)
   if (value === null) {
     throw new VendorResponseError(
@@ -97,11 +112,12 @@ function required(
 function optional(
   row: ScrapedRow,
   family: BoundFamily,
+  columns: ColumnMap,
   canonical: GeometryName,
   what: string,
   options: MapperOptions,
 ): number | null {
-  const raw = cell(row, family, canonical)
+  const raw = cell(row, family, columns, canonical)
   return raw === undefined ? null : dimension(raw, unitOf(family), what, options.warn)
 }
 
@@ -123,11 +139,12 @@ function optional(
 export function cornerRadius(
   row: ScrapedRow,
   family: BoundFamily,
+  columns: ColumnMap,
   what: string,
   dc: number,
   options: MapperOptions,
 ): number {
-  const stated = optional(row, family, 'RE', what, options)
+  const stated = optional(row, family, columns, 'RE', what, options)
   if (stated !== null) return stated
   return family.profile === BALL_PROFILE ? dc / 2 : 0
 }
@@ -143,8 +160,8 @@ export function cornerRadius(
  * Null is a real answer on the two deburring families, which publish
  * right- and left-hand tooth counts and no flute count at all.
  */
-export function flutes(row: ScrapedRow, family: BoundFamily): number | null {
-  const raw = cell(row, family, 'NOF')
+export function flutes(row: ScrapedRow, family: BoundFamily, columns: ColumnMap): number | null {
+  const raw = cell(row, family, columns, 'NOF')
   return raw === undefined ? null : count(raw)
 }
 
@@ -152,7 +169,7 @@ export function flutes(row: ScrapedRow, family: BoundFamily): number | null {
 export function endmillRecord(
   row: ScrapedRow,
   family: BoundFamily,
-  _columns: ColumnMap,
+  columns: ColumnMap,
   options: MapperOptions = {},
 ): ToolRecord {
   const warn = options.warn ?? consoleWarn
@@ -162,27 +179,27 @@ export function endmillRecord(
   }
 
   const opts: MapperOptions = { warn }
-  const dc = required(row, family, 'DC', what, opts)
-  const fluteLength = required(row, family, 'LCF', what, opts)
+  const dc = required(row, family, columns, 'DC', what, opts)
+  const fluteLength = required(row, family, columns, 'LCF', what, opts)
 
   // Harvey's reach columns are the distance from the tip to the full shank,
   // which is what `shoulder-length` names. A family with no reach column is a
   // plain tool whose usable length below the shank is its flute length — the
   // same convention Destiny Tool's mapper uses.
-  const reach = optional(row, family, 'shoulder-length', what, opts)
-  const neck = optional(row, family, 'shoulder-diameter', what, opts)
+  const reach = optional(row, family, columns, 'shoulder-length', what, opts)
+  const neck = optional(row, family, columns, 'shoulder-diameter', what, opts)
 
   const geometry: Partial<Record<GeometryName, number>> = {
     DC: dc,
-    RE: cornerRadius(row, family, what, dc, opts),
-    SFDM: required(row, family, 'SFDM', what, opts),
-    OAL: required(row, family, 'OAL', what, opts),
+    RE: cornerRadius(row, family, columns, what, dc, opts),
+    SFDM: required(row, family, columns, 'SFDM', what, opts),
+    OAL: required(row, family, columns, 'OAL', what, opts),
     LCF: fluteLength,
     'shoulder-length': reach ?? fluteLength,
     'shoulder-diameter': neck ?? dc,
   }
 
-  const nof = flutes(row, family)
+  const nof = flutes(row, family, columns)
   if (nof !== null) geometry.NOF = nof
 
   return toolRecord({

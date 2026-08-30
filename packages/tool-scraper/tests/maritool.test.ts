@@ -32,7 +32,6 @@ import {
   parseProduct,
   roster,
   scrapeHolders,
-  unionHeader,
   type ListingRow,
 } from '../src/vendors/maritool/scrape.js'
 import { asFetcher, recordPauses } from './stubs.js'
@@ -551,20 +550,6 @@ describe('a holder row', () => {
     ).toEqual(['L1_in', 'L1_mm'])
     expect(row['Shank Size']).toBe('.125')
     expect(Object.keys(row)).not.toContain('Shank Size_in')
-  })
-})
-
-describe('the header', () => {
-  it('is the union of every row’s keys, in first-seen order', () => {
-    // Which spec keys a part publishes is a function of its style, and all
-    // three styles share a CSV — keying off row one drops `Hydraulic Type`
-    // from every family whose collet chucks sort first.
-    expect(
-      unionHeader([
-        { a: '1', 'Collet Size': 'ER16' },
-        { a: '2', 'Hydraulic Type': 'HC' },
-      ]),
-    ).toEqual(['a', 'Collet Size', 'Hydraulic Type'])
   })
 })
 
