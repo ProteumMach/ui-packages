@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { ScraperConfigError } from '../src/errors.js'
+import { IncompletePartError, ScraperConfigError, VendorResponseError } from '../src/errors.js'
 import { familyBrand, familyId } from '../src/family.js'
 import { ALL_FAMILIES, COLLET_FAMILIES, FAMILIES, HOLDER_FAMILIES } from '../src/families/index.js'
 import { BRANDS, recordGuid, type BrandName } from '../src/identity.js'
@@ -98,6 +98,46 @@ describe('a scrape, as records', () => {
     expect(records[0]?.brand).toBe('harvey')
     expect(records[0]?.guid).toBe(recordGuid('harvey', '14916'))
     expect(records[0]?.geometry.DC).toBe(0.25)
+  })
+
+  // EMUGE-FRANKEN omits `overall length l₁` on roughly 175 of its 7,021 end
+  // mill variants. The rows are mapped together, so before the skip existed
+  // those parts ended the conversion and took every good row with them — both
+  // end mill families produced nothing at all.
+  it('skips a part missing a required dimension and keeps the rest', () => {
+    const warnings: string[] = []
+    const records = toRecords(
+      FAMILY,
+      scrape([row(), row({ 'Tool #': '14917', OAL_in: '' }), row({ 'Tool #': '14918' })]),
+      { warn: (m) => warnings.push(m) },
+    )
+
+    expect(records.map((r) => r.materialNumber)).toEqual(['14916', '14918'])
+    expect(warnings.join('\n')).toMatch(/14917.*publishes no OAL/)
+    expect(warnings.join('\n')).toMatch(/no record written/)
+  })
+
+  // A dropped row is not a relaxed contract: every record that comes back
+  // still carries the geometry its kind declares.
+  it('leaves the kind’s contract intact for the records it does return', () => {
+    const records = toRecords(FAMILY, scrape([row({ OAL_in: '' }), row({ 'Tool #': '14918' })]), {
+      warn: () => {},
+    })
+
+    expect(records).toHaveLength(1)
+    expect(records[0]?.geometry.OAL).toBe(6)
+  })
+
+  // The narrow skip is the whole point. A vocabulary this package cannot map
+  // and a column a family stopped mapping are the vendor or the catalog having
+  // moved, and skipping past either quietly is how a scraper starts publishing
+  // a catalog nobody checked.
+  it('skips only an incomplete part, never another kind of refusal', () => {
+    const header = Object.keys(row()).filter((column) => column !== 'OAL_in')
+
+    expect(() => toRecords(FAMILY, scrape([row()], header))).toThrow(ScraperConfigError)
+    expect(new IncompletePartError('x', 'y')).toBeInstanceOf(VendorResponseError)
+    expect(new VendorResponseError('x', 'y')).not.toBeInstanceOf(IncompletePartError)
   })
 
   it('refuses a header whose identity column moved, before the first row', () => {

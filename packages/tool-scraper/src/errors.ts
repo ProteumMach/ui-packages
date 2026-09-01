@@ -10,6 +10,9 @@
  *   cannot read.** The variants endpoint changed shape, a scrape's row count
  *   disagrees with the declared one, a DIN 4000 code that should be pinned is
  *   absent. The catalog is fine; the world moved.
+ * - {@link IncompletePartError} — **one part is missing a measurement it
+ *   cannot be a part without.** A narrower case of the second, and the only
+ *   one `registry.toRecords` may skip past: see below.
  *
  * They throw rather than exiting the process: a Node backend imports this, and
  * a mapped column that moved must not take down somebody's request handler.
@@ -53,3 +56,30 @@ export class ScraperConfigError extends ScraperError {}
  * like a family being discontinued.
  */
 export class VendorResponseError extends ScraperError {}
+
+/**
+ * One part does not publish a dimension its kind requires.
+ *
+ * **The only failure a whole family survives.** `registry.toRecords` maps a
+ * family's rows together, so before this type existed every refusal was
+ * equally fatal: one part with an unpublished cell ended the conversion and
+ * took every other row with it. EMUGE-FRANKEN omits `overall length l₁` on
+ * roughly 175 of its 7,021 end mill variants, and both end mill families
+ * produced nothing at all because of them.
+ *
+ * It is a distinct type rather than a flag on {@link VendorResponseError}
+ * because the two must not be skipped alike. A cutting material this package
+ * has no word for, a point-angle column a family stopped mapping, a variants
+ * table that changed shape — those are the vendor's vocabulary or this
+ * package's map having moved, and skipping past them quietly is how a scraper
+ * starts publishing a catalog nobody checked. Only `columns.required` raises
+ * this one, and only for a cell the vendor left unpublished.
+ *
+ * **It is not a licence to relax a kind's contract.** `records.RECORD_GEOMETRY`
+ * still says an end mill always has an `OAL`, and that stays true of every
+ * record this package emits: a part without one does not become a record with
+ * a hole in it, it becomes no record and a warning. Where a *vendor* genuinely
+ * never publishes a field, the answer is still `sometimes` — that is what a
+ * drill's `SIG` is, and why one is a contract decision and the other is not.
+ */
+export class IncompletePartError extends VendorResponseError {}
