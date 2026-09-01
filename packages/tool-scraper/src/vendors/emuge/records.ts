@@ -14,7 +14,10 @@
  *   article code, per part, so there is no `conventions.IDENTITY_DEVIATIONS`
  *   entry — the first vendor since Kennametal that needs none.
  * - **A point angle, per drill.** Kennametal's drill families assume theirs; the
- *   detail record states it, so `SIG` is a mapped column here and no fact.
+ *   detail record states it, so `SIG` is a mapped column here and no fact. On
+ *   all but one part: 2,669 of 2,670 drill variants state one and the last
+ *   leaves the cell empty, which is why `records.RECORD_GEOMETRY.drill` lists
+ *   `SIG` under `sometimes`.
  * - **A per-part ISO 513 index.** `applicationMaterials` returns the vendor's
  *   own P/M/K/N/S/H rating for each part, which fills `materialGroups` as
  *   `vendor-stated`.
@@ -165,19 +168,57 @@ export const NO_FLUTE_COUNT = 999
 const { cell, required, optional } = columnReaders(measureIn)
 
 /**
- * An angle in degrees — the drill's point angle.
+ * An angle in degrees — the drill's point angle — or null where the vendor
+ * left the cell empty.
  *
  * Read through {@link parseMeasure} rather than {@link measureIn}, which
  * refuses degrees on purpose: a length column stating an angle is a property
+ *
+ * **An empty cell and an unreadable one are different answers**, the same
+ * split {@link coolantThrough} makes one level down. EMUGE fills this column
+ * on 2,669 of its 2,670 drill variants and leaves it blank on one, so a blank
+ * is the vendor publishing nothing and the row is still a part somebody can
+ * order — `records.RECORD_GEOMETRY.drill` lists `SIG` under `sometimes` for
+ * it. A cell holding a *value* this cannot read is the other case: a length
+ * where an angle belongs is the property having moved, a range has no single
+ * reading, and either one is refused rather than dropped quietly.
+ *
+ * A column the family maps to nothing refuses too, and is a third thing again
+ * — this adapter's drill family maps `point angle`, so its absence is that map
+ * having changed rather than anything the vendor did.
+ * `records.REQUIRED_GEOMETRY` cannot catch it: `SIG` is not listed under its
+ * `drill` entry, because Kennametal's drills supply theirs as a fact and map
+ * no column at all.
  * that has moved. Here degrees are what the column is for.
  */
-function angle(row: ScrapedRow, columns: ColumnMap, unit: UnitSystem, what: string): number {
+function angle(
+  row: ScrapedRow,
+  columns: ColumnMap,
+  unit: UnitSystem,
+  what: string,
+  warn: Warn,
+): number | null {
   const raw = cell(row, columns, 'SIG', unit)
-  const { value, stated } = parseMeasure(raw ?? '')
+  if (raw === undefined) {
+    throw new VendorResponseError(
+      what,
+      `is a drill whose family maps no point angle column — EMUGE states one ` +
+        `per part and this adapter reads it, so a map without it is a regression`,
+    )
+  }
+
+  if (raw.trim() === '') {
+    warn(`  WARNING: ${what}: the vendor publishes no point angle — omitted`)
+    return null
+  }
+
+  const { value, stated } = parseMeasure(raw)
   if (value === null || stated === 'inches' || stated === 'millimeters') {
     throw new VendorResponseError(
       what,
-      `publishes no point angle — its cell is ${JSON.stringify(raw ?? '')}`,
+      `states a point angle of ${JSON.stringify(raw)}, which is not an angle — ` +
+        `an empty cell is the vendor's silence and is omitted, but a value ` +
+        `this cannot read is a property that has moved`,
     )
   }
   return value
@@ -370,8 +411,10 @@ export function endmillRecord(
  * `SIG` is a **mapped column**, which no other drill family in this package
  * manages: the per-part detail record states the point angle outright, so
  * nothing here is derived from a point length or assumed from a product line.
- * `NOF` is the one thing that is a fact, and `nonFerrous` with it — neither has
- * a default anywhere, by design.
+ * It is also the one geometry key this record may not carry — one variant's
+ * cell is empty, and {@link angle} says what that costs. `NOF` is the one
+ * thing that is a fact, and `nonFerrous` with it — neither has a default
+ * anywhere, by design.
  */
 export function drillRecord(
   row: ScrapedRow,
@@ -383,20 +426,23 @@ export function drillRecord(
   const opts: MapperOptions = { warn }
   const unit = fact(family, 'unit', family.unit)
   const what = partNumber(row, family)
+  const geometry: Partial<Record<GeometryName, number>> = {
+    DC: required(row, columns, 'DC', unit, what, opts),
+    SFDM: required(row, columns, 'SFDM', unit, what, opts),
+    OAL: required(row, columns, 'OAL', unit, what, opts),
+    LCF: required(row, columns, 'LCF', unit, what, opts),
+    NOF: fact(family, 'flutes', family.flutes),
+  }
+
+  const pointAngle = angle(row, columns, unit, what, warn)
+  if (pointAngle !== null) geometry.SIG = pointAngle
 
   return toolRecord({
     ...common(row, family, what, warn),
     kind: 'drill',
     unit,
     nonFerrous: fact(family, 'nonFerrous', family.nonFerrous),
-    geometry: {
-      DC: required(row, columns, 'DC', unit, what, opts),
-      SFDM: required(row, columns, 'SFDM', unit, what, opts),
-      OAL: required(row, columns, 'OAL', unit, what, opts),
-      LCF: required(row, columns, 'LCF', unit, what, opts),
-      NOF: fact(family, 'flutes', family.flutes),
-      SIG: angle(row, columns, unit, what),
-    },
+    geometry,
   })
 }
 

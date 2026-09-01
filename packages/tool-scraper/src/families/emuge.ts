@@ -127,9 +127,11 @@ export const FAMILIES = {
     kind: 'drill',
     familyCode: 'FB01',
     // `SIG` is a mapped column and not a fact, which no other drill family in
-    // this package manages: EMUGE states a point angle on every part's detail
-    // record. Kennametal's two drill lines assume theirs or derive them from a
-    // point length, and both say so at length in `families/kennametal.ts`.
+    // this package manages: EMUGE states a point angle on the detail record of
+    // 2,669 of these 2,670 parts, and leaves the cell empty on the last, so the
+    // record may carry no `SIG` — see `vendors/emuge/records.ts`'s `angle`.
+    // Kennametal's two drill lines assume theirs or derive them from a point
+    // length, and both say so at length in `families/kennametal.ts`.
     columns: {
       DC: 'nominal diameter d₁',
       SFDM: 'Shank diameter d₂',

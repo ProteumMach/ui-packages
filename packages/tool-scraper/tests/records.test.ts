@@ -419,15 +419,20 @@ describe('the record itself', () => {
 
     expect(record.geometry.NOF).toBeUndefined()
     expect(RECORD_GEOMETRY.endmill.sometimes).toEqual(['NOF'])
-    expect(RECORD_GEOMETRY.drill.sometimes).toEqual([])
+    expect(RECORD_GEOMETRY.drill.sometimes).toEqual(['SIG'])
   })
 
   it('states a geometry a drill and a tap really differ on', () => {
-    // The two kinds are not narrower end mills: a drill states a point angle
-    // and no corner radius, a tap states a thread pitch and no shoulder. The
-    // table is what says so, rather than each mapper deciding for itself.
-    expect(RECORD_GEOMETRY.drill.always).toContain('SIG')
-    expect(RECORD_GEOMETRY.drill.always).not.toContain('RE')
+    // The two kinds are not narrower end mills: a drill declares a point angle
+    // and no corner radius, a tap a thread pitch and no shoulder. The table is
+    // what says so, rather than each mapper deciding for itself. `SIG` is
+    // declared and optional — EMUGE-FRANKEN leaves one drill's cell empty —
+    // while `RE` is not part of a drill record at all, which is the difference
+    // `sometimes` exists to state.
+    expect([...RECORD_GEOMETRY.drill.always, ...RECORD_GEOMETRY.drill.sometimes]).toContain('SIG')
+    expect([...RECORD_GEOMETRY.drill.always, ...RECORD_GEOMETRY.drill.sometimes]).not.toContain(
+      'RE',
+    )
     expect(RECORD_GEOMETRY.tap.always).toContain('TP')
     expect(RECORD_GEOMETRY.tap.always).not.toContain('shoulder-length')
   })

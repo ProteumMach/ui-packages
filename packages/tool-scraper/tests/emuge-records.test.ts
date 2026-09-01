@@ -264,6 +264,26 @@ describe('a drill', () => {
     // assume theirs or derive them from a point length.
     expect(record?.geometry.SIG).toBe(140)
   })
+  it('omits the point angle where the vendor left the cell empty, and says so', () => {
+    // One of FB01's 2,670 variants publishes no point angle. `SIG` is a mapped
+    // column here rather than a fact, so before it moved to
+    // `RECORD_GEOMETRY.drill.sometimes` that one blank cell threw — and
+    // `toRecords` maps a family's rows together, so it took the other 2,669
+    // drills with it.
+    const said: string[] = []
+    const [blank] = toRecords(
+      'emuge_drills.csv',
+      scrapeOf([{ ...drillRow(), 'point angle': '' }]),
+      {
+        warn: (m) => said.push(m),
+      },
+    )
+
+    expect(blank?.geometry.SIG).toBeUndefined()
+    expect(blank?.geometry.DC).toBe(3)
+    expect(said.join('\n')).toContain(DRILL_VARIANT.code)
+    expect(said.join('\n')).toContain('no point angle')
+  })
 
   it('takes the flute count from the family fact, which the vendor states nowhere', () => {
     expect(record?.geometry.NOF).toBe(2)
@@ -353,6 +373,21 @@ describe('what a mapper refuses', () => {
     expect(record?.coolantThrough).toBe(false)
     expect(said.join('\n')).toContain(DRILL_VARIANT.code)
     expect(said.join('\n')).toContain('recorded as false')
+  })
+  it('refuses a point angle that is a length, which an empty cell is not', () => {
+    // The two halves of the same column. A blank is the vendor publishing
+    // nothing and is omitted; a length where an angle belongs is the property
+    // having moved under this adapter, and is worth losing the row over.
+    const row = { ...drillRow(), 'point angle': '3 mm' }
+
+    expect(() => toRecords('emuge_drills.csv', scrapeOf([row]))).toThrow(VendorResponseError)
+    expect(() => toRecords('emuge_drills.csv', scrapeOf([row]))).toThrow(/not an angle/)
+  })
+
+  it('refuses a point angle stated as a range, which has no single reading', () => {
+    const row = { ...drillRow(), 'point angle': '130-140 deg' }
+
+    expect(() => toRecords('emuge_drills.csv', scrapeOf([row]))).toThrow(/not an angle/)
   })
 
   it('refuses a row whose dimension the vendor left blank', () => {

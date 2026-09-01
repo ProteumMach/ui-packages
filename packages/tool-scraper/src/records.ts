@@ -248,25 +248,39 @@ export const DIMENSIONAL_COLUMNS: ReadonlySet<GeometryName> = new Set(
  * a key in `sometimes` may be missing and its absence is the vendor's silence;
  * a key in neither list is not part of that kind's record at all.
  *
- * Both `sometimes` entries today are a flute count nobody publishes:
+ * Every `sometimes` entry today is one vendor publishing nothing where another
+ * publishes a number. `sometimes` permits the key, it does not forbid it — the
+ * vendors that state these keep filling them.
  *
- * - the **end mill's**, for Harvey's two deburring families — they publish
- *   right- and left-hand tooth counts and no flute count, so there is nothing
- *   to read and 0 is not a substitute;
- * - the **tap's**, for EMUGE-FRANKEN, which states no flute count anywhere a
- *   scrape can reach — not on the grouped product, the variant listing, the
- *   per-part detail record or any facet — while its own tap families run 2, 3
- *   and 4 flutes across their size range, so no per-family constant could be
- *   true of every row. Kennametal's taps publish a `Z` column and keep filling
- *   it: `sometimes` permits the key, it does not forbid it.
+ * - the **end mill's `NOF`**, for Harvey's two deburring families — they
+ *   publish right- and left-hand tooth counts and no flute count, so there is
+ *   nothing to read and 0 is not a substitute;
+ * - the **tap's `NOF`**, for EMUGE-FRANKEN, which states no flute count
+ *   anywhere a scrape can reach — not on the grouped product, the variant
+ *   listing, the per-part detail record or any facet — while its own tap
+ *   families run 2, 3 and 4 flutes across their size range, so no per-family
+ *   constant could be true of every row. Kennametal's taps publish a `Z`
+ *   column and keep filling it;
+ * - the **drill's `SIG`**, for the one EMUGE-FRANKEN drill whose point-angle
+ *   cell is empty. This one is a hole in a column the vendor otherwise fills,
+ *   not a column it never had, and it is the reason the key had to move: the
+ *   EMUGE drill family reads `SIG` from a column rather than from a fact, so
+ *   a single blank cell refused the row, and `registry.toRecords` maps a
+ *   family's rows together — 2,669 drills were lost to the 2,670th. Every
+ *   Kennametal drill supplies `SIG` from a fact and none can be absent.
+ *
+ * A point angle is not a field to guess at. It sets the drill tip's length, so
+ * a CAM system that assumed 140 deg for a part ground at 118 would cut a hole
+ * to the wrong depth — an absence a consumer must check for is recoverable and
+ * a plausible wrong number is not.
  */
 export const RECORD_GEOMETRY: Record<
   ToolKind,
   { readonly always: readonly GeometryName[]; readonly sometimes: readonly GeometryName[] }
 > = {
   drill: {
-    always: ['DC', 'SFDM', 'OAL', 'LCF', 'NOF', 'SIG'],
-    sometimes: [],
+    always: ['DC', 'SFDM', 'OAL', 'LCF', 'NOF'],
+    sometimes: ['SIG'],
   },
   tap: {
     always: ['DC', 'TP', 'SFDM', 'OAL', 'LCF'],
