@@ -186,7 +186,17 @@ Warned about, never corrected.
    row per group if the flag is not read. This is what the first live drill run
    found: 2,687 rows against a family declaring 2,670, exactly 17 groups' worth,
    caught by `node/receipts.checkRows` and by nothing before it.
-7. **A marketing link carries the wrong facet.** The MultiTAP article page's
+7. **A facet does not cover its own category.** `HYB_AMM_KMIZU` (milling's
+   internal coolant supply) sums to 6,862 across its four values where `FF01`
+   holds 7,021 variants — 159 parts are indexed under none of them. The
+   drilling and tapping coolant facets cover their categories exactly, as do
+   `AMM_EINHS` and `HYB_AAM_MAT`, so this is one ragged facet rather than a
+   general property of the index. `vendors/emuge/records.ts` warns and records
+   `false` for those parts rather than refusing them, which matters because
+   `registry.toRecords` maps its rows and one refusal ends a whole family.
+   Re-check it by summing a category's `VARIANT_SEARCH` facet values against
+   the same response's `pagination.totalResults`.
+8. **A marketing link carries the wrong facet.** The MultiTAP article page's
    "View MultiTAP™ Products" button links to
    `/thread-technology/machine-tap/c/fg01?q=…HYB_BAM_SB_GT:HYB_BAM_SB_GT_25`,
    which is MultiDRILL's geometry facet. This is why `families/emuge.ts` keys off

@@ -30,7 +30,7 @@
  */
 
 import type { UnitSystem } from '../../conventions.js'
-import { convertLength, fractionValue } from '../../measure.js'
+import { asCount, asLength, fractionValue } from '../../measure.js'
 import { consoleWarn, type Warn } from '../../scrape.js'
 
 /**
@@ -123,14 +123,17 @@ export function parseValue(display: string): HarveyValue {
 /**
  * One cell as a length in `unit`, or null where it publishes none.
  *
- * A cell that states its own unit and disagrees with the family's is converted
- * and warned about rather than refused: the value is right, the column's suffix
- * is right, and the 46 cells this happens on are real tools somebody can order.
- * Refusing would drop them; trusting the column's unit would publish a 3-inch
- * shank.
+ * `measure.asLength` makes both calls — convert-and-warn a cell whose stated
+ * unit disagrees with the family's, refuse an angle in a dimensional column —
+ * because they are the same two calls for every vendor and were a verbatim copy
+ * here and in `vendors/emuge/value.ts` until 2026-09-01. What is Harvey's is
+ * above: that `degrees` is a field of its own rather than a member of
+ * `stated`, and that a parenthesised `(3 mm)` is an annotation on an inch value
+ * and never the value itself.
  *
- * An angle reaching a dimensional column is refused, because that is a header
- * that has moved rather than a value that is odd.
+ * The 46 cells this converts are metric-shank tools listed among imperial ones
+ * — real parts somebody can order, which is why they are converted rather than
+ * dropped.
  */
 export function dimension(
   display: string,
@@ -138,31 +141,11 @@ export function dimension(
   what: string,
   warn: Warn = consoleWarn,
 ): number | null {
-  const parsed = parseValue(display)
-  if (parsed.value === null) return null
-
-  if (parsed.degrees) {
-    warn(
-      `  WARNING: ${what}: ${JSON.stringify(display)} is an angle in a column ` +
-        `read as a length — skipped`,
-    )
-    return null
-  }
-
-  if (parsed.stated !== null && parsed.stated !== unit) {
-    warn(
-      `  WARNING: ${what}: ${JSON.stringify(display)} states ${parsed.stated} ` +
-        `in a family published in ${unit} — converted`,
-    )
-    return convertLength(parsed.value, parsed.stated, unit)
-  }
-
-  return parsed.value
+  const { value, stated, degrees } = parseValue(display)
+  return asLength({ value, stated: degrees ? 'degrees' : stated }, display, unit, what, warn)
 }
 
 /** One cell as a whole count — a flute or tooth number. Null where blank. */
 export function count(display: string): number | null {
-  const parsed = parseValue(display)
-  if (parsed.value === null || !Number.isInteger(parsed.value)) return null
-  return parsed.value
+  return asCount(parseValue(display))
 }

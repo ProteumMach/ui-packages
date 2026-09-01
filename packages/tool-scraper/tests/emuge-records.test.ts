@@ -336,6 +336,25 @@ describe('what a mapper refuses', () => {
     expect(() => toRecords('emuge_drills.csv', scrapeOf([row]))).toThrow(/COOLANT_COLUMNS/)
   })
 
+  it('records false and warns where no coolant column is filled at all', () => {
+    // A different thing from the case above: the vendor's facet does not cover
+    // the whole of milling — 6,862 of FF01's 7,021 variants — so 159 parts have
+    // no `internal coolant supply` value. This refused until 2026-09-01, and
+    // because `toRecords` maps its rows, one such part took the whole family's
+    // conversion with it rather than one row.
+    const row = { ...drillRow() }
+    delete row['Coolant supply']
+
+    const said: string[] = []
+    const [record] = toRecords('emuge_drills.csv', scrapeOf([row]), {
+      warn: (m) => said.push(m),
+    })
+
+    expect(record?.coolantThrough).toBe(false)
+    expect(said.join('\n')).toContain(DRILL_VARIANT.code)
+    expect(said.join('\n')).toContain('recorded as false')
+  })
+
   it('refuses a row whose dimension the vendor left blank', () => {
     const row = { ...drillRow(), 'Overall length l₁_mm': '' }
 

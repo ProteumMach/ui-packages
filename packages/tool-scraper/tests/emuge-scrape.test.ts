@@ -26,6 +26,7 @@ import {
   scrapeCategory,
   searchUrl,
   variantQuery,
+  variantRow,
   type EmugeTarget,
 } from '../src/vendors/emuge/scrape.js'
 import { recordPauses, stub } from './stubs.js'
@@ -473,5 +474,56 @@ describe('what it refuses and what it survives', () => {
 
     expect(scrape.rows).toHaveLength(1)
     expect(said.join('\n')).toContain(empty.code)
+  })
+})
+
+describe('two properties landing on one column', () => {
+  /** A part carrying whatever `technicalDetails` a case needs on its detail. */
+  function rowOf(detail: Property[], warn: (m: string) => void) {
+    return variantRow(GROUP, PLAIN, { code: PLAIN.code, technicalDetails: detail }, 'inches', warn)
+  }
+
+  it('keeps the group’s value where the part states an empty one', () => {
+    // The three sources overlap and the part's is the more specific — but an
+    // absent value is not a more specific statement than a present one. The
+    // group states this coating and the part does not restate it.
+    const said: string[] = []
+    const row = rowOf([{ property: 'coating', value: '' }], (m) => said.push(m))
+
+    expect(row['coating']).toBe('ALCR')
+    expect(said).toEqual([])
+  })
+
+  it('takes the part’s value over the group’s where it states one', () => {
+    const said: string[] = []
+    const row = rowOf([{ property: 'coating', value: 'TIALN-T63' }], (m) => said.push(m))
+
+    expect(row['coating']).toBe('TIALN-T63')
+  })
+
+  it('warns when two different values collide, and keeps the later one', () => {
+    // `bareLabel` strips the unit tag, so the two tags EMUGE publishes the same
+    // measurement under are one column name. The receipt is short a number the
+    // vendor published, and nothing else would say so.
+    const said: string[] = []
+    const row = rowOf(
+      [
+        { property: 'nominal diameter d₁ [mm]', value: '3 mm' },
+        { property: 'nominal diameter d₁ [in]', value: '0.1181 "' },
+      ],
+      (m) => said.push(m),
+    )
+
+    expect(row['nominal diameter d₁']).toBe('0.1181 "')
+    expect(said.join('\n')).toContain(PLAIN.code)
+    expect(said.join('\n')).toContain('nominal diameter d₁ [in]')
+    expect(said.join('\n')).toContain('3 mm')
+  })
+
+  it('says nothing where the same property repeats the same value', () => {
+    const said: string[] = []
+    rowOf([{ property: 'Cutting material', value: 'carbide' }], (m) => said.push(m))
+
+    expect(said).toEqual([])
   })
 })

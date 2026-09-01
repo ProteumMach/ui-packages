@@ -42,6 +42,7 @@
  * See `docs/EMUGE_FRANKEN_COMMERCE_API.md`.
  */
 
+import { columnReaders } from '../../columns.js'
 import { DESCRIPTION_COLUMN, type UnitSystem } from '../../conventions.js'
 import { VendorResponseError } from '../../errors.js'
 import { fact, familyBrand, type BoundFamily, type RecordMappers } from '../../family.js'
@@ -54,7 +55,7 @@ import {
   type GeometryName,
   type ToolRecord,
 } from '../../records.js'
-import { consoleWarn, type MapperOptions, type ScrapedRow } from '../../scrape.js'
+import { consoleWarn, type MapperOptions, type ScrapedRow, type Warn } from '../../scrape.js'
 import {
   APPLICATION_MATERIALS_COLUMN,
   CATALOG_NUMBER_COLUMN,
@@ -81,8 +82,23 @@ export const COATING_COLUMNS = ['coating', 'Coating'] as const
  * Three columns and three vocabularies, one per category, each a closed facet
  * this package read off the vendor's own index on 2026-09-01 — so a value
  * absent from here is a vocabulary that changed rather than a part that is
- * odd, and it refuses by naming the table to add to. The counts are the whole
- * catalog: 6,862 milling, 2,670 drilling, 11,566 tapping variants.
+ * odd, and {@link coolantThrough} refuses it by naming the table to add to.
+ *
+ * ## The facet does not cover the whole of milling
+ *
+ * The values below account for 6,862 milling variants, 2,670 drilling and
+ * 11,566 tapping. Drilling and tapping are the whole category — the same two
+ * numbers `docs/EMUGE_FRANKEN_COMMERCE_API.md` §4 gives — and milling is
+ * **159 short** of `FF01`'s 7,021, which is also `families/emuge.ts`'s two row
+ * counts added up. So 159 milling variants carry no `internal coolant supply`
+ * value at all.
+ *
+ * That is a gap in the vendor's index rather than a vocabulary that moved, and
+ * it is why {@link coolantThrough} separates the two cases: an unrecognised
+ * *value* still refuses, and a column nobody filled warns and records `false`.
+ * They were one case until 2026-09-01, and because `registry.toRecords` maps
+ * its rows, a single such part threw and took the whole family's conversion
+ * with it — 159 unindexed variants for two dead end mill CSVs.
  */
 export const COOLANT_COLUMNS: Readonly<Record<string, Readonly<Record<string, boolean>>>> = {
   // `HYB_AMM_KMIZU`, milling.
@@ -139,49 +155,14 @@ export const SUBSTRATES: Readonly<Record<string, string>> = {
  */
 export const NO_FLUTE_COUNT = 999
 
-/** One canonical field's cell, or undefined where the family maps none. */
-function cell(
-  row: ScrapedRow,
-  columns: ColumnMap,
-  canonical: GeometryName,
-  unit: UnitSystem,
-): string | undefined {
-  const column = columns.column(canonical, unit)
-  return column === null ? undefined : row[column]
-}
-
-/** A dimension the kind requires, refusing a row the vendor left blank. */
-function required(
-  row: ScrapedRow,
-  columns: ColumnMap,
-  canonical: GeometryName,
-  unit: UnitSystem,
-  what: string,
-  options: MapperOptions,
-): number {
-  const raw = cell(row, columns, canonical, unit)
-  const value = raw === undefined ? null : measureIn(raw, unit, what, options.warn)
-  if (value === null) {
-    throw new VendorResponseError(
-      what,
-      `publishes no ${canonical} — its cell is ${JSON.stringify(raw ?? '')}`,
-    )
-  }
-  return value
-}
-
-/** A dimension the contract does not require. Null where there is none. */
-function optional(
-  row: ScrapedRow,
-  columns: ColumnMap,
-  canonical: GeometryName,
-  unit: UnitSystem,
-  what: string,
-  options: MapperOptions,
-): number | null {
-  const raw = cell(row, columns, canonical, unit)
-  return raw === undefined ? null : measureIn(raw, unit, what, options.warn)
-}
+/**
+ * The three column readers, over this vendor's grammar.
+ *
+ * `measureIn` is the only EMUGE-specific half; everything either side of it —
+ * an unmapped column answering undefined, a required field refusing the row —
+ * is `columns.columnReaders`, shared with Harvey Tool's mapper.
+ */
+const { cell, required, optional } = columnReaders(measureIn)
 
 /**
  * An angle in degrees — the drill's point angle.
@@ -225,8 +206,24 @@ function substrate(row: ScrapedRow, what: string): string {
   return mapped
 }
 
-/** Whether the part takes coolant through it, in whichever word its category uses. */
-function coolantThrough(row: ScrapedRow, what: string): boolean {
+/**
+ * Whether the part takes coolant through it, in whichever word its category
+ * uses.
+ *
+ * **A word the category's vocabulary does not have refuses the row**, because
+ * that is EMUGE's own closed facet having changed under this package, and
+ * guessing what a new value means is how a scraper becomes a place tool data is
+ * authored by hand.
+ *
+ * **A category whose column nobody filled warns and answers `false`**, which is
+ * a different thing: the vendor rated this part for nothing rather than for
+ * something new. 159 milling variants are in that position — see
+ * {@link COOLANT_COLUMNS}. `false` is not a claim that the tool has no through
+ * hole so much as the absence of the vendor's claim that it has one, and it is
+ * the only answer available: `ToolRecord.coolantThrough` is a boolean with no
+ * third state, and `true` would be the fabrication.
+ */
+function coolantThrough(row: ScrapedRow, what: string, warn: Warn): boolean {
   for (const [column, vocabulary] of Object.entries(COOLANT_COLUMNS)) {
     const stated = row[column]
     if (stated === undefined || stated === '') continue
@@ -240,10 +237,11 @@ function coolantThrough(row: ScrapedRow, what: string): boolean {
     }
     return value
   }
-  throw new VendorResponseError(
-    what,
-    `states no coolant supply — none of ${Object.keys(COOLANT_COLUMNS).join(', ')} is filled`,
+  warn(
+    `  WARNING: ${what}: none of ${Object.keys(COOLANT_COLUMNS).join(', ')} is ` +
+      `filled — the vendor's index rates it for no coolant supply, recorded as false`,
   )
+  return false
 }
 
 /**
@@ -282,6 +280,7 @@ function common(
   row: ScrapedRow,
   family: BoundFamily,
   what: string,
+  warn: Warn,
 ): Pick<
   ToolRecord,
   | 'brand'
@@ -303,7 +302,7 @@ function common(
     description: row[DESCRIPTION_COLUMN] ?? '',
     substrate: substrate(row, what),
     coating: coating(row),
-    coolantThrough: coolantThrough(row, what),
+    coolantThrough: coolantThrough(row, what, warn),
     ...materialGroups(row),
   }
 }
@@ -361,7 +360,7 @@ export function endmillRecord(
     geometry.NOF = nof
   }
 
-  return toolRecord({ ...common(row, family, what), kind: 'endmill', unit, geometry })
+  return toolRecord({ ...common(row, family, what, warn), kind: 'endmill', unit, geometry })
 }
 
 /**
@@ -380,12 +379,13 @@ export function drillRecord(
   columns: ColumnMap,
   options: MapperOptions = {},
 ): ToolRecord {
-  const opts: MapperOptions = { warn: options.warn ?? consoleWarn }
+  const warn = options.warn ?? consoleWarn
+  const opts: MapperOptions = { warn }
   const unit = fact(family, 'unit', family.unit)
   const what = partNumber(row, family)
 
   return toolRecord({
-    ...common(row, family, what),
+    ...common(row, family, what, warn),
     kind: 'drill',
     unit,
     nonFerrous: fact(family, 'nonFerrous', family.nonFerrous),
@@ -425,12 +425,13 @@ export function tapRecord(
   columns: ColumnMap,
   options: MapperOptions = {},
 ): ToolRecord {
-  const opts: MapperOptions = { warn: options.warn ?? consoleWarn }
+  const warn = options.warn ?? consoleWarn
+  const opts: MapperOptions = { warn }
   const unit = fact(family, 'unit', family.unit)
   const what = partNumber(row, family)
 
   return toolRecord({
-    ...common(row, family, what),
+    ...common(row, family, what, warn),
     kind: 'tap',
     unit,
     geometry: {

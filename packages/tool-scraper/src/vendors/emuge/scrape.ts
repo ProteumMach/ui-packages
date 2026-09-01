@@ -63,6 +63,11 @@
  *   an end mill and `Coating` on a tap, `Cutting material` on both. Two
  *   columns, because relabelling one onto the other would be this adapter
  *   deciding what the vendor meant.
+ * - **The same measurement is published under two unit tags** — the drill
+ *   detail record carries `nominal diameter d₁ [in]` beside the millimetre one.
+ *   `value.bareLabel` strips the tag, so both want one column; {@link put} lets
+ *   the later one win and says so, rather than dropping a number out of the
+ *   receipt in silence.
  */
 
 import { DESCRIPTION_COLUMN, dimensionalColumn, type UnitSystem } from '../../conventions.js'
@@ -330,10 +335,47 @@ export async function fetchDetails(
   return found
 }
 
-/** Write one `{ property, value }` pair into a row under `column`. */
-function put(row: Record<string, string>, column: string, detail: Detail): void {
+/**
+ * Write one `{ property, value }` pair into a row under `column`.
+ *
+ * Two properties can land on one column, and both ways of it are the vendor's
+ * doing rather than this adapter's:
+ *
+ * - **A later empty value never erases a filled one.** The three sources
+ *   overlap, and an absent value is not a more specific statement than a
+ *   present one — a part that states no coating does not unstate the group's.
+ *   Silent, because it is the ordinary case rather than a surprise.
+ * - **Two different non-empty values collide, and that is warned about.**
+ *   {@link bareLabel} strips the unit tag, so `nominal diameter d₁ [mm]` and
+ *   `nominal diameter d₁ [in]` — which the drill detail record really does
+ *   publish side by side — are one column name. The later one still wins, so
+ *   the CSV keeps a reading rather than a blank, but nothing about it is quiet:
+ *   the receipt is short one number the vendor published, and `unionHeader`
+ *   cannot show a column that was overwritten rather than missing.
+ */
+function put(
+  row: Record<string, string>,
+  column: string,
+  detail: Detail,
+  what: string,
+  warn: Warn,
+): void {
   if (detail.property === undefined) return
-  row[column] = detail.value ?? ''
+  const value = detail.value ?? ''
+  const held = row[column]
+
+  if (held !== undefined && held !== '') {
+    if (value === '') return
+    if (held !== value) {
+      warn(
+        `  WARNING: ${what}: ${JSON.stringify(detail.property)} and an earlier ` +
+          `property both write ${JSON.stringify(column)} — it held ` +
+          `${JSON.stringify(held)} and now states ${JSON.stringify(value)}`,
+      )
+    }
+  }
+
+  row[column] = value
 }
 
 /**
@@ -349,7 +391,9 @@ export function variantRow(
   variant: VariantProduct,
   detail: ProductDetail | undefined,
   unit: UnitSystem,
+  warn: Warn = consoleWarn,
 ): ScrapedRow {
+  const what = variant.code ?? ''
   const row: Record<string, string> = {
     [MATERIAL_NUMBER_COLUMN]: variant.code ?? '',
     [CATALOG_NUMBER_COLUMN]: variant.articleCode ?? '',
@@ -360,13 +404,13 @@ export function variantRow(
   }
 
   for (const property of group.technicalDetails ?? []) {
-    put(row, bareLabel(property.property ?? ''), property)
+    put(row, bareLabel(property.property ?? ''), property, what, warn)
   }
   for (const property of detail?.technicalDetails ?? []) {
-    put(row, bareLabel(property.property ?? ''), property)
+    put(row, bareLabel(property.property ?? ''), property, what, warn)
   }
   for (const property of variant.mainDrawing?.technicalDetails ?? []) {
-    put(row, dimensionalColumn(bareLabel(property.property ?? ''), unit), property)
+    put(row, dimensionalColumn(bareLabel(property.property ?? ''), unit), property, what, warn)
   }
 
   // The vendor's own order, space-separated like every other multi-value cell
@@ -447,7 +491,7 @@ export async function scrapeCategory(
         warn(`  WARNING: ${group.code} has a variant with no material number — skipped`)
         continue
       }
-      rows.push(variantRow(group, variant, details.get(variant.code), unit))
+      rows.push(variantRow(group, variant, details.get(variant.code), unit, warn))
     }
   }
 

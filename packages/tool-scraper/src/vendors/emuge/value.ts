@@ -21,9 +21,10 @@
  * which states one on every measurement seen.
  *
  * A stated unit that disagrees with the family's is converted and warned about
- * rather than refused, the same call `vendors/harvey/value.ts` makes: the value
- * is right and the column's suffix is right, so dropping the row would lose a
- * part somebody can order.
+ * rather than refused: the value is right and the column's suffix is right, so
+ * dropping the row would lose a part somebody can order. That call is not made
+ * here — it is `measure.asLength`'s, which is the one place every vendor makes
+ * it. What this module owns is the grammar below and nothing else.
  *
  * ## What is deliberately not read
  *
@@ -42,7 +43,7 @@
  */
 
 import { type UnitSystem } from '../../conventions.js'
-import { convertLength, fractionValue } from '../../measure.js'
+import { asCount, asLength, fractionValue, type Measured, type StatedUnit } from '../../measure.js'
 import { consoleWarn, type Warn } from '../../scrape.js'
 
 /** A label's trailing unit tag: `[mm]`, `[inch]`, `[in]`. */
@@ -61,18 +62,7 @@ const LABEL_UNIT = /\s*\[(?:mm|in|inch)\]\s*$/i
  */
 const NUMBER = /^(\d+\s+\d+\/\d+|\d*\.?\d+\/\d+|\d*\.?\d+)\s*(mm|"|deg)?$/
 
-/** What a value states about itself: a length system, or degrees. */
-export type StatedUnit = UnitSystem | 'degrees'
-
-/** One value string, read. */
-export interface EmugeMeasure {
-  /** The number it states, in {@link EmugeMeasure.stated}. Null where none. */
-  readonly value: number | null
-  /** The unit the value names outright. Null where it names none. */
-  readonly stated: StatedUnit | null
-}
-
-const NOTHING: EmugeMeasure = { value: null, stated: null }
+const NOTHING: Measured = { value: null, stated: null }
 
 const UNITS: Record<string, StatedUnit> = {
   mm: 'millimeters',
@@ -98,7 +88,7 @@ export function bareLabel(property: string): string {
  * `''`, a range, a tolerance and any other text come back stating nothing —
  * there is no number there and 0 is not a substitute for one.
  */
-export function parseMeasure(display: string): EmugeMeasure {
+export function parseMeasure(display: string): Measured {
   const text = display.trim()
   if (text === '') return NOTHING
 
@@ -119,8 +109,12 @@ export function parseMeasure(display: string): EmugeMeasure {
 /**
  * One value as a length in `unit`, or null where it publishes none.
  *
- * An angle reaching a length column is refused rather than converted: that is a
- * property that has moved, not a value that is odd.
+ * `measure.asLength` makes both calls — convert-and-warn a value whose stated
+ * unit disagrees with the family's, refuse an angle in a length column —
+ * because they are the same two calls for every vendor. They were a verbatim
+ * copy of `vendors/harvey/value.ts`'s, warnings included, until 2026-09-01.
+ * What is EMUGE's is above: the grammar, and that the unit is read out of the
+ * value rather than off the label.
  */
 export function measureIn(
   display: string,
@@ -128,31 +122,10 @@ export function measureIn(
   what: string,
   warn: Warn = consoleWarn,
 ): number | null {
-  const { value, stated } = parseMeasure(display)
-  if (value === null) return null
-
-  if (stated === 'degrees') {
-    warn(
-      `  WARNING: ${what}: ${JSON.stringify(display)} is an angle in a column ` +
-        `read as a length — skipped`,
-    )
-    return null
-  }
-
-  if (stated !== null && stated !== unit) {
-    warn(
-      `  WARNING: ${what}: ${JSON.stringify(display)} states ${stated} in a ` +
-        `family published in ${unit} — converted`,
-    )
-    return convertLength(value, stated, unit)
-  }
-
-  return value
+  return asLength(parseMeasure(display), display, unit, what, warn)
 }
 
 /** One value as a whole count — a flute number. Null where there is none. */
 export function wholeCount(display: string): number | null {
-  const { value } = parseMeasure(display)
-  if (value === null || !Number.isInteger(value)) return null
-  return value
+  return asCount(parseMeasure(display))
 }
