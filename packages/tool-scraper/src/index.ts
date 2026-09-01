@@ -35,6 +35,7 @@
  * the receipt is the whole of the toolholding half.
  */
 
+export * from './columns.js'
 export * from './conventions.js'
 export * from './errors.js'
 export * from './family.js'

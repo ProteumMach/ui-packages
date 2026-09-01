@@ -42,6 +42,7 @@
  * in the page title, for the whole product line.
  */
 
+import { columnReaders } from '../../columns.js'
 import { DESCRIPTION_COLUMN, type UnitSystem } from '../../conventions.js'
 import { VendorResponseError } from '../../errors.js'
 import { fact, familyBrand, type BoundFamily, type RecordMappers } from '../../family.js'
@@ -69,57 +70,18 @@ function unitOf(family: BoundFamily): UnitSystem {
 }
 
 /**
- * One mapped column's display cell, or undefined where the family maps none.
+ * The three column readers, over this vendor's grammar.
  *
- * The map comes from the caller, not from `family.columns`. They are the same
- * object through `registry.toRecords` — but `RecordMapper` passes one as an
- * argument, `registry` validates *that* one with `checkColumnsExist`, and a
- * mapper reading a different reference is validating one map and reading
- * another. Kennametal's and Destiny Tool's mappers already took the parameter;
- * this one asserted it was unused with an underscore until 2026-08-29.
+ * `dimension` is the only Harvey-specific half; everything either side of it —
+ * an unmapped column answering undefined, a required field refusing the row and
+ * quoting the cell — is `columns.columnReaders`, shared with EMUGE-FRANKEN's
+ * mapper. All three take the caller's `columns` rather than `family.columns`:
+ * they are the same object through `registry.toRecords`, but `registry`
+ * validates the argument, and a mapper reading a different reference is
+ * validating one map and reading another. This mapper asserted the parameter
+ * was unused with an underscore until 2026-08-29.
  */
-function cell(
-  row: ScrapedRow,
-  family: BoundFamily,
-  columns: ColumnMap,
-  canonical: GeometryName,
-): string | undefined {
-  const column = columns.column(canonical, unitOf(family))
-  return column === null ? undefined : row[column]
-}
-
-/** A dimension the endmill contract requires, refusing a row that lacks it. */
-function required(
-  row: ScrapedRow,
-  family: BoundFamily,
-  columns: ColumnMap,
-  canonical: GeometryName,
-  what: string,
-  options: MapperOptions,
-): number {
-  const raw = cell(row, family, columns, canonical)
-  const value = raw === undefined ? null : dimension(raw, unitOf(family), what, options.warn)
-  if (value === null) {
-    throw new VendorResponseError(
-      what,
-      `publishes no ${canonical} — its cell is ${JSON.stringify(raw ?? '')}`,
-    )
-  }
-  return value
-}
-
-/** A dimension the contract does not require. Null where the family maps none. */
-function optional(
-  row: ScrapedRow,
-  family: BoundFamily,
-  columns: ColumnMap,
-  canonical: GeometryName,
-  what: string,
-  options: MapperOptions,
-): number | null {
-  const raw = cell(row, family, columns, canonical)
-  return raw === undefined ? null : dimension(raw, unitOf(family), what, options.warn)
-}
+const { cell, required, optional } = columnReaders(dimension)
 
 /**
  * The corner radius, in priority order.
@@ -144,7 +106,7 @@ export function cornerRadius(
   dc: number,
   options: MapperOptions,
 ): number {
-  const stated = optional(row, family, columns, 'RE', what, options)
+  const stated = optional(row, columns, 'RE', unitOf(family), what, options)
   if (stated !== null) return stated
   return family.profile === BALL_PROFILE ? dc / 2 : 0
 }
@@ -161,7 +123,7 @@ export function cornerRadius(
  * right- and left-hand tooth counts and no flute count at all.
  */
 export function flutes(row: ScrapedRow, family: BoundFamily, columns: ColumnMap): number | null {
-  const raw = cell(row, family, columns, 'NOF')
+  const raw = cell(row, columns, 'NOF', unitOf(family))
   return raw === undefined ? null : count(raw)
 }
 
@@ -179,21 +141,22 @@ export function endmillRecord(
   }
 
   const opts: MapperOptions = { warn }
-  const dc = required(row, family, columns, 'DC', what, opts)
-  const fluteLength = required(row, family, columns, 'LCF', what, opts)
+  const unit = unitOf(family)
+  const dc = required(row, columns, 'DC', unit, what, opts)
+  const fluteLength = required(row, columns, 'LCF', unit, what, opts)
 
   // Harvey's reach columns are the distance from the tip to the full shank,
   // which is what `shoulder-length` names. A family with no reach column is a
   // plain tool whose usable length below the shank is its flute length — the
   // same convention Destiny Tool's mapper uses.
-  const reach = optional(row, family, columns, 'shoulder-length', what, opts)
-  const neck = optional(row, family, columns, 'shoulder-diameter', what, opts)
+  const reach = optional(row, columns, 'shoulder-length', unit, what, opts)
+  const neck = optional(row, columns, 'shoulder-diameter', unit, what, opts)
 
   const geometry: Partial<Record<GeometryName, number>> = {
     DC: dc,
     RE: cornerRadius(row, family, columns, what, dc, opts),
-    SFDM: required(row, family, columns, 'SFDM', what, opts),
-    OAL: required(row, family, columns, 'OAL', what, opts),
+    SFDM: required(row, columns, 'SFDM', unit, what, opts),
+    OAL: required(row, columns, 'OAL', unit, what, opts),
     LCF: fluteLength,
     'shoulder-length': reach ?? fluteLength,
     'shoulder-diameter': neck ?? dc,
@@ -209,7 +172,7 @@ export function endmillRecord(
     catalogNumber: what,
     description: row[DESCRIPTION_COLUMN] ?? '',
     kind: 'endmill',
-    unit: unitOf(family),
+    unit,
     substrate: fact(family, 'bmc', family.bmc),
     coating: row[COATING_COLUMN] ?? '',
     // `materialGroups` and its source are left to the factory's `null`: see the

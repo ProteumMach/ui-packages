@@ -182,10 +182,28 @@ describe('the catalog sources what no table states', () => {
       tap: ['bmc', 'coolantThrough'],
     }
 
+    // **Unless the vendor states it per part, in which case a fact would be
+    // the wrong thing** — the same rule the holder discriminants are held to
+    // below, and for the same reason: a family constant standing beside a
+    // scraped column masks a scrape that lost the column. Listed by brand so a
+    // new vendor's silence is a decision somebody made. EMUGE-FRANKEN states
+    // the cutting material, the coolant supply and a drill's point angle on
+    // every part's own record, so all three are columns; a tap's `unit` is a
+    // fact there and not on a Kennametal tap, because EMUGE publishes every
+    // tap dimension in millimetres whatever the thread standard.
+    const SCRAPED: Partial<Record<BrandName, readonly string[]>> = {
+      emuge: ['bmc', 'coolantThrough', 'pointAngle'],
+    }
+
     for (const [name, cfg] of Object.entries(FAMILIES)) {
       const facts = Object.keys(cfg.facts ?? {})
+      const scraped = SCRAPED[familyBrand(cfg)] ?? []
       for (const key of required[cfg.kind]) {
-        expect(facts, `${name}: missing ${key}`).toContain(key)
+        if (scraped.includes(key)) {
+          expect(facts, `${name}: ${key} is scraped, so a fact would mask it`).not.toContain(key)
+        } else {
+          expect(facts, `${name}: missing ${key}`).toContain(key)
+        }
       }
     }
   })

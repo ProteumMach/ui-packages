@@ -24,6 +24,23 @@
  * refuses, because a collet with no size is not a part. Pushing that decision
  * into the reader would take it away from the module that knows.
  *
+ * ## The two decisions about a *read* cell live here too
+ *
+ * {@link fractionValue} answers what a token says. {@link asLength} and
+ * {@link asCount} answer what that costs, and they are core for the same reason
+ * the grammar is: a cell stating `mm` in a family published in inches is
+ * converted-and-warned, and a cell stating an angle in a length column is
+ * refused, and those two calls have to be the same call whoever is being
+ * scraped. They were a verbatim copy in `vendors/harvey/value.ts` and
+ * `vendors/emuge/value.ts` — down to the wording of both warnings — which is
+ * two operators reading the same sentence out of two files that were free to
+ * drift apart.
+ *
+ * A vendor's own reader still owns the **grammar**, because that genuinely
+ * differs: Harvey writes a mixed number `1-1/2` and annotates it `(1/8)`, EMUGE
+ * writes `1 1/2` and admits no hyphen at all. What it hands here is
+ * {@link Measured}, which is the part they have in common.
+ *
  * **`MM_PER_INCH` lives here and not in a vendor.** It was declared and
  * exported twice — `vendors/harvey/value.ts` and `vendors/regofix/scrape.ts`
  * — so `@toolpath/tool-scraper/vendors/harvey` and `.../vendors/regofix` each
@@ -32,6 +49,7 @@
  */
 
 import type { UnitSystem } from './conventions.js'
+import { consoleWarn, type Warn } from './scrape.js'
 
 /** Exact by definition: the inch has been 25.4 mm since 1959. */
 export const MM_PER_INCH = 25.4
@@ -73,4 +91,84 @@ export function fractionValue(token: string): number | null {
 export function convertLength(value: number, from: UnitSystem, to: UnitSystem): number {
   if (from === to) return value
   return to === 'inches' ? value / MM_PER_INCH : value * MM_PER_INCH
+}
+
+/**
+ * What a value states about itself: a length system, or degrees.
+ *
+ * Degrees are inside this union rather than beside it because a cell states one
+ * thing about itself — "this is an angle" competes with "this is millimetres"
+ * and is never both. `vendors/harvey/value.ts` carries the same fact as a
+ * separate `degrees` boolean, which is that vendor's published shape and stays.
+ */
+export type StatedUnit = UnitSystem | 'degrees'
+
+/**
+ * One cell as a vendor's own reader left it.
+ *
+ * The part every vendor's reader has in common, and all {@link asLength} and
+ * {@link asCount} need. A reader is free to answer more — Harvey's also carries
+ * the parenthesised annotation, the `(1.5x)` ratio and the non-numeric code —
+ * and anything with these two fields is accepted here.
+ */
+export interface Measured {
+  /** The number the cell states, in {@link Measured.stated}. Null where none. */
+  readonly value: number | null
+  /** The unit the cell names outright. Null where it names none. */
+  readonly stated: StatedUnit | null
+}
+
+/**
+ * A read cell as a length in `unit`, or null where it publishes none.
+ *
+ * A cell that states its own unit and disagrees with the family's is
+ * **converted and warned about** rather than refused: the value is right, the
+ * column's suffix is right, and the parts this happens on are real tools
+ * somebody can order. Refusing would drop them; trusting the column's unit
+ * would publish a 3-inch shank.
+ *
+ * An angle reaching a dimensional column is **refused**, because that is a
+ * header that has moved rather than a value that is odd.
+ *
+ * `display` is passed beside `parsed` only so the warnings can quote the cell
+ * the vendor really wrote, which is the part an operator needs to go look at.
+ */
+export function asLength(
+  parsed: Measured,
+  display: string,
+  unit: UnitSystem,
+  what: string,
+  warn: Warn = consoleWarn,
+): number | null {
+  const { value, stated } = parsed
+  if (value === null) return null
+
+  if (stated === 'degrees') {
+    warn(
+      `  WARNING: ${what}: ${JSON.stringify(display)} is an angle in a column ` +
+        `read as a length — skipped`,
+    )
+    return null
+  }
+
+  if (stated !== null && stated !== unit) {
+    warn(
+      `  WARNING: ${what}: ${JSON.stringify(display)} states ${stated} in a ` +
+        `family published in ${unit} — converted`,
+    )
+    return convertLength(value, stated, unit)
+  }
+
+  return value
+}
+
+/**
+ * A read cell as a whole count — a flute or tooth number. Null where there is
+ * none, and null for a fraction, which is a column that has moved rather than a
+ * tool with two and a half flutes.
+ */
+export function asCount(parsed: Measured): number | null {
+  const { value } = parsed
+  if (value === null || !Number.isInteger(value)) return null
+  return value
 }

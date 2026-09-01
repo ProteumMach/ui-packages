@@ -80,11 +80,12 @@ const COMPOSITION_ROOTS = ['registry.ts', 'node/cli.ts']
  */
 const SHARED_BY_CONTRACT = new Map([
   // The `RecordMappers` contract: `registry` looks these up by brand and kind.
-  // `drillRecord` and `tapRecord` are deliberately absent — only Kennametal
-  // ships either today, and an allowlist entry nobody needs is one nobody
-  // checks. The second vendor to publish a drill adds it back, with a reason.
+  // EMUGE-FRANKEN is the second vendor to publish a drill and a tap, so the two
+  // entries this list said the second vendor would add back are here.
   ['RECORD_MAPPERS', 'the mapper table every cutting-tool adapter exports'],
   ['endmillRecord', 'the end mill half of that contract'],
+  ['drillRecord', 'the drill half of it, which two vendors now publish'],
+  ['tapRecord', 'the tap half — same contract, two unrelated tap vocabularies'],
   // Each vendor's own transport, one name per shape of scrape.
   ['BASE', "the vendor's own origin — different string, same job"],
   ['CATEGORY_ROOTS', 'where a vendor’s catalog walk starts; a different tree each'],
@@ -116,6 +117,138 @@ function modules(where: string): string[] {
 function importsOf(path: string): string[] {
   const info = ts.preProcessFile(readFileSync(path, 'utf8'), true, true)
   return info.importedFiles.map((f) => f.fileName)
+}
+
+/**
+ * The names this file exports — values, types and re-exports alike.
+ *
+ * `ts.preProcessFile` reads imports and not exports, so this is a walk of the
+ * source file's own top-level statements. Not a type check and no resolution:
+ * the question is which identifiers a consumer could name, which the syntax
+ * answers on its own.
+ */
+/** The modules this file re-exports wholesale — `export * from './x.js'`. */
+function reExportsOf(path: string): string[] {
+  const source = ts.createSourceFile(
+    path,
+    readFileSync(path, 'utf8'),
+    ts.ScriptTarget.Latest,
+    false,
+  )
+  const specs: string[] = []
+  for (const statement of source.statements) {
+    if (!ts.isExportDeclaration(statement)) continue
+    const specifier = statement.moduleSpecifier
+    if (
+      statement.exportClause === undefined &&
+      specifier !== undefined &&
+      ts.isStringLiteral(specifier)
+    ) {
+      specs.push(specifier.text)
+    }
+  }
+  return specs
+}
+
+function exportedNames(path: string): string[] {
+  const source = ts.createSourceFile(
+    path,
+    readFileSync(path, 'utf8'),
+    ts.ScriptTarget.Latest,
+    false,
+  )
+  const names: string[] = []
+
+  for (const statement of source.statements) {
+    // `export { familyBrand, familyId } from '../family.js'` — a re-export
+    // carries no modifier, so it is matched by shape rather than by `export`.
+    if (ts.isExportDeclaration(statement)) {
+      const bindings = statement.exportClause
+      if (bindings !== undefined && ts.isNamedExports(bindings)) {
+        for (const element of bindings.elements) names.push(element.name.text)
+      }
+      continue
+    }
+
+    const modifiers = ts.canHaveModifiers(statement) ? ts.getModifiers(statement) : undefined
+    if (!modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) continue
+
+    if (ts.isVariableStatement(statement)) {
+      for (const declaration of statement.declarationList.declarations) {
+        if (ts.isIdentifier(declaration.name)) names.push(declaration.name.text)
+      }
+    } else if (
+      (ts.isFunctionDeclaration(statement) ||
+        ts.isInterfaceDeclaration(statement) ||
+        ts.isTypeAliasDeclaration(statement) ||
+        ts.isClassDeclaration(statement)) &&
+      statement.name !== undefined
+    ) {
+      names.push(statement.name.text)
+    }
+  }
+
+  return names
+}
+
+/**
+ * Modules whose exports are for a sibling in this package and never for a
+ * consumer, with the reason each is not simply missing from `exports`.
+ *
+ * These are the case `AGENTS.md` names as the *other* correct fix for an
+ * unreferenced export — drop the `export` keyword — which neither can take:
+ * ESM has no word for "visible to my siblings only", so the keyword has to
+ * stay and the intent has to be written down instead.
+ */
+const INTERNAL_BY_DESIGN = new Map([
+  ['order.ts', 'the one string comparator, imported by provenance.ts and node/receipts.ts'],
+  ['uuid5.ts', 'the SHA-1 v5 primitive behind identity.recordGuid, which is what is published'],
+])
+
+/** `./dist/families/harvey.js` -> the source file it is built from. */
+function sourceOf(distPath: string): string {
+  return resolve(
+    SRC,
+    '..',
+    distPath
+      .replace(/^\.\//, '')
+      .replace(/^dist\//, 'src/')
+      .replace(/\.js$/, '.ts'),
+  )
+}
+
+/** The subpath a module would be published under, for the failure message. */
+function subpathFor(module: string): string {
+  return `./${module.replace(/\.ts$/, '').replace(/\/index$/, '')}`
+}
+
+/** One relative specifier, as the source file it names. */
+function moduleFor(from: string, spec: string): string | null {
+  const base = resolve(dirname(from), spec.replace(/\.js$/, ''))
+  for (const candidate of [`${base}.ts`, join(base, 'index.ts')]) {
+    if (existsSync(candidate)) return candidate
+  }
+  return null
+}
+
+/**
+ * Every name reachable from an entry module, following its re-exports.
+ *
+ * `export * from './records.js'` is how both entry points are built, so what a
+ * consumer can name is a graph rather than one file's own exports — which is
+ * exactly why the gap this closes was invisible by inspection.
+ */
+function reachableFrom(entry: string, seen = new Set<string>()): Set<string> {
+  const names = new Set<string>()
+  if (seen.has(entry) || !existsSync(entry)) return names
+  seen.add(entry)
+
+  for (const name of exportedNames(entry)) names.add(name)
+  for (const spec of reExportsOf(entry)) {
+    const target = moduleFor(entry, spec)
+    if (target !== null) for (const name of reachableFrom(target, seen)) names.add(name)
+  }
+  return names
 }
 
 /** Which module each import resolves to, as a path relative to `src/`. */
@@ -191,6 +324,65 @@ describe('the tree is the shape these rules assume', () => {
         types: `./dist/vendors/${brand}/index.d.ts`,
         import: `./dist/vendors/${brand}/index.js`,
       })
+    }
+  })
+
+  it('reaches every exported name through a published subpath, or says why not', () => {
+    // The general form of the manufacturer case above, and the one that would
+    // have caught what shipped: `./families` points at the merged index, that
+    // index re-exports `FAMILIES`, `HOLDER_FAMILIES` and `COLLET_FAMILIES` and
+    // nothing else, and a vendor's **scrape-target** table is none of those. So
+    // `import { PRODUCT_PAGES } from '@toolpath/tool-scraper/families/harvey'`
+    // threw ERR_PACKAGE_PATH_NOT_EXPORTED at a consumer while
+    // `dist/families/harvey.js` sat in the installed package. `exports` is an
+    // allowlist, not documentation.
+    //
+    // **`pnpm knip` cannot see this and did not.** Its entry points include
+    // `tests/**`, so a symbol a test imports counts as referenced — and every
+    // one of those tables had a test. Referenced is not reachable, and this is
+    // the difference stated as a check.
+    //
+    // Per name rather than per directory, so the next module lands covered
+    // wherever it lands, and per **name** rather than per file so that it
+    // cannot push the package into over-exporting: `families/kennametal.ts`
+    // publishes only `FAMILIES`, `HOLDER_FAMILIES` and `COLLET_FAMILIES`, all of
+    // which a consumer reaches through the merged table and filters by brand, so
+    // it needs no subpath and does not get one. An accidental export is permanent.
+    const manifest = JSON.parse(readFileSync(join(SRC, '../package.json'), 'utf8')) as {
+      exports: Record<string, { types: string; import: string }>
+    }
+
+    const published = new Set<string>()
+    for (const entry of Object.values(manifest.exports)) {
+      for (const name of reachableFrom(sourceOf(entry.import))) published.add(name)
+    }
+    // Guards the loop below: an `exports` map this test failed to resolve would
+    // leave `published` empty and report the whole package as unreachable, which
+    // is a failure that reads like a catastrophe and is really a broken test.
+    expect(published.size).toBeGreaterThan(0)
+
+    for (const path of ALL) {
+      const module = rel(path)
+      const unreachable = exportedNames(path).filter((name) => !published.has(name))
+
+      if (INTERNAL_BY_DESIGN.has(module)) {
+        // An exception that has stopped being needed gets dropped, the same
+        // discipline `COMPOSITION_ROOTS` and `SHARED_BY_CONTRACT` are held to.
+        expect(
+          unreachable,
+          `src/${module} is listed as internal but every name it exports is ` +
+            `already published — drop its ${JSON.stringify(module)} entry`,
+        ).not.toEqual([])
+        continue
+      }
+
+      expect(
+        unreachable.sort(),
+        `src/${module} publishes ${unreachable.sort().join(', ')}, which builds ` +
+          `into dist and ships in the tarball with no subpath reaching it — add ` +
+          `${JSON.stringify(subpathFor(module))} to \`exports\`, re-export it from ` +
+          `one that is already there, or list the module in INTERNAL_BY_DESIGN`,
+      ).toEqual([])
     }
   })
 

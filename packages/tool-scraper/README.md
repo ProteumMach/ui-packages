@@ -24,6 +24,7 @@ pnpm add @toolpath/tool-scraper
 | Destiny Tool       | Firestore REST, paginated                               | solid end mills                      |
 | Harvey Tool        | inline JS literal on a product page, plus its `<thead>` | miniature end mills, keyseat cutters |
 | MariTool           | osCommerce category listings, then one page per part    | toolholding                          |
+| EMUGE-FRANKEN      | SAP Commerce JSON API: grouped, variant, batched detail | end mills, twist drills, taps        |
 
 ## Two entry points
 
@@ -75,6 +76,7 @@ toolpath-scrape harvey harvey_endmill_008.csv     # the page and the unit come f
 toolpath-scrape harvey --catalog                  # what the four category trees link to today
 toolpath-scrape maritool maritool_cat40_holders.csv  # its leaf categories come from its config
 toolpath-scrape maritool --catalog                # what the five taper trees hold today
+toolpath-scrape emuge emuge_drills.csv            # its category and unit come from its config
 ```
 
 `toolpath-scrape --help` lists the rest.

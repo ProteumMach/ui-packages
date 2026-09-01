@@ -43,6 +43,10 @@
       "types": "./dist/vendors/destinytool/index.d.ts",
       "import": "./dist/vendors/destinytool/index.js"
     },
+    "./vendors/emuge": {
+      "types": "./dist/vendors/emuge/index.d.ts",
+      "import": "./dist/vendors/emuge/index.js"
+    },
     "./vendors/harvey": {
       "types": "./dist/vendors/harvey/index.d.ts",
       "import": "./dist/vendors/harvey/index.js"
@@ -58,6 +62,18 @@
     "./families": {
       "types": "./dist/families/index.d.ts",
       "import": "./dist/families/index.js"
+    },
+    "./families/harvey": {
+      "types": "./dist/families/harvey.d.ts",
+      "import": "./dist/families/harvey.js"
+    },
+    "./families/maritool": {
+      "types": "./dist/families/maritool.d.ts",
+      "import": "./dist/families/maritool.js"
+    },
+    "./families/emuge": {
+      "types": "./dist/families/emuge.d.ts",
+      "import": "./dist/families/emuge.js"
     }
   },
   "files": [
