@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from attrs import define as _attrs_define
 
 from ..models.feature_type import FeatureType
+from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.boss_facts import BossFacts
@@ -58,16 +59,18 @@ class FeatureDatasheet:
 
                 The tool checks sweep a tool's shank and holder over this curve; it is here so a
                 caller can draw it, or sweep an envelope of its own.
-            radial_stock_to_leave (float): Material intentionally left radially for a later operation, in mm.
             axial_stock_to_leave (float): Material intentionally left along the tool axis for a later operation, in mm.
+            radial_stock_to_leave (float): Material intentionally left radially for a later operation, in mm.
             tolerance_band (ToleranceBand): How far a machined surface may deviate from the model, in three escalating bands
                 (`0 <= ignore <= deviate <= max`).
             has_floor (bool): Whether the feature has a floor machined perpendicular to the tool axis.
             has_wall (bool): Whether the feature has a wall machined parallel to the tool axis.
-            floorish_area (float): Projected area machined floor-wise (perpendicular to the tool axis).
-            wallish_area (float): Area machined wall-wise (parallel to the tool axis).
+            projected_floor_area (float): Projected area machined floor-wise (perpendicular to the tool axis).
+            projected_wall_area (float): Area machined wall-wise (parallel to the tool axis).
             facts (BossFacts | ChamferFacts | DovetailFacts | FaceFacts | HoleFacts | PocketFacts | ProfileFacts |
                 SurfaceFacts | TslotFacts | WallFacts): The per-kind facts; narrow on `facts.kind`.
+            floorish_area (float | Unset): Deprecated: use `projectedFloorArea`. Removed in the next API major.
+            wallish_area (float | Unset): Deprecated: use `projectedWallArea`. Removed in the next API major.
     """
 
     feature_type: FeatureType
@@ -76,13 +79,13 @@ class FeatureDatasheet:
     extended_z_min: float
     extended_z_max: float
     reach_curve: ReachCurve
-    radial_stock_to_leave: float
     axial_stock_to_leave: float
+    radial_stock_to_leave: float
     tolerance_band: ToleranceBand
     has_floor: bool
     has_wall: bool
-    floorish_area: float
-    wallish_area: float
+    projected_floor_area: float
+    projected_wall_area: float
     facts: (
         BossFacts
         | ChamferFacts
@@ -95,6 +98,8 @@ class FeatureDatasheet:
         | TslotFacts
         | WallFacts
     )
+    floorish_area: float | Unset = UNSET
+    wallish_area: float | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.boss_facts import BossFacts
@@ -119,9 +124,9 @@ class FeatureDatasheet:
 
         reach_curve = self.reach_curve.to_dict()
 
-        radial_stock_to_leave = self.radial_stock_to_leave
-
         axial_stock_to_leave = self.axial_stock_to_leave
+
+        radial_stock_to_leave = self.radial_stock_to_leave
 
         tolerance_band = self.tolerance_band.to_dict()
 
@@ -129,9 +134,9 @@ class FeatureDatasheet:
 
         has_wall = self.has_wall
 
-        floorish_area = self.floorish_area
+        projected_floor_area = self.projected_floor_area
 
-        wallish_area = self.wallish_area
+        projected_wall_area = self.projected_wall_area
 
         facts: dict[str, Any]
         if isinstance(self.facts, HoleFacts):
@@ -155,6 +160,10 @@ class FeatureDatasheet:
         else:
             facts = self.facts.to_dict()
 
+        floorish_area = self.floorish_area
+
+        wallish_area = self.wallish_area
+
         field_dict: dict[str, Any] = {}
 
         field_dict.update(
@@ -165,16 +174,20 @@ class FeatureDatasheet:
                 "extendedZMin": extended_z_min,
                 "extendedZMax": extended_z_max,
                 "reachCurve": reach_curve,
-                "radialStockToLeave": radial_stock_to_leave,
                 "axialStockToLeave": axial_stock_to_leave,
+                "radialStockToLeave": radial_stock_to_leave,
                 "toleranceBand": tolerance_band,
                 "hasFloor": has_floor,
                 "hasWall": has_wall,
-                "floorishArea": floorish_area,
-                "wallishArea": wallish_area,
+                "projectedFloorArea": projected_floor_area,
+                "projectedWallArea": projected_wall_area,
                 "facts": facts,
             }
         )
+        if floorish_area is not UNSET:
+            field_dict["floorishArea"] = floorish_area
+        if wallish_area is not UNSET:
+            field_dict["wallishArea"] = wallish_area
 
         return field_dict
 
@@ -206,9 +219,9 @@ class FeatureDatasheet:
 
         reach_curve = ReachCurve.from_dict(d.pop("reachCurve"))
 
-        radial_stock_to_leave = d.pop("radialStockToLeave")
-
         axial_stock_to_leave = d.pop("axialStockToLeave")
+
+        radial_stock_to_leave = d.pop("radialStockToLeave")
 
         tolerance_band = ToleranceBand.from_dict(d.pop("toleranceBand"))
 
@@ -216,9 +229,9 @@ class FeatureDatasheet:
 
         has_wall = d.pop("hasWall")
 
-        floorish_area = d.pop("floorishArea")
+        projected_floor_area = d.pop("projectedFloorArea")
 
-        wallish_area = d.pop("wallishArea")
+        projected_wall_area = d.pop("projectedWallArea")
 
         def _parse_facts(
             data: object,
@@ -314,6 +327,10 @@ class FeatureDatasheet:
 
         facts = _parse_facts(d.pop("facts"))
 
+        floorish_area = d.pop("floorishArea", UNSET)
+
+        wallish_area = d.pop("wallishArea", UNSET)
+
         feature_datasheet = cls(
             feature_type=feature_type,
             z_min=z_min,
@@ -321,14 +338,16 @@ class FeatureDatasheet:
             extended_z_min=extended_z_min,
             extended_z_max=extended_z_max,
             reach_curve=reach_curve,
-            radial_stock_to_leave=radial_stock_to_leave,
             axial_stock_to_leave=axial_stock_to_leave,
+            radial_stock_to_leave=radial_stock_to_leave,
             tolerance_band=tolerance_band,
             has_floor=has_floor,
             has_wall=has_wall,
+            projected_floor_area=projected_floor_area,
+            projected_wall_area=projected_wall_area,
+            facts=facts,
             floorish_area=floorish_area,
             wallish_area=wallish_area,
-            facts=facts,
         )
 
         return feature_datasheet

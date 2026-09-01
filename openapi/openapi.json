@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Toolpath Engine API",
-    "version": "1.0.4",
+    "version": "1.1.0",
     "description": "Public REST API for Toolpath engine operations.\n\n**Units.** All dimensional values — in parts and in feature details — are in\nmillimetres; all angles are in degrees. Each part response also states this in its `units` field.\n\n**Browser use.** CORS is per API key: a request only receives an\n`Access-Control-Allow-Origin` header when its `Origin` is in the allowlist configured on the\nkey used (set when creating or editing the key in the portal). A key with no allowed origins\nis server-to-server only. A Bearer API key placed in client-side JavaScript is readable by\nanyone — restrict its origins, prefer a `read_only` key (read_only keys may call GET\noperations only; writes are rejected with 403), or proxy requests through your own server."
   },
   "tags": [
@@ -656,13 +656,13 @@
             "$ref": "#/components/schemas/ReachCurve",
             "description": "How deep a tool must reach, by how far outboard of the cut the material stands."
           },
-          "radialStockToLeave": {
-            "type": "number",
-            "description": "Material intentionally left radially for a later operation, in mm."
-          },
           "axialStockToLeave": {
             "type": "number",
             "description": "Material intentionally left along the tool axis for a later operation, in mm."
+          },
+          "radialStockToLeave": {
+            "type": "number",
+            "description": "Material intentionally left radially for a later operation, in mm."
           },
           "toleranceBand": {
             "$ref": "#/components/schemas/ToleranceBand",
@@ -676,13 +676,23 @@
             "type": "boolean",
             "description": "Whether the feature has a wall machined parallel to the tool axis."
           },
-          "floorishArea": {
+          "projectedFloorArea": {
             "type": "number",
             "description": "Projected area machined floor-wise (perpendicular to the tool axis)."
           },
-          "wallishArea": {
+          "floorishArea": {
+            "type": "number",
+            "deprecated": true,
+            "description": "Deprecated: use `projectedFloorArea`. Removed in the next API major."
+          },
+          "projectedWallArea": {
             "type": "number",
             "description": "Area machined wall-wise (parallel to the tool axis)."
+          },
+          "wallishArea": {
+            "type": "number",
+            "deprecated": true,
+            "description": "Deprecated: use `projectedWallArea`. Removed in the next API major."
           },
           "facts": {
             "oneOf": [
@@ -742,13 +752,13 @@
           "extendedZMin",
           "extendedZMax",
           "reachCurve",
-          "radialStockToLeave",
           "axialStockToLeave",
+          "radialStockToLeave",
           "toleranceBand",
           "hasFloor",
           "hasWall",
-          "floorishArea",
-          "wallishArea",
+          "projectedFloorArea",
+          "projectedWallArea",
           "facts"
         ],
         "description": "One feature as machining sees it: static, self-contained, and enough to choose a\ntool against without having the part in hand. All lengths mm and angles degrees;\nz runs up the tool axis, so `zMin` is the bottom of the feature and `zMax` its top."
