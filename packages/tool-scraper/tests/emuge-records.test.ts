@@ -18,6 +18,7 @@ import { describe, expect, it } from 'vitest'
 import { UNSPECIFIED } from '../src/records.js'
 import { toRecords } from '../src/registry.js'
 import { unionHeader, type ScrapeResult, type ScrapedRow } from '../src/scrape.js'
+import { PRODUCT_LINES, PRODUCT_LINE_COLUMNS } from '../src/vendors/emuge/records.js'
 import { variantRow } from '../src/vendors/emuge/scrape.js'
 import { VendorResponseError } from '../src/errors.js'
 
@@ -38,7 +39,6 @@ const MILL_GROUP = {
   technicalDetails: [
     { property: 'category', value: 'End Mill' },
     { property: 'version', value: 'Corner Radius' },
-    { property: 'product line', value: 'FRANKEN TOP-Cut VAR' },
   ] as Property[],
 }
 
@@ -75,6 +75,9 @@ function millDetail(code: string, flutes: string) {
     code,
     technicalDetails: [
       { property: 'number of flutes Z', value: flutes },
+      // Milling states its product line per part rather than on the group —
+      // the grouped listing publishes none at all. See `PRODUCT_LINE_COLUMNS`.
+      { property: 'product line', value: 'FRANKEN TOP-Cut VAR' },
       { property: 'Cutting material', value: 'carbide' },
       { property: 'coating', value: 'ALCR' },
       { property: 'internal coolant supply', value: 'Without internal cooling' },
@@ -112,6 +115,10 @@ const DRILL_GROUP = {
     { property: 'Specification', value: 'Twist drill' },
     { property: 'Length standard', value: '5xD DIN 6537L' },
     { property: 'Number of margins', value: '4' },
+    // Drilling and tapping state the line on the *group*, under a geometry
+    // code — `MULTI` here, which the vendor's own article page calls
+    // MultiDRILL.
+    { property: 'Geometry', value: 'MULTI' },
   ] as Property[],
 }
 
@@ -155,6 +162,7 @@ const TAP_GROUP = {
   technicalDetails: [
     { property: 'chamfer form', value: 'Form B (Plug)' },
     { property: 'thread orientation', value: 'internal' },
+    { property: 'Geometry', value: 'Z' },
   ] as Property[],
 }
 
@@ -264,6 +272,7 @@ describe('a drill', () => {
     // assume theirs or derive them from a point length.
     expect(record?.geometry.SIG).toBe(140)
   })
+
   it('omits the point angle where the vendor left the cell empty, and says so', () => {
     // One of FB01's 2,670 variants publishes no point angle. `SIG` is a mapped
     // column here rather than a fact, so before it moved to
@@ -343,6 +352,84 @@ describe('a tap', () => {
   })
 })
 
+/* -------------------------------------------------------------- product line */
+
+describe('the product line', () => {
+  // Three categories, three columns, and each column is a facet that
+  // partitions its category exactly — which is what makes this a read rather
+  // than a choice between the 43 overlapping product-family pages the vendor's
+  // marketing publishes. See `PRODUCT_LINE_COLUMNS`.
+  it('is read verbatim from the milling column, which already names the line', () => {
+    const [record] = toRecords('emuge_end_mills_inch.csv', millScrape(millRow(false)))
+    expect(record?.productLine).toBe('FRANKEN TOP-Cut VAR')
+  })
+
+  // A geometry code names nothing EMUGE sells, so drilling and tapping map it
+  // onto the vendor's own article-page title. Both sides are the vendor's.
+  it('maps a drill geometry code onto the vendor’s own name for it', () => {
+    const [record] = toRecords('emuge_drills.csv', scrapeOf([drillRow()]))
+    expect(record?.productLine).toBe('MultiDRILL')
+  })
+
+  it('maps a tap geometry code the same way', () => {
+    const [record] = toRecords('emuge_taps.csv', scrapeOf([tapRow()]))
+    expect(record?.productLine).toBe('Rekord B-Z Taps')
+  })
+
+  it('names the column each category states its line in', () => {
+    expect(PRODUCT_LINE_COLUMNS['FF01']).toBe('product line')
+    expect(PRODUCT_LINE_COLUMNS['FB01']).toBe('Geometry')
+    expect(PRODUCT_LINE_COLUMNS['FG01']).toBe('Geometry')
+  })
+
+  // Milling passes through because its facet is already the marketing name.
+  // A table for it would be this package restating the vendor.
+  it('keeps no name table for milling', () => {
+    expect(PRODUCT_LINES['FF01']).toBeUndefined()
+  })
+
+  // `SPEED`, `FK`, `GAL`, `GG` and `TILEG` are real tap lines with no article
+  // page on the US storefront. The vendor's own code is the honest answer, and
+  // an unmapped code must never refuse a row the way an unmapped cutting
+  // material does — see `productLine`.
+  it('keeps a code the vendor publishes no article page for', () => {
+    const group = {
+      ...TAP_GROUP,
+      technicalDetails: TAP_GROUP.technicalDetails.map((p) =>
+        p.property === 'Geometry' ? { property: 'Geometry', value: 'SPEED' } : p,
+      ),
+    }
+    const row = variantRow(group, TAP_VARIANT, TAP_DETAIL, 'millimeters')
+    const [record] = toRecords('emuge_taps.csv', scrapeOf([row]))
+    expect(record?.productLine).toBe('SPEED')
+  })
+
+  // The vendor's silence, and never `''` — `toolRecord` refuses that outright.
+  it('is null where the vendor leaves the column empty', () => {
+    const group = {
+      ...TAP_GROUP,
+      technicalDetails: TAP_GROUP.technicalDetails.map((p) =>
+        p.property === 'Geometry' ? { property: 'Geometry', value: '' } : p,
+      ),
+    }
+    const row = variantRow(group, TAP_VARIANT, TAP_DETAIL, 'millimeters')
+    const [record] = toRecords('emuge_taps.csv', scrapeOf([row]))
+    expect(record?.productLine).toBeNull()
+  })
+
+  // Every name on the right-hand side is a title EMUGE publishes; nothing here
+  // is this package's wording. A blank one would be a name nobody stated.
+  it('maps every code onto a non-empty vendor name', () => {
+    for (const [category, names] of Object.entries(PRODUCT_LINES)) {
+      expect(PRODUCT_LINE_COLUMNS[category]).toBeDefined()
+      for (const [code, name] of Object.entries(names)) {
+        expect(code, `${category} ${code}`).not.toBe('')
+        expect(name, `${category} ${code}`).not.toBe('')
+      }
+    }
+  })
+})
+
 describe('what a mapper refuses', () => {
   it('refuses a cutting material it has no word for, naming the table to add to', () => {
     const row = { ...drillRow(), 'Cutting material': 'unobtainium' }
@@ -374,6 +461,7 @@ describe('what a mapper refuses', () => {
     expect(said.join('\n')).toContain(DRILL_VARIANT.code)
     expect(said.join('\n')).toContain('recorded as false')
   })
+
   it('refuses a point angle that is a length, which an empty cell is not', () => {
     // The two halves of the same column. A blank is the vendor publishing
     // nothing and is omitted; a length where an angle belongs is the property

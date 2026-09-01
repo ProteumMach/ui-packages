@@ -18,6 +18,7 @@ import {
   addThreadPitch,
 } from '../src/vendors/kennametal/thread-column.js'
 import {
+  NO_RESULTS,
   TableParser,
   columnNames,
   parseVariantTable,
@@ -25,7 +26,11 @@ import {
   variantsUrl,
   type Tag,
 } from '../src/vendors/kennametal/scrape.js'
-import { asFetcher } from './stubs.js'
+import { FAMILY_TITLE_COLUMN } from '../src/conventions.js'
+import { REQUEST_DELAY_MS } from '../src/scrape.js'
+import { familyPageUrl } from '../src/vendors/kennametal/family.js'
+import { PRODUCT_LINE_COLUMN } from '../src/vendors/kennametal/records.js'
+import { asFetcher, recordPauses } from './stubs.js'
 
 /**
  * Trimmed to the structure that matters: the leading checkbox column, a
@@ -350,5 +355,120 @@ describe('the derived thread-pitch column', () => {
     expect(() => addThreadPitch({ ...taps, header: ['Material Number'], rows: [] })).toThrow(
       /no D1-TDZ column/,
     )
+  })
+})
+
+describe('the family title option', () => {
+  const PAGE = `
+    <h1>KenCut&trade; FF &bull; HPFT &bull; Square End &bull; Inch</h1>
+    <div class="product-info" data-product-code="100003658"></div>
+  `
+
+  /** Serves the variants table first and the family page second. */
+  function servingBoth() {
+    const urls: string[] = []
+    const fetcher = asFetcher({
+      text: vi.fn(async (url: string) => {
+        urls.push(url)
+        return url.includes('.variants.') ? TABLE_HTML : PAGE
+      }),
+    })
+    return { fetcher, urls }
+  }
+
+  // Off by default: the title is a second request, and a caller that wants
+  // dimensions should not pay for one. Every caller written before the option
+  // existed keeps the transport it had.
+  it('makes one request and writes no title columns unless asked', async () => {
+    const { fetcher, urls } = serving(TABLE_HTML)
+
+    const result = await scrapeFamily(fetcher, '100003658')
+
+    expect(urls).toHaveLength(1)
+    expect(result.header).not.toContain(FAMILY_TITLE_COLUMN)
+    expect(result.header).not.toContain(PRODUCT_LINE_COLUMN)
+  })
+
+  it('adds the vendor’s whole title and its leading segment as tag columns', async () => {
+    const { fetcher, urls } = servingBoth()
+
+    const result = await scrapeFamily(fetcher, '100003658', 'kennametal', [], {
+      familyTitle: true,
+      delayMs: 0,
+    })
+
+    expect(urls).toHaveLength(2)
+    expect(urls[1]).toBe(familyPageUrl('100003658'))
+    expect(result.header.slice(-2)).toEqual([FAMILY_TITLE_COLUMN, PRODUCT_LINE_COLUMN])
+    // Constant down the whole table, which is what makes them family facts
+    // rather than columns — the same shape as `Thread System`.
+    for (const row of result.rows) {
+      expect(row[FAMILY_TITLE_COLUMN]).toBe('KenCut™ FF • HPFT • Square End • Inch')
+      expect(row[PRODUCT_LINE_COLUMN]).toBe('KenCut™ FF')
+    }
+  })
+
+  it('keeps the caller’s own tags beside them', async () => {
+    const { fetcher } = servingBoth()
+
+    const result = await scrapeFamily(
+      fetcher,
+      '100003658',
+      'kennametal',
+      [['Thread System', 'inch']],
+      { familyTitle: true, delayMs: 0 },
+    )
+
+    expect(result.header.slice(-3)).toEqual([
+      'Thread System',
+      FAMILY_TITLE_COLUMN,
+      PRODUCT_LINE_COLUMN,
+    ])
+    expect(result.rows[0]?.['Thread System']).toBe('inch')
+  })
+
+  // A family the vendor publishes with no heading is still a table of real
+  // parts. A column of empty strings would read as a vendor stating an empty
+  // name, which `toolRecord` refuses outright.
+  it('writes neither column for a page with no heading', async () => {
+    const fetcher = asFetcher({
+      text: vi.fn(async (url: string) =>
+        url.includes('.variants.') ? TABLE_HTML : '<div data-product-code="100003658"></div>',
+      ),
+    })
+
+    const result = await scrapeFamily(fetcher, '100003658', 'kennametal', [], {
+      familyTitle: true,
+      delayMs: 0,
+    })
+
+    expect(result.rows).toHaveLength(2)
+    expect(result.header).not.toContain(FAMILY_TITLE_COLUMN)
+    expect(result.header).not.toContain(PRODUCT_LINE_COLUMN)
+  })
+
+  // The table first, so a family the vendor no longer publishes fails on the
+  // rows it does not have rather than on a title nobody would have read.
+  it('reads the table before the title', async () => {
+    const fetcher = asFetcher({
+      text: vi.fn(async (url: string) =>
+        url.includes('.variants.') ? `<div ${NO_RESULTS}></div>` : PAGE,
+      ),
+    })
+
+    await expect(
+      scrapeFamily(fetcher, '100003658', 'kennametal', [], { familyTitle: true, delayMs: 0 }),
+    ).rejects.toThrow(/no variants/)
+  })
+
+  it('paces itself between the two requests', async () => {
+    const { waits, restore } = recordPauses()
+    try {
+      const { fetcher } = servingBoth()
+      await scrapeFamily(fetcher, '100003658', 'kennametal', [], { familyTitle: true })
+      expect(waits).toEqual([REQUEST_DELAY_MS])
+    } finally {
+      restore()
+    }
   })
 })

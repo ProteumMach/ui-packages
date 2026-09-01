@@ -26,10 +26,13 @@
 
 import { Parser } from 'htmlparser2'
 
+import { FAMILY_TITLE_COLUMN } from '../../conventions.js'
 import { VendorResponseError } from '../../errors.js'
 import type { Fetcher } from '../../fetch.js'
 import { BRANDS, type AemBrandName } from '../../identity.js'
-import type { ScrapeResult, ScrapedRow } from '../../scrape.js'
+import { pause, REQUEST_DELAY_MS, type ScrapeResult, type ScrapedRow } from '../../scrape.js'
+import { fetchFamily } from './family.js'
+import { PRODUCT_LINE_COLUMN } from './records.js'
 
 export const BASE =
   'https://www.{host}/us/en/products/fam/_jcr_content/root/' +
@@ -242,18 +245,43 @@ export function columnNames(header: readonly Cell[]): (string | null)[] {
   return names
 }
 
+/** What {@link scrapeFamily} accepts beyond its tags. */
+export interface FamilyOptions {
+  /**
+   * Also read the family page's own title, and tag every row with it.
+   *
+   * **Opt-in, and a second request.** The variants table states no product
+   * line — the vendor puts it in the `h1` above the table, which is a
+   * different AEM resource — so this is the one thing here that costs a
+   * request the table did not. A caller that only wants dimensions should not
+   * pay for it, and every existing caller keeps the transport it had.
+   *
+   * See `family.ts` for what the title is and which part of it becomes
+   * `records.ToolRecord.productLine`.
+   */
+  readonly familyTitle?: boolean
+  /** Milliseconds between the two requests. Zero in tests. */
+  readonly delayMs?: number
+}
+
 /**
  * Scrape one family into rows.
  *
  * `tags` is a sequence of `[name, value]` pairs appended to every row as
  * constant columns — used to tag facts the table doesn't state, e.g. the
  * thread system on a tap family.
+ *
+ * `options.familyTitle` adds two more of exactly that kind. They are tags
+ * rather than parsed columns because that is what they are: one string per
+ * family, constant down its whole table, which is the case the `tags` seam was
+ * built for.
  */
 export async function scrapeFamily(
   fetcher: Fetcher,
   code: string,
   brand: AemBrandName = 'kennametal',
   tags: readonly Tag[] = [],
+  options: FamilyOptions = {},
 ): Promise<ScrapeResult> {
   const url = variantsUrl(code, brand)
   const { header, rows: dataRows } = parseVariantTable(await fetcher.text(url))
@@ -262,9 +290,24 @@ export async function scrapeFamily(
     throw new VendorResponseError(`family ${code}`, 'the vendor returned no variants')
   }
 
+  // After the table, so a family the vendor no longer publishes fails on the
+  // table it has no rows for rather than on a title nobody would have read.
+  const titled: Tag[] = []
+  if (options.familyTitle === true) {
+    await pause(options.delayMs ?? REQUEST_DELAY_MS)
+    const { title, productLine } = await fetchFamily(fetcher, code, brand)
+    // A page with no heading writes no columns, rather than a column of empty
+    // strings that reads as a vendor stating an empty name. `unionHeader` is
+    // not in play here — this header is positional — so an absent tag is
+    // simply a narrower CSV.
+    if (title !== '') titled.push([FAMILY_TITLE_COLUMN, title])
+    if (productLine !== null) titled.push([PRODUCT_LINE_COLUMN, productLine])
+  }
+
   const names = columnNames(header)
   const kept = names.filter((name): name is string => name !== null)
-  const csvHeader = [...kept, ...tags.map(([name]) => name)]
+  const allTags = [...tags, ...titled]
+  const csvHeader = [...kept, ...allTags.map(([name]) => name)]
 
   const rows: ScrapedRow[] = dataRows.map((row) => {
     // `dataRows` is filtered to rows exactly as long as the header, and
@@ -283,7 +326,7 @@ export async function scrapeFamily(
     names.forEach((name, index) => {
       if (name !== null) out[name] = row[index]?.[0] ?? ''
     })
-    for (const [name, value] of tags) out[name] = value
+    for (const [name, value] of allTags) out[name] = value
     return out
   })
 

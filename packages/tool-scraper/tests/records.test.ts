@@ -342,6 +342,32 @@ describe('the record itself', () => {
     expect(() => (record.unit = 'inches')).toThrow(TypeError)
   })
 
+  describe('the product line', () => {
+    // Three states, kept three the way `materialGroups`' three are: a vendor
+    // that names a line, a vendor that names none, and never a nameless name.
+    it('defaults to null, so an adapter that says nothing says nothing', () => {
+      expect(toolRecord(base).productLine).toBeNull()
+    })
+
+    it('keeps the vendor’s own name verbatim', () => {
+      expect(toolRecord({ ...base, productLine: 'FRANKEN TOP-Cut VAR' }).productLine).toBe(
+        'FRANKEN TOP-Cut VAR',
+      )
+      // Destiny Tool really does publish these two in lower case beside
+      // `Viper` and `Raptor`. Case-folding here would be this package
+      // authoring a vendor's catalog.
+      expect(toolRecord({ ...base, productLine: 'viper-mini' }).productLine).toBe('viper-mini')
+    })
+
+    it('refuses the empty string', () => {
+      // `''` is the one state a consumer cannot tell from a name, which is the
+      // whole reason the field is nullable rather than a string. It is the
+      // same argument `UNSPECIFIED` makes one field along.
+      expect(() => toolRecord({ ...base, productLine: '' })).toThrow(ScraperConfigError)
+      expect(() => toolRecord({ ...base, productLine: '' })).toThrow(/productLine/)
+    })
+  })
+
   it('mints the guid itself, in the record’s own brand namespace', () => {
     // Not an adapter's input: three copies of `recordGuid(brand, material)`
     // would be three places to drift on the join key every downstream consumer

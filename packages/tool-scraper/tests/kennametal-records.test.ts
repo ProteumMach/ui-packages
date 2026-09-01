@@ -19,7 +19,12 @@ import { VendorResponseError } from '../src/errors.js'
 import type { BoundFamily, FamilyFacts } from '../src/family.js'
 import { checkColumnMap, UNSPECIFIED, type ToolKind } from '../src/records.js'
 import type { ScrapedRow } from '../src/scrape.js'
-import { drillRecord, endmillRecord, tapRecord } from '../src/vendors/kennametal/records.js'
+import {
+  PRODUCT_LINE_COLUMN,
+  drillRecord,
+  endmillRecord,
+  tapRecord,
+} from '../src/vendors/kennametal/records.js'
 
 /** A bound family, with only the facts a given mapper actually reads. */
 function family(
@@ -357,6 +362,44 @@ describe('an end mill', () => {
     expect(() => endmillRecord({ ...row, Z: '' }, cfg, cfg.columns)).toThrow(
       /no integer in column "Z"/,
     )
+  })
+})
+
+describe('the product line', () => {
+  const cfg = family('drill', DRILL_LABELS, {
+    unit: 'millimeters',
+    bmc: 'carbide',
+    coolantThrough: true,
+    nonFerrous: false,
+    flutes: 2,
+    pointAngle: 140,
+  })
+
+  const row: ScrapedRow = {
+    'Material Number': '4151623',
+    'ISO Catalog Number': 'B041A01000CPG',
+    D1_mm: '10',
+    D_mm: '10',
+    L_mm: '89',
+    L3_mm: '47',
+  }
+
+  it('is the leading segment the family page states', () => {
+    // The variants table names no line anywhere; the column is a tag
+    // `scrape.scrapeFamily` writes from the family page's own `h1`.
+    const record = drillRecord({ ...row, [PRODUCT_LINE_COLUMN]: 'GOdrill™' }, cfg, cfg.columns)
+
+    expect(record.productLine).toBe('GOdrill™')
+  })
+
+  // A CSV scraped before the option existed has no such column, and a family
+  // page with no heading writes none. Both are rows that are otherwise
+  // complete — `null` is the answer, never `''`.
+  it('is null where the CSV carries no such column', () => {
+    expect(drillRecord(row, cfg, cfg.columns).productLine).toBeNull()
+    expect(
+      drillRecord({ ...row, [PRODUCT_LINE_COLUMN]: '' }, cfg, cfg.columns).productLine,
+    ).toBeNull()
   })
 })
 

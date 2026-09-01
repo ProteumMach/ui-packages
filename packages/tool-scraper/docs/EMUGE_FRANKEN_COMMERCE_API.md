@@ -92,8 +92,10 @@ A *klammer* product is EMUGE's grouping — `H301025`, "Solid Carbide End Mill
 TOP-Cut VAR". The response carries `pagination.totalPages` and a `products`
 list; each product has `code`, `articleCode`, `name`, `numberOfMaterials`,
 `productListInfo` (one plain-text sentence, the vendor's own description) and a
-flat `technicalDetails` list of `{ property, value }` pairs — the product line,
-the category, the version, the coating, the cutting material. **No dimensions.**
+flat `technicalDetails` list of `{ property, value }` pairs — the category, the
+version, the coating, the cutting material, and on a drill or a tap the
+`Geometry`. **No dimensions**, and on a milling group **no `product line`**:
+that property is published per part, on the detail record below. See §4a.
 
 The response also carries the whole facet index, which is where the closed
 vocabularies in `vendors/emuge/records.ts` came from.
@@ -139,6 +141,7 @@ call that carries:
 | `number of flutes Z` | end mills |
 | `point angle` | drills |
 | `thread symbol`, `pitch [mm]`, `threads per inch`, `nominal size` | taps |
+| `product line` | end mills — see §4a |
 | `applicationMaterials` | all — the vendor's own ISO 513 P/M/K/N/S/H rating |
 
 which is why a scrape is three calls and not two. The grouped product's own
@@ -164,6 +167,49 @@ need none — every drill and every tap is published in millimetres.
 Roughly 1,700 requests cover the three cutting-tool categories: the group
 listings, one variant call per group, and `ceil(variants / 30)` detail calls.
 At the package's 400 ms pacing that is about twelve minutes.
+
+## 4a. The product line, and the facet that partitions each category
+
+Every category is partitioned **exactly** by one of the vendor's own facets,
+checked at group level on 2026-09-01 rather than by summing counts:
+
+| Category | Facet code           | Facet name     | Values | Groups covered | In two values |
+| -------- | -------------------- | -------------- | ------ | -------------- | ------------- |
+| `FF01`   | `AMM_PROG_LINIE`     | `product line` | 15     | 554 of 554     | 2             |
+| `FB01`   | `HYB_BAM_SB_GT`      | `Geometry`     | 4      | 17 of 17       | 0             |
+| `FG01`   | `HYB_BAM_SB_GT`      | `Geometry`     | 17     | 414 of 414     | 0             |
+
+All three reach the CSV without a request being added: `Geometry` is on the
+grouped product's `technicalDetails` and `product line` on the per-part detail
+record. `vendors/emuge/records.ts` reads them into
+`records.ToolRecord.productLine`.
+
+The two milling groups in two values — `H300024` and `H300025`, each holding
+both `FRANKEN TiNox-Cut` and `FRANKEN TiNox-Cut VAR` variants — cost nothing,
+because the milling column is read per part.
+
+**The marketing pages are the other answer, and they were not taken.** The US
+storefront publishes 43 product-family article pages, each one a name and a
+facet query — `/us/en/multi-drill/a/MultiDRILL` is `FB01` narrowed by
+`HYB_BAM_SB_GT_25`, `/us/en/cut-form---polishing-end-mill/…` is `FF01` narrowed
+by `AMM_PROG_LINIE_EXP` **and** `HYB_AMM_FR_WZT_W`. They are discoverable from
+the `CONTENT-US-en` sitemap, and each page's "… Products" teaser blob carries
+the family name beside the query. What rules them out as *the* product line is
+that they overlap: a tap is at once "Rekord B-Z Taps", "Enorm Z Taps" and "Left
+Hand Taps", and `SteelDrill` and `EF / CARBIDE DRILLS` resolve to the identical
+eight groups. Coverage is also short — 492 of 554 milling groups and 374 of 414
+tapping ones. Choosing between overlapping pages would be this package
+inventing a rule the vendor never stated.
+
+What they are still good for is *naming*: `vendors/emuge/records.ts`'s
+`PRODUCT_LINES` maps a drilling or tapping geometry code onto the title of the
+vendor's own article page for it, because `MULTI` and `Z` name nothing EMUGE
+sells. Milling needs no such table — its facet values are already the marketing
+names.
+
+Point 8 below is wrong about the MultiTAP link, and this is where it was found:
+`HYB_BAM_SB_GT_25` is `MULTI` in `FG01` as well as in `FB01`, so the button
+links to MultiTAP's own 369 tap variants and not to MultiDRILL's.
 
 ## 5. What the vendor gets wrong
 

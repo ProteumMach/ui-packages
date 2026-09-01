@@ -473,6 +473,27 @@ describe('a record', () => {
     flutes: '4',
   }
 
+  // `series` has been scraped since the adapter was written and read by
+  // nothing until now. The description cannot stand in for it: Raptor calls
+  // itself `DVH` there and DiamondBack calls itself `DBACK RGHR`, so parsing
+  // the prose would not recover the line.
+  it('takes the product line from the vendor’s own series column', () => {
+    expect(endmillRecord({ ...row, series: 'Viper' }, cfg, cfg.columns).productLine).toBe('Viper')
+  })
+
+  // The vendor really does ship these two in lower case beside `Viper` and
+  // `Raptor`. Case-folding here would be this package authoring its catalog.
+  it('keeps the vendor’s own casing', () => {
+    expect(endmillRecord({ ...row, series: 'viper-mini' }, cfg, cfg.columns).productLine).toBe(
+      'viper-mini',
+    )
+  })
+
+  it('is null where the column is absent or empty, never an empty name', () => {
+    expect(endmillRecord(row, cfg, cfg.columns).productLine).toBeNull()
+    expect(endmillRecord({ ...row, series: '  ' }, cfg, cfg.columns).productLine).toBeNull()
+  })
+
   it('names the vendor as the catalog does, not by the brand key', () => {
     // `record.vendor` is what a consumer groups a merged catalog by, so it
     // carries the name `identity.ts` publishes — 'Kennametal', 'WIDIA',

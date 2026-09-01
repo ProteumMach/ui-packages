@@ -8,7 +8,9 @@
  * coating and the coolant supply **per part**, in columns, and a scraped column
  * beats a family constant. Splitting by product line would turn four counted
  * row totals into thirty and buy nothing a `product line` column does not
- * already carry.
+ * already carry — and it is carried: `vendors/emuge/records.ts`'s
+ * `PRODUCT_LINE_COLUMNS` reads one per part onto `ToolRecord.productLine`, from
+ * a column every scrape already writes.
  *
  * So the only fact three of these four state is `unit`, and the fourth adds the
  * two a drill record cannot be built without.

@@ -397,6 +397,37 @@ export interface ToolRecord {
    * consumer that needs a per-part string has `catalogNumber`.
    */
   readonly description: string
+  /**
+   * The vendor's own name for the product line this part belongs to —
+   * `FRANKEN TOP-Cut`, `MultiDRILL`, `KenCut™ FF`, `Viper` — or `null` where
+   * the vendor names none.
+   *
+   * **Null is the vendor's silence, not an empty name**, the same three-state
+   * reasoning {@link ToolRecord.materialGroups} makes with {@link UNSPECIFIED}
+   * and for the same reason: a consumer faceting a catalog by product line has
+   * to be able to tell "EMUGE calls this Alu-Cut" from "nobody has decided what
+   * Harvey's line is called", and `''` collapses the two.
+   *
+   * **Verbatim, and never inferred** — the {@link ToolRecord.coating} rule.
+   * EMUGE's own index says `FRANKEN Expert` for the eight end mills its
+   * marketing calls "Cut & Form", and Destiny Tool ships `viper-mini` and
+   * `python` beside `Viper` and `Raptor`; case-folding either here would be
+   * this package authoring a vendor's catalog. The one thing an adapter may do
+   * is map a vendor's *code* onto that same vendor's *own* published name for
+   * it — see `vendors/emuge/records.ts`'s `PRODUCT_LINES`, where both sides of
+   * every entry are EMUGE's and the article page each name came from is cited.
+   *
+   * **Where it comes from is a fact about the vendor's data, not a convention.**
+   * Three sources are in use and each is the only one its vendor offers: a
+   * scraped column read per part (EMUGE, Destiny Tool), a page title fetched
+   * per family (Kennametal, WIDIA), and nothing at all (Harvey Tool, whose
+   * product-line title is already this record's `description` — a second copy
+   * of one string is the thing that field's own docstring refuses).
+   *
+   * **Never a copy of another field on this record**, for the reason
+   * {@link ToolRecord.description} states it.
+   */
+  readonly productLine: string | null
   readonly kind: ToolKind
   readonly unit: UnitSystem
   readonly substrate: string
@@ -462,11 +493,29 @@ export interface ToolRecord {
  * across the seam this type exists to draw.
  */
 export function toolRecord(
-  fields: Omit<ToolRecord, 'guid' | 'materialGroups' | 'materialGroupsSource' | 'nonFerrous'> &
-    Partial<Pick<ToolRecord, 'materialGroups' | 'materialGroupsSource' | 'nonFerrous'>>,
+  fields: Omit<
+    ToolRecord,
+    'guid' | 'materialGroups' | 'materialGroupsSource' | 'nonFerrous' | 'productLine'
+  > &
+    Partial<
+      Pick<ToolRecord, 'materialGroups' | 'materialGroupsSource' | 'nonFerrous' | 'productLine'>
+    >,
 ): ToolRecord {
   const groups = fields.materialGroups ?? null
   const source = fields.materialGroupsSource ?? UNSPECIFIED
+  // An adapter that has nothing to say about the product line says nothing;
+  // `''` would be a name and there is no nameless line. Optional here and
+  // required on the type for the reason stated above — a consumer reading a
+  // record never handles `undefined`.
+  const line = fields.productLine ?? null
+
+  if (line === '') {
+    throw new ScraperConfigError(
+      fields.materialNumber,
+      `productLine is the empty string — a vendor that names no product line ` +
+        `is null, which is the state a consumer can tell from a name`,
+    )
+  }
 
   // The invariant is what keeps the three states three: groups labelled
   // `unspecified` are groups nobody stated, and an attributed source with no
@@ -490,6 +539,7 @@ export function toolRecord(
     materialGroups: groups === null ? null : Object.freeze([...groups]),
     materialGroupsSource: source,
     nonFerrous: fields.nonFerrous ?? null,
+    productLine: line,
   })
 }
 
