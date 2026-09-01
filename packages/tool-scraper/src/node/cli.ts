@@ -7,6 +7,7 @@
  * toolpath-scrape destinytool     Firestore products -> End Mill CSV
  * toolpath-scrape harvey          one product page -> CSV
  * toolpath-scrape maritool        leaf categories -> toolholding CSV
+ * toolpath-scrape emuge           one catalog category -> CSV
  * toolpath-scrape thread-pitch    add the derived Thread Pitch column
  * toolpath-scrape cad             add the vendor CAD model column
  * toolpath-scrape materials       add the ISO workpiece-group column
@@ -57,6 +58,8 @@ import {
   leavesOf,
 } from '../vendors/maritool/catalog.js'
 import { scrapeHolders as scrapeMaritoolHolders } from '../vendors/maritool/scrape.js'
+import { SCRAPE_TARGETS as EMUGE_TARGETS } from '../families/emuge.js'
+import { scrapeCategory } from '../vendors/emuge/scrape.js'
 
 /**
  * The PG series a BT 30 holder can take. PG 32 and PG 48 collets exist and no
@@ -106,6 +109,13 @@ const USAGE = `usage: toolpath-scrape <command> [args]
       Walks the five MariTool taper trees and prints every category it finds,
       one per line, with its product count. For rechecking the leaf cPaths in
       \`families/maritool.ts\` — a scrape needs none of it.
+
+  emuge FAMILY.csv [more.csv ...]
+      One EMUGE-FRANKEN catalog category -> a CSV. The category, the facet
+      narrowing it and the unit system all come from the family's own config,
+      so none of them is typed again. One request per page of grouped
+      products, one per group for its orderable parts, and one per 30 parts
+      for the fields only a per-part record carries.
 
   thread-pitch TAP.csv [more.csv ...]
       Adds a Thread Pitch column derived from D1-TDZ, in place. Safe to re-run.
@@ -225,6 +235,8 @@ export async function run(
       return harvey(rest, io, fetcher)
     case 'maritool':
       return maritool(rest, io, fetcher)
+    case 'emuge':
+      return emuge(rest, io, fetcher)
     case 'thread-pitch':
       return threadPitch(rest, io)
     case 'cad':
@@ -403,6 +415,40 @@ async function maritool(argv: string[], io: Console_, fetcher: Fetcher): Promise
     // brand's directory may not exist yet.
     mkdirSync(dirname(out), { recursive: true })
     wrote(out, 'maritool', scrape, io)
+  }
+  return 0
+}
+
+/**
+ * One or more EMUGE-FRANKEN families.
+ *
+ * The scrape paces itself between every request it makes, so — as with
+ * `maritool` and unlike `harvey` — there is nothing to pace between families
+ * here.
+ */
+async function emuge(argv: string[], io: Console_, fetcher: Fetcher): Promise<number> {
+  if (argv.length === 0) {
+    io.error(USAGE)
+    return 2
+  }
+
+  for (const name of namesIn(argv, EMUGE_TARGETS, 'EMUGE-FRANKEN family')) {
+    const cfg = boundFamily(name)
+    // Never undefined: `namesIn` refused anything `EMUGE_TARGETS` does not key,
+    // and `tests/emuge-families.test.ts` holds the two tables to the same keys.
+    const target = EMUGE_TARGETS[name as keyof typeof EMUGE_TARGETS]
+    if (cfg.unit === undefined) {
+      throw new ScraperConfigError(
+        name,
+        'declares no unit — every EMUGE-FRANKEN family publishes one',
+      )
+    }
+    const scrape = await scrapeCategory(fetcher, target, { unit: cfg.unit, warn: io.error })
+    const out = familyCsv(name)
+    // This command resolves its own output path rather than taking one, so the
+    // brand's directory may not exist yet.
+    mkdirSync(dirname(out), { recursive: true })
+    wrote(out, 'emuge', scrape, io)
   }
   return 0
 }

@@ -33,6 +33,7 @@
 import { ScraperConfigError } from '../errors.js'
 import type { FamilyDefinition, ToolholdingDefinition } from '../family.js'
 import { FAMILIES as DESTINYTOOL } from './destinytool.js'
+import { FAMILIES as EMUGE } from './emuge.js'
 import { FAMILIES as HARVEY } from './harvey.js'
 import { HOLDER_FAMILIES as MARITOOL_HOLDERS } from './maritool.js'
 import {
@@ -74,6 +75,7 @@ export const FAMILIES: Record<string, FamilyDefinition> = merge<FamilyDefinition
   KENNAMETAL,
   DESTINYTOOL,
   HARVEY,
+  EMUGE,
 )
 
 /**

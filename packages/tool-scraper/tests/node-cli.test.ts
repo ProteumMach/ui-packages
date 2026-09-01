@@ -54,6 +54,7 @@ describe('every command states where scraped data lands', () => {
     ['regofix'],
     ['destinytool'],
     ['harvey'],
+    ['emuge'],
     ['thread-pitch'],
     ['cad'],
     ['materials'],
@@ -633,5 +634,83 @@ describe('unknown input', () => {
     expect(await run(['convert'], io, noNetwork)).toBe(2)
     expect(err.join('\n')).toContain('unknown command "convert"')
     expect(err.join('\n')).toContain('usage: toolpath-scrape')
+  })
+})
+
+describe('the emuge command', () => {
+  const NAME = 'emuge_drills.csv'
+  const GROUP = {
+    code: 'H109070',
+    productListInfo: 'Solid carbide twist drill, 5xD.',
+    technicalDetails: [{ property: 'Specification', value: 'Twist drill' }],
+  }
+  const VARIANT = {
+    code: '000000000010727835',
+    articleCode: 'TA219744.0300',
+    dimensionFeatureValue: 'd1=3,0',
+    mainDrawing: {
+      technicalDetails: [
+        { property: 'nominal diameter d₁ [mm]', value: '3 mm' },
+        { property: 'Shank diameter d₂', value: '6 mm' },
+        { property: 'Overall length l₁', value: '66 mm' },
+        { property: 'Flute length l₂', value: '28 mm' },
+      ],
+    },
+  }
+  const DETAIL = {
+    code: VARIANT.code,
+    technicalDetails: [
+      { property: 'point angle', value: '140 deg' },
+      { property: 'Coolant supply', value: 'internal coolant supply' },
+      { property: 'Cutting material', value: 'carbide' },
+      { property: 'Coating', value: 'TIALN-T63' },
+    ],
+    applicationMaterials: [{ code: 'P' }, { code: 'M' }],
+  }
+
+  /** The vendor's three calls, answered from the fixtures above. */
+  const serving = () =>
+    asFetcher({
+      json: (url: string) => {
+        const params = new URL(url).searchParams
+        if (params.get('productCodes') !== null) return Promise.resolve([DETAIL])
+        if (params.get('searchQueryContext') === 'KLAMMER_GROUPING') {
+          return Promise.resolve({ pagination: { totalPages: 1 }, products: [GROUP] })
+        }
+        return Promise.resolve({ pagination: { totalPages: 1 }, products: [VARIANT] })
+      },
+    })
+
+  it('writes the CSV and its receipt, then refuses the count it wrote', async () => {
+    // The category, the facet and the unit all come from the family's config,
+    // so none is typed again. One row against a family that declares 2,670 is
+    // the point of the second number: `receipts.checkRows` refuses it, and the
+    // CSV and the receipt are already on disk when it does — a scrape that
+    // reported a count and wrote no receipt is the state this package exists to
+    // stop.
+    const { io, all } = recorder()
+
+    await expect(run(['emuge', NAME], io, serving())).rejects.toThrow(/declares 2670/)
+
+    const written = readFileSync(familyCsv(NAME), 'utf8')
+    expect(written).toContain('Material Number')
+    expect(written).toContain('ISO Catalog Number')
+    expect(written).toContain('Overall length l₁_mm')
+    expect(written).toContain('point angle')
+    expect(all()).toContain('wrote 1 rows')
+    expect(() => checkIdentityColumns('emuge', parseCsv(written).header)).not.toThrow()
+    expect(receipts.read(familyCsv(NAME))).toMatchObject({
+      brand: 'emuge',
+      familyCode: 'FB01',
+      rows: 1,
+    })
+  })
+
+  it('refuses a CSV name no EMUGE-FRANKEN family claims', async () => {
+    const { io } = recorder()
+
+    await expect(run(['emuge', 'not_a_family.csv'], io, noNetwork)).rejects.toThrow(
+      /EMUGE-FRANKEN family/,
+    )
   })
 })

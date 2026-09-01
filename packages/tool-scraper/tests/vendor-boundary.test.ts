@@ -80,11 +80,12 @@ const COMPOSITION_ROOTS = ['registry.ts', 'node/cli.ts']
  */
 const SHARED_BY_CONTRACT = new Map([
   // The `RecordMappers` contract: `registry` looks these up by brand and kind.
-  // `drillRecord` and `tapRecord` are deliberately absent — only Kennametal
-  // ships either today, and an allowlist entry nobody needs is one nobody
-  // checks. The second vendor to publish a drill adds it back, with a reason.
+  // EMUGE-FRANKEN is the second vendor to publish a drill and a tap, so the two
+  // entries this list said the second vendor would add back are here.
   ['RECORD_MAPPERS', 'the mapper table every cutting-tool adapter exports'],
   ['endmillRecord', 'the end mill half of that contract'],
+  ['drillRecord', 'the drill half of it, which two vendors now publish'],
+  ['tapRecord', 'the tap half — same contract, two unrelated tap vocabularies'],
   // Each vendor's own transport, one name per shape of scrape.
   ['BASE', "the vendor's own origin — different string, same job"],
   ['CATEGORY_ROOTS', 'where a vendor’s catalog walk starts; a different tree each'],

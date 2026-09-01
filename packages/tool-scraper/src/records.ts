@@ -248,9 +248,17 @@ export const DIMENSIONAL_COLUMNS: ReadonlySet<GeometryName> = new Set(
  * a key in `sometimes` may be missing and its absence is the vendor's silence;
  * a key in neither list is not part of that kind's record at all.
  *
- * The one `sometimes` entry today is the end mill's flute count, for Harvey's
- * two deburring families — they publish right- and left-hand tooth counts and
- * no flute count, so there is nothing to read and 0 is not a substitute.
+ * Both `sometimes` entries today are a flute count nobody publishes:
+ *
+ * - the **end mill's**, for Harvey's two deburring families — they publish
+ *   right- and left-hand tooth counts and no flute count, so there is nothing
+ *   to read and 0 is not a substitute;
+ * - the **tap's**, for EMUGE-FRANKEN, which states no flute count anywhere a
+ *   scrape can reach — not on the grouped product, the variant listing, the
+ *   per-part detail record or any facet — while its own tap families run 2, 3
+ *   and 4 flutes across their size range, so no per-family constant could be
+ *   true of every row. Kennametal's taps publish a `Z` column and keep filling
+ *   it: `sometimes` permits the key, it does not forbid it.
  */
 export const RECORD_GEOMETRY: Record<
   ToolKind,
@@ -261,8 +269,8 @@ export const RECORD_GEOMETRY: Record<
     sometimes: [],
   },
   tap: {
-    always: ['DC', 'TP', 'SFDM', 'OAL', 'LCF', 'NOF'],
-    sometimes: [],
+    always: ['DC', 'TP', 'SFDM', 'OAL', 'LCF'],
+    sometimes: ['NOF'],
   },
   endmill: {
     always: ['DC', 'RE', 'SFDM', 'OAL', 'LCF', 'shoulder-length', 'shoulder-diameter'],

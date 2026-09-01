@@ -124,6 +124,22 @@ export const BRANDS = {
     vendor: 'MariTool',
     productLink: 'https://www.maritool.com/advanced_search_result.php?keywords={material}',
   },
+  // EMUGE-FRANKEN is a SAP Commerce storefront whose pages carry no product
+  // data at all — the Vue front end reads a JSON API, and that API is what the
+  // adapter talks to. See `docs/EMUGE_FRANKEN_COMMERCE_API.md`.
+  //
+  // The per-part link is the vendor's own: every variant record answers with
+  // `url: "/us/en/p/<18-digit material number>"`, so this is that page rather
+  // than a search standing in for one. `www.emuge-franken-group.com` is the
+  // group site serving every region; `/us/en/` is the US storefront the
+  // `emugefrankenUSA` base site the scrape reads corresponds to, so the link
+  // and the data are the same catalog (JG 2026-09-01).
+  emuge: {
+    host: 'www.emuge-franken-group.com',
+    home: 'https://www.emuge-franken-group.com',
+    vendor: 'EMUGE-FRANKEN',
+    productLink: 'https://www.emuge-franken-group.com/us/en/p/{material}',
+  },
 } as const satisfies Record<string, Brand>
 
 /**

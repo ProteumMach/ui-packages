@@ -40,6 +40,7 @@ import { checkFact, type Fact } from './provenance.js'
 import { checkColumnMap, checkColumnsExist, type ToolRecord } from './records.js'
 import type { MapperOptions, ScrapeResult } from './scrape.js'
 import { RECORD_MAPPERS as DESTINYTOOL } from './vendors/destinytool/records.js'
+import { RECORD_MAPPERS as EMUGE } from './vendors/emuge/records.js'
 import { RECORD_MAPPERS as HARVEY } from './vendors/harvey/records.js'
 import { RECORD_MAPPERS as KENNAMETAL } from './vendors/kennametal/records.js'
 
@@ -57,6 +58,7 @@ export const ADAPTERS: Record<string, RecordMappers> = {
   widia: KENNAMETAL,
   destinytool: DESTINYTOOL,
   harvey: HARVEY,
+  emuge: EMUGE,
 }
 
 /**
