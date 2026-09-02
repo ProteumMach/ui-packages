@@ -14,7 +14,10 @@
  *   article code, per part, so there is no `conventions.IDENTITY_DEVIATIONS`
  *   entry — the first vendor since Kennametal that needs none.
  * - **A point angle, per drill.** Kennametal's drill families assume theirs; the
- *   detail record states it, so `SIG` is a mapped column here and no fact.
+ *   detail record states it, so `SIG` is a mapped column here and no fact. On
+ *   all but one part: 2,669 of 2,670 drill variants state one and the last
+ *   leaves the cell empty, which is why `records.RECORD_GEOMETRY.drill` lists
+ *   `SIG` under `sometimes`.
  * - **A per-part ISO 513 index.** `applicationMaterials` returns the vendor's
  *   own P/M/K/N/S/H rating for each part, which fills `materialGroups` as
  *   `vendor-stated`.
@@ -150,6 +153,128 @@ export const SUBSTRATES: Readonly<Record<string, string>> = {
 }
 
 /**
+ * The column each EMUGE-FRANKEN category states its product line in, keyed by
+ * the vendor's own category code.
+ *
+ * **One column per category, and each is a facet that partitions its category
+ * exactly.** Checked against the vendor's own index on 2026-09-01, at group
+ * level rather than by summing counts:
+ *
+ * | Category | Facet                | Values | Groups it covers | Groups in two values |
+ * | -------- | -------------------- | ------ | ---------------- | -------------------- |
+ * | `FF01`   | `AMM_PROG_LINIE`     | 15     | 554 of 554       | 2                    |
+ * | `FB01`   | `HYB_BAM_SB_GT`      | 4      | 17 of 17         | 0                    |
+ * | `FG01`   | `HYB_BAM_SB_GT`      | 17     | 414 of 414       | 0                    |
+ *
+ * That is what makes a product line here a **read and not an arbitration**.
+ * EMUGE's marketing publishes 43 overlapping product-family pages — a tap is
+ * simultaneously "Rekord B-Z Taps", "Enorm Z Taps" and "Left Hand Taps" — and
+ * choosing between those would be this package inventing a rule the vendor
+ * never stated. The facets above are the vendor's own partition of the same
+ * catalog, so there is nothing to choose.
+ *
+ * **The two milling groups that fall in two values cost nothing**, because the
+ * milling column is read per part: `H300024` and `H300025` each hold both
+ * `FRANKEN TiNox-Cut` and `FRANKEN TiNox-Cut VAR` variants, and the per-part
+ * detail record states which is which. A rule that tagged a whole group would
+ * have had to pick.
+ *
+ * **No request is added for any of this.** `Geometry` is on the grouped product
+ * and `product line` on the per-part detail, so `scrape.ts` already writes both
+ * into every row — see its three-call note.
+ */
+export const PRODUCT_LINE_COLUMNS: Readonly<Record<string, string>> = {
+  FF01: 'product line',
+  FB01: 'Geometry',
+  FG01: 'Geometry',
+}
+
+/**
+ * A category's product-line codes onto the vendor's own name for each.
+ *
+ * **Both sides are EMUGE's.** The key is the value its `HYB_BAM_SB_GT` facet
+ * publishes and the name is the title of the vendor's own product-family
+ * article page for it, read on 2026-09-01 and cited per entry. Nothing here is
+ * this package's wording, which is the whole condition on a table like this —
+ * the same rule {@link SUBSTRATES} keeps, one level less strict because that
+ * one maps onto a vocabulary this package owns and this one does not.
+ *
+ * **A category whose facet already names the line has no entry.** `FF01`'s
+ * values are `FRANKEN TOP-Cut`, `FRANKEN Hard-Cut`, `FRANKEN Alu-Cut` — the
+ * vendor's marketing names already — so milling passes through verbatim and
+ * appears nowhere below. Drilling and tapping index by a geometry code
+ * (`MULTI`, `Z`, `VA`) that matches nothing EMUGE sells under that name, which
+ * is the only reason this table exists.
+ *
+ * **A code with no article page keeps the code**, and that is a gap in the
+ * vendor's marketing rather than a hole here: `SPEED`, `FK`, `GAL`, `GG` and
+ * `TILEG` are real lines with no `/a/` page on the US storefront, so the
+ * honest answer is the vendor's own code until one appears.
+ */
+export const PRODUCT_LINES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  // `/us/en/multi-drill/a/MultiDRILL`, `/us/en/steeldrill/a/SteelDrill`,
+  // `/us/en/inox/a/Inox`, and
+  // `/us/en/ef-va---carbide-drills---stainless-steel-titanium-alloys`.
+  //
+  // `STEEL` has two article pages — "SteelDrill" and "EF / CARBIDE DRILLS" —
+  // that resolve to the identical 8 groups. `SteelDrill` is the one the
+  // vendor's own part names use (`SteelDrill SD102-5xD-HA`), which is the
+  // tiebreak: a part that calls itself one of the two is evidence and a
+  // preference between two pages is not.
+  FB01: {
+    MULTI: 'MultiDRILL',
+    STEEL: 'SteelDrill',
+    INOX: 'Inox',
+    VA: 'EF-VA / CARBIDE DRILLS',
+  },
+  // One article page each, all under `/us/en/<slug>/a/<name>`: multitap,
+  // va-taps, ti-taps, ni-taps, aero-taps, rekord-b-z-taps, a-h-taps, al-taps,
+  // a-gjv-taps, a-hcut-taps, steel-taps.
+  //
+  // `FK`, `GAL`, `GG`, `SPEED` and `TILEG` are absent on purpose — see above.
+  FG01: {
+    MULTI: 'MultiTAP™',
+    VA: 'VA Taps',
+    TI: 'TI-Taps',
+    NI: 'Ni Taps',
+    AERO: 'AERO Taps',
+    Z: 'Rekord B-Z Taps',
+    H: 'A-H Taps',
+    AL: 'Al Taps',
+    GJV: 'A-GJV Taps',
+    HCUT: 'A-HCUT Taps',
+    STEEL: 'Steel Taps',
+  },
+}
+
+/**
+ * The product line this row states, or null where the vendor states none.
+ *
+ * Three answers and they are different things. A family whose category has no
+ * entry in {@link PRODUCT_LINE_COLUMNS} is a category this adapter has not
+ * looked at, and it answers null rather than guessing at which of the row's
+ * columns is the line. A column the vendor left empty is null too — the same
+ * silence `angle` treats as an omission rather than a fault. A *value* is
+ * mapped through {@link PRODUCT_LINES} where its category has a table and
+ * passed through verbatim where it does not, which is the milling case.
+ *
+ * It does not throw on an unknown code, and that is the difference between
+ * this and `substrate`: a cutting material this package cannot map would put a
+ * wrong word in `ToolRecord.substrate`, where an unmapped product-line code is
+ * the vendor's own code and readable as one. A new EMUGE geometry showing up
+ * as `SPEED` is a name to improve, not a record to refuse.
+ */
+export function productLine(row: ScrapedRow, family: BoundFamily): string | null {
+  const column = PRODUCT_LINE_COLUMNS[family.familyCode ?? '']
+  if (column === undefined) return null
+
+  const stated = (row[column] ?? '').trim()
+  if (stated === '') return null
+
+  return PRODUCT_LINES[family.familyCode ?? '']?.[stated] ?? stated
+}
+
+/**
  * The flute count EMUGE publishes where it has none: 64 end mill variants, on
  * 2026-09-01. A sentinel and not a number, so it is refused rather than read.
  */
@@ -165,19 +290,57 @@ export const NO_FLUTE_COUNT = 999
 const { cell, required, optional } = columnReaders(measureIn)
 
 /**
- * An angle in degrees — the drill's point angle.
+ * An angle in degrees — the drill's point angle — or null where the vendor
+ * left the cell empty.
  *
  * Read through {@link parseMeasure} rather than {@link measureIn}, which
  * refuses degrees on purpose: a length column stating an angle is a property
  * that has moved. Here degrees are what the column is for.
+ *
+ * **An empty cell and an unreadable one are different answers**, the same
+ * split {@link coolantThrough} makes one level down. EMUGE fills this column
+ * on 2,669 of its 2,670 drill variants and leaves it blank on one, so a blank
+ * is the vendor publishing nothing and the row is still a part somebody can
+ * order — `records.RECORD_GEOMETRY.drill` lists `SIG` under `sometimes` for
+ * it. A cell holding a *value* this cannot read is the other case: a length
+ * where an angle belongs is the property having moved, a range has no single
+ * reading, and either one is refused rather than dropped quietly.
+ *
+ * A column the family maps to nothing refuses too, and is a third thing again
+ * — this adapter's drill family maps `point angle`, so its absence is that map
+ * having changed rather than anything the vendor did.
+ * `records.REQUIRED_GEOMETRY` cannot catch it: `SIG` is not listed under its
+ * `drill` entry, because Kennametal's drills supply theirs as a fact and map
+ * no column at all.
  */
-function angle(row: ScrapedRow, columns: ColumnMap, unit: UnitSystem, what: string): number {
+function angle(
+  row: ScrapedRow,
+  columns: ColumnMap,
+  unit: UnitSystem,
+  what: string,
+  warn: Warn,
+): number | null {
   const raw = cell(row, columns, 'SIG', unit)
-  const { value, stated } = parseMeasure(raw ?? '')
+  if (raw === undefined) {
+    throw new VendorResponseError(
+      what,
+      `is a drill whose family maps no point angle column — EMUGE states one ` +
+        `per part and this adapter reads it, so a map without it is a regression`,
+    )
+  }
+
+  if (raw.trim() === '') {
+    warn(`  WARNING: ${what}: the vendor publishes no point angle — omitted`)
+    return null
+  }
+
+  const { value, stated } = parseMeasure(raw)
   if (value === null || stated === 'inches' || stated === 'millimeters') {
     throw new VendorResponseError(
       what,
-      `publishes no point angle — its cell is ${JSON.stringify(raw ?? '')}`,
+      `states a point angle of ${JSON.stringify(raw)}, which is not an angle — ` +
+        `an empty cell is the vendor's silence and is omitted, but a value ` +
+        `this cannot read is a property that has moved`,
     )
   }
   return value
@@ -293,6 +456,7 @@ function common(
   | 'coolantThrough'
   | 'materialGroups'
   | 'materialGroupsSource'
+  | 'productLine'
 > {
   return {
     brand: familyBrand(family),
@@ -300,6 +464,7 @@ function common(
     materialNumber: what,
     catalogNumber: row[CATALOG_NUMBER_COLUMN] ?? '',
     description: row[DESCRIPTION_COLUMN] ?? '',
+    productLine: productLine(row, family),
     substrate: substrate(row, what),
     coating: coating(row),
     coolantThrough: coolantThrough(row, what, warn),
@@ -370,8 +535,10 @@ export function endmillRecord(
  * `SIG` is a **mapped column**, which no other drill family in this package
  * manages: the per-part detail record states the point angle outright, so
  * nothing here is derived from a point length or assumed from a product line.
- * `NOF` is the one thing that is a fact, and `nonFerrous` with it — neither has
- * a default anywhere, by design.
+ * It is also the one geometry key this record may not carry — one variant's
+ * cell is empty, and {@link angle} says what that costs. `NOF` is the one
+ * thing that is a fact, and `nonFerrous` with it — neither has a default
+ * anywhere, by design.
  */
 export function drillRecord(
   row: ScrapedRow,
@@ -384,19 +551,23 @@ export function drillRecord(
   const unit = fact(family, 'unit', family.unit)
   const what = partNumber(row, family)
 
+  const geometry: Partial<Record<GeometryName, number>> = {
+    DC: required(row, columns, 'DC', unit, what, opts),
+    SFDM: required(row, columns, 'SFDM', unit, what, opts),
+    OAL: required(row, columns, 'OAL', unit, what, opts),
+    LCF: required(row, columns, 'LCF', unit, what, opts),
+    NOF: fact(family, 'flutes', family.flutes),
+  }
+
+  const pointAngle = angle(row, columns, unit, what, warn)
+  if (pointAngle !== null) geometry.SIG = pointAngle
+
   return toolRecord({
     ...common(row, family, what, warn),
     kind: 'drill',
     unit,
     nonFerrous: fact(family, 'nonFerrous', family.nonFerrous),
-    geometry: {
-      DC: required(row, columns, 'DC', unit, what, opts),
-      SFDM: required(row, columns, 'SFDM', unit, what, opts),
-      OAL: required(row, columns, 'OAL', unit, what, opts),
-      LCF: required(row, columns, 'LCF', unit, what, opts),
-      NOF: fact(family, 'flutes', family.flutes),
-      SIG: angle(row, columns, unit, what),
-    },
+    geometry,
   })
 }
 

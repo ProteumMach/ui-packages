@@ -248,25 +248,39 @@ export const DIMENSIONAL_COLUMNS: ReadonlySet<GeometryName> = new Set(
  * a key in `sometimes` may be missing and its absence is the vendor's silence;
  * a key in neither list is not part of that kind's record at all.
  *
- * Both `sometimes` entries today are a flute count nobody publishes:
+ * Every `sometimes` entry today is one vendor publishing nothing where another
+ * publishes a number. `sometimes` permits the key, it does not forbid it — the
+ * vendors that state these keep filling them.
  *
- * - the **end mill's**, for Harvey's two deburring families — they publish
- *   right- and left-hand tooth counts and no flute count, so there is nothing
- *   to read and 0 is not a substitute;
- * - the **tap's**, for EMUGE-FRANKEN, which states no flute count anywhere a
- *   scrape can reach — not on the grouped product, the variant listing, the
- *   per-part detail record or any facet — while its own tap families run 2, 3
- *   and 4 flutes across their size range, so no per-family constant could be
- *   true of every row. Kennametal's taps publish a `Z` column and keep filling
- *   it: `sometimes` permits the key, it does not forbid it.
+ * - the **end mill's `NOF`**, for Harvey's two deburring families — they
+ *   publish right- and left-hand tooth counts and no flute count, so there is
+ *   nothing to read and 0 is not a substitute;
+ * - the **tap's `NOF`**, for EMUGE-FRANKEN, which states no flute count
+ *   anywhere a scrape can reach — not on the grouped product, the variant
+ *   listing, the per-part detail record or any facet — while its own tap
+ *   families run 2, 3 and 4 flutes across their size range, so no per-family
+ *   constant could be true of every row. Kennametal's taps publish a `Z`
+ *   column and keep filling it;
+ * - the **drill's `SIG`**, for the one EMUGE-FRANKEN drill whose point-angle
+ *   cell is empty. This one is a hole in a column the vendor otherwise fills,
+ *   not a column it never had, and it is the reason the key had to move: the
+ *   EMUGE drill family reads `SIG` from a column rather than from a fact, so
+ *   a single blank cell refused the row, and `registry.toRecords` maps a
+ *   family's rows together — 2,669 drills were lost to the 2,670th. Every
+ *   Kennametal drill supplies `SIG` from a fact and none can be absent.
+ *
+ * A point angle is not a field to guess at. It sets the drill tip's length, so
+ * a CAM system that assumed 140 deg for a part ground at 118 would cut a hole
+ * to the wrong depth — an absence a consumer must check for is recoverable and
+ * a plausible wrong number is not.
  */
 export const RECORD_GEOMETRY: Record<
   ToolKind,
   { readonly always: readonly GeometryName[]; readonly sometimes: readonly GeometryName[] }
 > = {
   drill: {
-    always: ['DC', 'SFDM', 'OAL', 'LCF', 'NOF', 'SIG'],
-    sometimes: [],
+    always: ['DC', 'SFDM', 'OAL', 'LCF', 'NOF'],
+    sometimes: ['SIG'],
   },
   tap: {
     always: ['DC', 'TP', 'SFDM', 'OAL', 'LCF'],
@@ -383,6 +397,37 @@ export interface ToolRecord {
    * consumer that needs a per-part string has `catalogNumber`.
    */
   readonly description: string
+  /**
+   * The vendor's own name for the product line this part belongs to —
+   * `FRANKEN TOP-Cut`, `MultiDRILL`, `KenCut™ FF`, `Viper` — or `null` where
+   * the vendor names none.
+   *
+   * **Null is the vendor's silence, not an empty name**, the same three-state
+   * reasoning {@link ToolRecord.materialGroups} makes with {@link UNSPECIFIED}
+   * and for the same reason: a consumer faceting a catalog by product line has
+   * to be able to tell "EMUGE calls this Alu-Cut" from "nobody has decided what
+   * Harvey's line is called", and `''` collapses the two.
+   *
+   * **Verbatim, and never inferred** — the {@link ToolRecord.coating} rule.
+   * EMUGE's own index says `FRANKEN Expert` for the eight end mills its
+   * marketing calls "Cut & Form", and Destiny Tool ships `viper-mini` and
+   * `python` beside `Viper` and `Raptor`; case-folding either here would be
+   * this package authoring a vendor's catalog. The one thing an adapter may do
+   * is map a vendor's *code* onto that same vendor's *own* published name for
+   * it — see `vendors/emuge/records.ts`'s `PRODUCT_LINES`, where both sides of
+   * every entry are EMUGE's and the article page each name came from is cited.
+   *
+   * **Where it comes from is a fact about the vendor's data, not a convention.**
+   * Three sources are in use and each is the only one its vendor offers: a
+   * scraped column read per part (EMUGE, Destiny Tool), a page title fetched
+   * per family (Kennametal, WIDIA), and nothing at all (Harvey Tool, whose
+   * product-line title is already this record's `description` — a second copy
+   * of one string is the thing that field's own docstring refuses).
+   *
+   * **Never a copy of another field on this record**, for the reason
+   * {@link ToolRecord.description} states it.
+   */
+  readonly productLine: string | null
   readonly kind: ToolKind
   readonly unit: UnitSystem
   readonly substrate: string
@@ -448,11 +493,29 @@ export interface ToolRecord {
  * across the seam this type exists to draw.
  */
 export function toolRecord(
-  fields: Omit<ToolRecord, 'guid' | 'materialGroups' | 'materialGroupsSource' | 'nonFerrous'> &
-    Partial<Pick<ToolRecord, 'materialGroups' | 'materialGroupsSource' | 'nonFerrous'>>,
+  fields: Omit<
+    ToolRecord,
+    'guid' | 'materialGroups' | 'materialGroupsSource' | 'nonFerrous' | 'productLine'
+  > &
+    Partial<
+      Pick<ToolRecord, 'materialGroups' | 'materialGroupsSource' | 'nonFerrous' | 'productLine'>
+    >,
 ): ToolRecord {
   const groups = fields.materialGroups ?? null
   const source = fields.materialGroupsSource ?? UNSPECIFIED
+  // An adapter that has nothing to say about the product line says nothing;
+  // `''` would be a name and there is no nameless line. Optional here and
+  // required on the type for the reason stated above — a consumer reading a
+  // record never handles `undefined`.
+  const line = fields.productLine ?? null
+
+  if (line === '') {
+    throw new ScraperConfigError(
+      fields.materialNumber,
+      `productLine is the empty string — a vendor that names no product line ` +
+        `is null, which is the state a consumer can tell from a name`,
+    )
+  }
 
   // The invariant is what keeps the three states three: groups labelled
   // `unspecified` are groups nobody stated, and an attributed source with no
@@ -476,6 +539,7 @@ export function toolRecord(
     materialGroups: groups === null ? null : Object.freeze([...groups]),
     materialGroupsSource: source,
     nonFerrous: fields.nonFerrous ?? null,
+    productLine: line,
   })
 }
 

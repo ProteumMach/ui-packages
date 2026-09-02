@@ -296,6 +296,14 @@ export function endmillRecord(
     description,
     kind: 'endmill',
     unit,
+    // `series` is the vendor's own product-line name and the one column here
+    // that names one — `Viper`, `Raptor`, `DiamondBack`, and `viper-mini` and
+    // `python` in the vendor's own lower case, which stays exactly as
+    // published for the reason `records.ToolRecord.productLine` gives. It has
+    // been scraped since the adapter was written and read by nothing until
+    // now; the description cannot stand in for it, because Raptor calls itself
+    // `DVH` there and DiamondBack calls itself `DBACK RGHR`.
+    productLine: row['series']?.trim() || null,
     substrate: (row['material'] || fact(family, 'bmc', family.bmc)).toLowerCase(),
     // No carbide grade is published; the coating id is what there is.
     coating: row['coatingId'] ?? '',

@@ -35,10 +35,10 @@ import {
   type RecordMappers,
 } from './family.js'
 import { COLLET_FAMILIES, FAMILIES, HOLDER_FAMILIES } from './families/index.js'
-import { ScraperConfigError } from './errors.js'
+import { IncompletePartError, ScraperConfigError } from './errors.js'
 import { checkFact, type Fact } from './provenance.js'
 import { checkColumnMap, checkColumnsExist, type ToolRecord } from './records.js'
-import type { MapperOptions, ScrapeResult } from './scrape.js'
+import { consoleWarn, type MapperOptions, type ScrapeResult } from './scrape.js'
 import { RECORD_MAPPERS as DESTINYTOOL } from './vendors/destinytool/records.js'
 import { RECORD_MAPPERS as EMUGE } from './vendors/emuge/records.js'
 import { RECORD_MAPPERS as HARVEY } from './vendors/harvey/records.js'
@@ -191,6 +191,31 @@ export function boundFamily(name: string): BoundFamily {
  *
  * `familyName` is the CSV filename the catalog is keyed by
  * (`'harvey_endmill_025.csv'`), which is what `boundFamily` takes.
+ *
+ * ## One incomplete part does not end the family
+ *
+ * The rows are mapped together, so until 2026-09-01 every refusal was equally
+ * fatal — and the refusals are not equal. A part the vendor left a required
+ * cell blank on is one bad row among thousands of good ones; EMUGE-FRANKEN
+ * omits `overall length l₁` on roughly 175 of its 7,021 end mill variants, and
+ * both end mill families converted to nothing at all because of them.
+ *
+ * So an {@link IncompletePartError} is warned about and the row is dropped.
+ * **Nothing else is.** A cutting material with no mapping, a column a family
+ * stopped mapping, a response that changed shape — those say the vendor's
+ * vocabulary or this package's catalog has moved, and a scraper that skipped
+ * quietly past them would publish a catalog nobody checked. `columns.required`
+ * is the only place that raises the skippable one.
+ *
+ * A dropped row is **not** a relaxed contract. `records.RECORD_GEOMETRY` still
+ * says an end mill always has an `OAL`, and every record returned here still
+ * has one: the part without it becomes no record rather than a record with a
+ * hole. Where a vendor genuinely never publishes a field, `sometimes` is still
+ * the answer — a drill's `SIG` is that, and it stays that.
+ *
+ * The count of what was dropped is not returned. A caller that needs it has
+ * the row count it passed in and the length it got back, and the warnings name
+ * every part by number.
  */
 export function toRecords(
   familyName: string,
@@ -198,11 +223,21 @@ export function toRecords(
   options?: MapperOptions,
 ): ToolRecord[] {
   const cfg = boundFamily(familyName)
+  const warn = options?.warn ?? consoleWarn
 
   checkIdentityColumns(familyBrand(cfg), scrape.header)
   checkColumnsExist(familyName, cfg, scrape.header)
 
-  return scrape.rows.map((row) => cfg.records(row, cfg, cfg.columns, options))
+  const records: ToolRecord[] = []
+  for (const row of scrape.rows) {
+    try {
+      records.push(cfg.records(row, cfg, cfg.columns, options))
+    } catch (error) {
+      if (!(error instanceof IncompletePartError)) throw error
+      warn(`  WARNING: ${error.message} — no record written for it`)
+    }
+  }
+  return records
 }
 
 /**

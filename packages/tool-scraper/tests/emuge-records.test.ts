@@ -15,9 +15,10 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { UNSPECIFIED } from '../src/records.js'
+import { RECORD_GEOMETRY, UNSPECIFIED } from '../src/records.js'
 import { toRecords } from '../src/registry.js'
 import { unionHeader, type ScrapeResult, type ScrapedRow } from '../src/scrape.js'
+import { PRODUCT_LINES, PRODUCT_LINE_COLUMNS } from '../src/vendors/emuge/records.js'
 import { variantRow } from '../src/vendors/emuge/scrape.js'
 import { VendorResponseError } from '../src/errors.js'
 
@@ -38,7 +39,6 @@ const MILL_GROUP = {
   technicalDetails: [
     { property: 'category', value: 'End Mill' },
     { property: 'version', value: 'Corner Radius' },
-    { property: 'product line', value: 'FRANKEN TOP-Cut VAR' },
   ] as Property[],
 }
 
@@ -75,6 +75,9 @@ function millDetail(code: string, flutes: string) {
     code,
     technicalDetails: [
       { property: 'number of flutes Z', value: flutes },
+      // Milling states its product line per part rather than on the group —
+      // the grouped listing publishes none at all. See `PRODUCT_LINE_COLUMNS`.
+      { property: 'product line', value: 'FRANKEN TOP-Cut VAR' },
       { property: 'Cutting material', value: 'carbide' },
       { property: 'coating', value: 'ALCR' },
       { property: 'internal coolant supply', value: 'Without internal cooling' },
@@ -112,6 +115,10 @@ const DRILL_GROUP = {
     { property: 'Specification', value: 'Twist drill' },
     { property: 'Length standard', value: '5xD DIN 6537L' },
     { property: 'Number of margins', value: '4' },
+    // Drilling and tapping state the line on the *group*, under a geometry
+    // code — `MULTI` here, which the vendor's own article page calls
+    // MultiDRILL.
+    { property: 'Geometry', value: 'MULTI' },
   ] as Property[],
 }
 
@@ -155,6 +162,7 @@ const TAP_GROUP = {
   technicalDetails: [
     { property: 'chamfer form', value: 'Form B (Plug)' },
     { property: 'thread orientation', value: 'internal' },
+    { property: 'Geometry', value: 'Z' },
   ] as Property[],
 }
 
@@ -265,6 +273,27 @@ describe('a drill', () => {
     expect(record?.geometry.SIG).toBe(140)
   })
 
+  it('omits the point angle where the vendor left the cell empty, and says so', () => {
+    // One of FB01's 2,670 variants publishes no point angle. `SIG` is a mapped
+    // column here rather than a fact, so before it moved to
+    // `RECORD_GEOMETRY.drill.sometimes` that one blank cell threw — and
+    // `toRecords` maps a family's rows together, so it took the other 2,669
+    // drills with it.
+    const said: string[] = []
+    const [blank] = toRecords(
+      'emuge_drills.csv',
+      scrapeOf([{ ...drillRow(), 'point angle': '' }]),
+      {
+        warn: (m) => said.push(m),
+      },
+    )
+
+    expect(blank?.geometry.SIG).toBeUndefined()
+    expect(blank?.geometry.DC).toBe(3)
+    expect(said.join('\n')).toContain(DRILL_VARIANT.code)
+    expect(said.join('\n')).toContain('no point angle')
+  })
+
   it('takes the flute count from the family fact, which the vendor states nowhere', () => {
     expect(record?.geometry.NOF).toBe(2)
   })
@@ -323,6 +352,134 @@ describe('a tap', () => {
   })
 })
 
+/* -------------------------------------------------------------- product line */
+
+describe('the product line', () => {
+  // Three categories, three columns, and each column is a facet that
+  // partitions its category exactly — which is what makes this a read rather
+  // than a choice between the 43 overlapping product-family pages the vendor's
+  // marketing publishes. See `PRODUCT_LINE_COLUMNS`.
+  it('is read verbatim from the milling column, which already names the line', () => {
+    const [record] = toRecords('emuge_end_mills_inch.csv', millScrape(millRow(false)))
+    expect(record?.productLine).toBe('FRANKEN TOP-Cut VAR')
+  })
+
+  // A geometry code names nothing EMUGE sells, so drilling and tapping map it
+  // onto the vendor's own article-page title. Both sides are the vendor's.
+  it('maps a drill geometry code onto the vendor’s own name for it', () => {
+    const [record] = toRecords('emuge_drills.csv', scrapeOf([drillRow()]))
+    expect(record?.productLine).toBe('MultiDRILL')
+  })
+
+  it('maps a tap geometry code the same way', () => {
+    const [record] = toRecords('emuge_taps.csv', scrapeOf([tapRow()]))
+    expect(record?.productLine).toBe('Rekord B-Z Taps')
+  })
+
+  it('names the column each category states its line in', () => {
+    expect(PRODUCT_LINE_COLUMNS['FF01']).toBe('product line')
+    expect(PRODUCT_LINE_COLUMNS['FB01']).toBe('Geometry')
+    expect(PRODUCT_LINE_COLUMNS['FG01']).toBe('Geometry')
+  })
+
+  // Milling passes through because its facet is already the marketing name.
+  // A table for it would be this package restating the vendor.
+  it('keeps no name table for milling', () => {
+    expect(PRODUCT_LINES['FF01']).toBeUndefined()
+  })
+
+  // `SPEED`, `FK`, `GAL`, `GG` and `TILEG` are real tap lines with no article
+  // page on the US storefront. The vendor's own code is the honest answer, and
+  // an unmapped code must never refuse a row the way an unmapped cutting
+  // material does — see `productLine`.
+  it('keeps a code the vendor publishes no article page for', () => {
+    const group = {
+      ...TAP_GROUP,
+      technicalDetails: TAP_GROUP.technicalDetails.map((p) =>
+        p.property === 'Geometry' ? { property: 'Geometry', value: 'SPEED' } : p,
+      ),
+    }
+    const row = variantRow(group, TAP_VARIANT, TAP_DETAIL, 'millimeters')
+    const [record] = toRecords('emuge_taps.csv', scrapeOf([row]))
+    expect(record?.productLine).toBe('SPEED')
+  })
+
+  // The vendor's silence, and never `''` — `toolRecord` refuses that outright.
+  it('is null where the vendor leaves the column empty', () => {
+    const group = {
+      ...TAP_GROUP,
+      technicalDetails: TAP_GROUP.technicalDetails.map((p) =>
+        p.property === 'Geometry' ? { property: 'Geometry', value: '' } : p,
+      ),
+    }
+    const row = variantRow(group, TAP_VARIANT, TAP_DETAIL, 'millimeters')
+    const [record] = toRecords('emuge_taps.csv', scrapeOf([row]))
+    expect(record?.productLine).toBeNull()
+  })
+
+  // Every name on the right-hand side is a title EMUGE publishes; nothing here
+  // is this package's wording. A blank one would be a name nobody stated.
+  it('maps every code onto a non-empty vendor name', () => {
+    for (const [category, names] of Object.entries(PRODUCT_LINES)) {
+      expect(PRODUCT_LINE_COLUMNS[category]).toBeDefined()
+      for (const [code, name] of Object.entries(names)) {
+        expect(code, `${category} ${code}`).not.toBe('')
+        expect(name, `${category} ${code}`).not.toBe('')
+      }
+    }
+  })
+})
+
+describe('a part the vendor left incomplete', () => {
+  // `000000000010270982` — a necked torus end mill whose inch variants publish
+  // `length of shank connection l₄` and no `overall length l₁` at all, where
+  // their metric twins in the same group publish both. Roughly 175 of FF01's
+  // 7,021 variants are in that position, and because `toRecords` maps a
+  // family's rows together they used to end the conversion for all of them.
+  const noOal = (): ScrapedRow => {
+    const variant = millVariant(false)
+    return variantRow(
+      MILL_GROUP,
+      {
+        ...variant,
+        code: '000000000010270982',
+        mainDrawing: {
+          technicalDetails: variant.mainDrawing.technicalDetails.filter(
+            (p) => p.property !== 'overall length l₁',
+          ),
+        },
+      },
+      millDetail('000000000010270982', '4'),
+      'inches',
+    )
+  }
+
+  it('is skipped with a warning rather than ending the family', () => {
+    const warnings: string[] = []
+    const records = toRecords('emuge_end_mills_inch.csv', millScrape(noOal(), millRow(false)), {
+      warn: (m) => warnings.push(m),
+    })
+
+    // `millScrape` appends a necked part, so the good rows are that one and
+    // the plain one; only the incomplete part is missing.
+    expect(records.map((r) => r.materialNumber)).not.toContain('000000000010270982')
+    expect(records).toHaveLength(2)
+    expect(warnings.join('\n')).toMatch(/000000000010270982.*publishes no OAL/)
+  })
+
+  // The contract is untouched: an end mill still always has an `OAL`, and the
+  // part without one is no record rather than a record with a hole.
+  it('leaves OAL required for every record that is written', () => {
+    const [record] = toRecords('emuge_end_mills_inch.csv', millScrape(millRow(false)), {
+      warn: () => {},
+    })
+
+    expect(record?.geometry.OAL).toBeGreaterThan(0)
+    expect(RECORD_GEOMETRY.endmill.always).toContain('OAL')
+    expect(RECORD_GEOMETRY.endmill.sometimes).not.toContain('OAL')
+  })
+})
+
 describe('what a mapper refuses', () => {
   it('refuses a cutting material it has no word for, naming the table to add to', () => {
     const row = { ...drillRow(), 'Cutting material': 'unobtainium' }
@@ -355,10 +512,36 @@ describe('what a mapper refuses', () => {
     expect(said.join('\n')).toContain('recorded as false')
   })
 
-  it('refuses a row whose dimension the vendor left blank', () => {
-    const row = { ...drillRow(), 'Overall length l₁_mm': '' }
+  it('refuses a point angle that is a length, which an empty cell is not', () => {
+    // The two halves of the same column. A blank is the vendor publishing
+    // nothing and is omitted; a length where an angle belongs is the property
+    // having moved under this adapter, and is worth losing the row over.
+    const row = { ...drillRow(), 'point angle': '3 mm' }
 
     expect(() => toRecords('emuge_drills.csv', scrapeOf([row]))).toThrow(VendorResponseError)
+    expect(() => toRecords('emuge_drills.csv', scrapeOf([row]))).toThrow(/not an angle/)
+  })
+
+  it('refuses a point angle stated as a range, which has no single reading', () => {
+    const row = { ...drillRow(), 'point angle': '130-140 deg' }
+
+    expect(() => toRecords('emuge_drills.csv', scrapeOf([row]))).toThrow(/not an angle/)
+  })
+
+  // The one thing in this block that is *not* refused, and the contrast is the
+  // point: a blank required cell is one part the vendor left incomplete, where
+  // every other case here is the vendor's vocabulary or this adapter's map
+  // having moved. `toRecords` skips the first and still fails on the rest.
+  it('skips rather than refuses a row whose dimension the vendor left blank', () => {
+    const warnings: string[] = []
+    const row = { ...drillRow(), 'Overall length l₁_mm': '' }
+
+    const records = toRecords('emuge_drills.csv', scrapeOf([row]), {
+      warn: (m) => warnings.push(m),
+    })
+
+    expect(records).toEqual([])
+    expect(warnings.join('\n')).toMatch(/publishes no OAL/)
   })
 
   it('says it has no evidence where no detail record answered', () => {

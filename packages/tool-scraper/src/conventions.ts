@@ -109,6 +109,25 @@ export const CAD_DXF_COLUMN = 'CAD_DXF_URL'
 export const DESCRIPTION_COLUMN = 'Description'
 
 /**
+ * The CSV column holding the vendor's own full name for the family a part is
+ * in — `KenCut™ FF • HPFT • Square End • 6 Flutes • Plain Shank • Inch`.
+ *
+ * Constant down a family's whole table, and that is what makes it a *family*
+ * title rather than a {@link DESCRIPTION_COLUMN}: it names the group, not the
+ * part. Kennametal and WIDIA publish one as the `h1` of a family page and it
+ * reaches the CSV whole, while `records.ToolRecord.productLine` keeps only its
+ * leading segment — the rest is the vendor's own wording for the shape, the
+ * flute count, the shank and the unit, and a receipt that dropped it would be
+ * throwing away published text to save a column.
+ *
+ * Vendor-neutral and here rather than in the Kennametal adapter for the reason
+ * {@link CAD_COLUMN} is: a second vendor that publishes a family title writes
+ * this column rather than inventing another. Nothing forces one to — a vendor
+ * whose parts carry no family title simply has no such column.
+ */
+export const FAMILY_TITLE_COLUMN = 'Family Title'
+
+/**
  * The CSV column saying how a holder seats in the spindle: `taper` or `face`.
  *
  * `face` is dual contact — the flange face seats at the same time as the cone.

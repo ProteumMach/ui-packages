@@ -20,9 +20,11 @@
  * - a column the family maps to nothing is `undefined`, not an error — a family
  *   with no neck column is a plain tool, and that is the mapper's fallback to
  *   make;
- * - a **required** field with no reading refuses the row, naming the canonical
- *   field and quoting the cell, because a tool with no cutting diameter is not
- *   a part;
+ * - a **required** field with no reading refuses the row with an
+ *   `errors.IncompletePartError`, naming the canonical field and quoting the
+ *   cell, because a tool with no cutting diameter is not a part — and that is
+ *   the one refusal `registry.toRecords` skips past rather than failing the
+ *   whole family on;
  * - an **optional** one answers null and lets the mapper decide.
  *
  * `vendors/destinytool/records.ts` keeps its own `required` and is not wired
@@ -33,7 +35,7 @@
  */
 
 import type { UnitSystem } from './conventions.js'
-import { VendorResponseError } from './errors.js'
+import { IncompletePartError } from './errors.js'
 import type { ColumnMap, GeometryName } from './records.js'
 import type { MapperOptions, ScrapedRow, Warn } from './scrape.js'
 
@@ -105,7 +107,11 @@ export function columnReaders(read: LengthReader): ColumnReaders {
     const raw = cell(row, columns, canonical, unit)
     const value = raw === undefined ? null : read(raw, unit, what, options.warn)
     if (value === null) {
-      throw new VendorResponseError(
+      // `IncompletePartError` and not the general vendor fault: this is the
+      // one refusal `registry.toRecords` skips past, because a single part the
+      // vendor left a cell blank on must not end a family's conversion. See
+      // that type for why the others still must not be skipped.
+      throw new IncompletePartError(
         what,
         `publishes no ${canonical} — its cell is ${JSON.stringify(raw ?? '')}`,
       )

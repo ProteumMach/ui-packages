@@ -342,6 +342,32 @@ describe('the record itself', () => {
     expect(() => (record.unit = 'inches')).toThrow(TypeError)
   })
 
+  describe('the product line', () => {
+    // Three states, kept three the way `materialGroups`' three are: a vendor
+    // that names a line, a vendor that names none, and never a nameless name.
+    it('defaults to null, so an adapter that says nothing says nothing', () => {
+      expect(toolRecord(base).productLine).toBeNull()
+    })
+
+    it('keeps the vendor’s own name verbatim', () => {
+      expect(toolRecord({ ...base, productLine: 'FRANKEN TOP-Cut VAR' }).productLine).toBe(
+        'FRANKEN TOP-Cut VAR',
+      )
+      // Destiny Tool really does publish these two in lower case beside
+      // `Viper` and `Raptor`. Case-folding here would be this package
+      // authoring a vendor's catalog.
+      expect(toolRecord({ ...base, productLine: 'viper-mini' }).productLine).toBe('viper-mini')
+    })
+
+    it('refuses the empty string', () => {
+      // `''` is the one state a consumer cannot tell from a name, which is the
+      // whole reason the field is nullable rather than a string. It is the
+      // same argument `UNSPECIFIED` makes one field along.
+      expect(() => toolRecord({ ...base, productLine: '' })).toThrow(ScraperConfigError)
+      expect(() => toolRecord({ ...base, productLine: '' })).toThrow(/productLine/)
+    })
+  })
+
   it('mints the guid itself, in the record’s own brand namespace', () => {
     // Not an adapter's input: three copies of `recordGuid(brand, material)`
     // would be three places to drift on the join key every downstream consumer
@@ -419,15 +445,20 @@ describe('the record itself', () => {
 
     expect(record.geometry.NOF).toBeUndefined()
     expect(RECORD_GEOMETRY.endmill.sometimes).toEqual(['NOF'])
-    expect(RECORD_GEOMETRY.drill.sometimes).toEqual([])
+    expect(RECORD_GEOMETRY.drill.sometimes).toEqual(['SIG'])
   })
 
   it('states a geometry a drill and a tap really differ on', () => {
-    // The two kinds are not narrower end mills: a drill states a point angle
-    // and no corner radius, a tap states a thread pitch and no shoulder. The
-    // table is what says so, rather than each mapper deciding for itself.
-    expect(RECORD_GEOMETRY.drill.always).toContain('SIG')
-    expect(RECORD_GEOMETRY.drill.always).not.toContain('RE')
+    // The two kinds are not narrower end mills: a drill declares a point angle
+    // and no corner radius, a tap a thread pitch and no shoulder. The table is
+    // what says so, rather than each mapper deciding for itself. `SIG` is
+    // declared and optional — EMUGE-FRANKEN leaves one drill's cell empty —
+    // while `RE` is not part of a drill record at all, which is the difference
+    // `sometimes` exists to state.
+    expect([...RECORD_GEOMETRY.drill.always, ...RECORD_GEOMETRY.drill.sometimes]).toContain('SIG')
+    expect([...RECORD_GEOMETRY.drill.always, ...RECORD_GEOMETRY.drill.sometimes]).not.toContain(
+      'RE',
+    )
     expect(RECORD_GEOMETRY.tap.always).toContain('TP')
     expect(RECORD_GEOMETRY.tap.always).not.toContain('shoulder-length')
   })

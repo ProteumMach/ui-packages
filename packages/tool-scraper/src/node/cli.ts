@@ -293,7 +293,12 @@ async function kennametal(argv: string[], io: Console_, fetcher: Fetcher): Promi
     return [a.slice(0, at), a.slice(at + 1)] as const
   })
 
-  const scrape = await scrapeFamily(fetcher, code, brand as AemBrandName, tags)
+  // The family page carries the product line, which the variants table does
+  // not state anywhere. One extra request per family — see
+  // `vendors/kennametal/family.ts`.
+  const scrape = await scrapeFamily(fetcher, code, brand as AemBrandName, tags, {
+    familyTitle: true,
+  })
   wrote(out, brand as BrandName, scrape, io)
   return 0
 }

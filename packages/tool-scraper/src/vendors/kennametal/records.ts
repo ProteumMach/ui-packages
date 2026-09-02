@@ -68,6 +68,37 @@ export const CATALOG_NUMBER = 'ISO Catalog Number'
 export const COATING = 'Coating'
 
 /**
+ * The column {@link productLine} reads, and the one this adapter names rather
+ * than the vendor.
+ *
+ * `conventions.FAMILY_TITLE_COLUMN` is vendor-neutral because a second vendor
+ * publishing a family title should write the same column; this one is not,
+ * because it holds a *segment* of that title that this adapter chose to split
+ * out. A vendor whose product line arrives some other way has no business
+ * writing here — EMUGE reads its own `product line` and `Geometry` columns and
+ * never sees this one.
+ *
+ * Both columns are written by `scrape.scrapeFamily` under `familyTitle`, and
+ * a CSV scraped before that option existed has neither — which is why
+ * {@link productLine} reads it as absent rather than required.
+ */
+export const PRODUCT_LINE_COLUMN = 'Product Line'
+
+/**
+ * The vendor's own product line for this row, or null where the CSV has none.
+ *
+ * **An absent column is not a fault.** It is a table scraped without
+ * `scrape.FamilyOptions.familyTitle`, or a family page the vendor publishes
+ * with no heading, and both are rows that are otherwise complete. `null` is
+ * the answer `records.ToolRecord.productLine` defines for exactly this — see
+ * its docstring on why that is not `''`.
+ */
+function productLine(row: ScrapedRow): string | null {
+  const stated = (row[PRODUCT_LINE_COLUMN] ?? '').trim()
+  return stated === '' ? null : stated
+}
+
+/**
  * One canonical dimension, or null when this family maps or publishes none.
  *
  * Null is a real state and the callers distinguish it: an absent `Re` is a
@@ -194,6 +225,7 @@ export function drillRecord(row: ScrapedRow, family: BoundFamily, columns: Colum
     vendor: BRANDS[familyBrand(family)].vendor,
     materialNumber: what,
     catalogNumber: row[CATALOG_NUMBER] ?? '',
+    productLine: productLine(row),
     // Kennametal publishes no description column on any table. The catalog
     // number is already on the record, and repeating it here said nothing —
     // see `records.ToolRecord.description`.
@@ -246,6 +278,7 @@ export function tapRecord(row: ScrapedRow, family: BoundFamily, columns: ColumnM
     // carry the size. The catalog number no longer leads it — it is already on
     // the record, and a description that restates one is not a description.
     description: tdz,
+    productLine: productLine(row),
     kind: 'tap',
     unit,
     substrate: fact(family, 'bmc', family.bmc),
@@ -293,6 +326,7 @@ export function endmillRecord(
     catalogNumber: row[CATALOG_NUMBER] ?? '',
     // No description column here either. See the drill mapper.
     description: '',
+    productLine: productLine(row),
     kind: 'endmill',
     unit,
     substrate: fact(family, 'bmc', family.bmc),
