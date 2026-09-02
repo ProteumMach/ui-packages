@@ -15,6 +15,7 @@ machined, and what it may cost.
 | Show a part in a React app    | `@toolpath/viewer`              | [Viewer](packages/viewer)                                          |
 | Build Toolpath-styled UI      | `@toolpath/ui`                  | [UI kit](packages/ui)                                              |
 | Collect vendor tool data      | `@toolpath/tool-scraper`        | [Tool scraper](packages/tool-scraper)                              |
+| Draw a tool and its holder    | `@toolpath/tool-drawing`        | [Tool drawing](packages/tool-drawing)                              |
 | See usage examples            | TypeScript, Python, or React    | [Examples](#examples)                                              |
 | Start a customer application  | Part Viewer template            | [toolpath-template](https://github.com/toolpath/toolpath-template) |
 | Call the API without an SDK   | HTTP, cURL, or another language | [API documentation](https://developers.toolpath.com)               |
