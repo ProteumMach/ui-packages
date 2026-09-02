@@ -1,7 +1,7 @@
 import { act, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ToolDrawing } from '../src/index.js'
-import type { ViewerAssembly } from '../src/index.js'
+import type { ViewerAssembly, ViewerHolderProfile } from '../src/index.js'
 
 const assembly: ViewerAssembly = {
   tool: {
@@ -77,6 +77,52 @@ describe('the assembly, drawn', () => {
       />,
     )
 
+    expect(container.querySelector('[data-provenance-note]')?.textContent).toMatch(
+      /The holder length is not stated\./,
+    )
+  })
+
+  /**
+   * A measured holder answers the same question from a different field: a
+   * `gage-line` profile *is* referenced to the spindle face, and a `nose` one
+   * had no gauge plane to solve.
+   */
+  it('reads a measured holder\u2019s length off its datum', () => {
+    const measured: ViewerHolderProfile = {
+      points: [
+        [-40, 11],
+        [-10, 20],
+        [30, 16],
+        [50, 8],
+      ],
+      datum: 'gage-line',
+      colletSeries: null,
+      colletProtrusion: null,
+    }
+    const { container, rerender } = render(
+      <ToolDrawing assembly={{ ...assembly, holder: measured }} />,
+    )
+
+    expect(partsDrawn(container)).toEqual(['tip', 'flutes', 'shank', 'body', 'flange'])
+    expect(container.querySelector('[data-provenance-note]')?.textContent).not.toMatch(
+      /The holder length is not stated\./,
+    )
+
+    rerender(
+      <ToolDrawing
+        assembly={{
+          ...assembly,
+          holder: {
+            ...measured,
+            datum: 'nose',
+            points: [
+              [-40, 11],
+              [0, 8],
+            ],
+          },
+        }}
+      />,
+    )
     expect(container.querySelector('[data-provenance-note]')?.textContent).toMatch(
       /The holder length is not stated\./,
     )

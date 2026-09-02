@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { assemblyOutline } from '../src/geometry/index.js'
-import type { ViewerAssembly, ViewerHolder, ViewerTool } from '../src/geometry/index.js'
+import type {
+  ViewerAssembly,
+  ViewerHolder,
+  ViewerHolderProfile,
+  ViewerTool,
+} from '../src/geometry/index.js'
 
 const tool = (over: Partial<ViewerTool> = {}): ViewerTool => ({
   form: 'flat end mill',
@@ -322,5 +327,138 @@ describe('a holder drawn as the body the vendor states', () => {
   it('takes a holder with no provenance at its word', () => {
     const bare: ViewerHolder = { ...holder, provenance: undefined }
     expect(drawn({ holder: bare }).segments.at(-1)?.provenance).toBe('vendor-stated')
+  })
+})
+
+/**
+ * A measured holder is drawn as measured.
+ *
+ * The fixture is a BT30-shaped stack cut down to the seven vertices the cases
+ * below need: a taper, a flange with a step face in it, a body, and a nose —
+ * with the gage line falling **between** two vertices so the crossing has to be
+ * interpolated rather than found.
+ */
+const profilePoints: ReadonlyArray<readonly [number, number]> = [
+  [-40, 11],
+  [-10, 20],
+  [2, 24],
+  [2, 16],
+  [30, 16],
+  [30, 8],
+  [50, 8],
+]
+
+const profile: ViewerHolderProfile = {
+  points: profilePoints,
+  datum: 'gage-line',
+  colletSeries: 'PG6',
+  colletProtrusion: null,
+}
+
+describe('a holder drawn as its own model measures it', () => {
+  it('places the nose vertex at the stickout and walks the stack back from it', () => {
+    const outline = drawn({ holder: profile })
+    const measured = outline.segments.filter((each) => ['body', 'flange'].includes(each.part))
+
+    // Outline z runs up from the tip and profile z runs toward the nose, so
+    // the two frames are opposite: 19 + (50 - z).
+    expect(measured.flatMap((each) => each.points.map((point) => point.z))).toEqual([
+      19, 39, 39, 67, 67, 69, 69, 79, 109,
+    ])
+    expect(outline.height).toBe(109)
+    expect(outline.radius).toBe(24)
+  })
+
+  it('keeps the step faces the measurement found', () => {
+    const body = drawn({ holder: profile }).segments.find((each) => each.part === 'body')!
+
+    // Two vertices at one z on each face, so the solid steps rather than
+    // sloping across the neighbouring vertices.
+    expect(body.points).toEqual([
+      { r: 8, z: 19 },
+      { r: 8, z: 39 },
+      { r: 16, z: 39 },
+      { r: 16, z: 67 },
+      { r: 24, z: 67 },
+      { r: 24 - 4 / 6, z: 69 },
+    ])
+  })
+
+  it('splits at the gage line, interpolating the crossing and sharing it', () => {
+    const outline = drawn({ holder: profile })
+    const body = outline.segments.find((each) => each.part === 'body')!
+    const flange = outline.segments.find((each) => each.part === 'flange')!
+
+    // The spindle face is z = 0 on the profile, so it lands at stickout + 50.
+    expect(body.points.at(-1)).toEqual({ r: 24 - 4 / 6, z: 69 })
+    expect(flange.points[0]).toEqual(body.points.at(-1))
+    expect(flange.points.at(-1)).toEqual({ r: 11, z: 109 })
+  })
+
+  it('shares a vertex that already sits on the gage line rather than adding one', () => {
+    const onTheLine: ViewerHolderProfile = {
+      ...profile,
+      points: [
+        [-20, 10],
+        [0, 15],
+        [0, 12],
+        [40, 12],
+        [40, 6],
+        [60, 6],
+      ],
+    }
+    const outline = drawn({ holder: onTheLine })
+    const body = outline.segments.find((each) => each.part === 'body')!
+    const flange = outline.segments.find((each) => each.part === 'flange')!
+
+    expect(body.points.map((each) => each.z)).toEqual([19, 39, 39, 79, 79])
+    expect(flange.points).toEqual([
+      { r: 15, z: 79 },
+      { r: 10, z: 99 },
+    ])
+  })
+
+  it('does not split a profile with no gage line to split on', () => {
+    const nose: ViewerHolderProfile = {
+      ...profile,
+      datum: 'nose',
+      points: [
+        [-30, 10],
+        [-5, 14],
+        [0, 14],
+      ],
+    }
+    const parts = drawn({ holder: nose }).segments.map((each) => each.part)
+
+    expect(parts).toEqual(['tip', 'flutes', 'shank', 'body'])
+  })
+
+  it('draws no holder from a profile too short to be one', () => {
+    const stub: ViewerHolderProfile = { ...profile, points: [[0, 12]] }
+    const outline = drawn({ holder: stub })
+
+    expect(outline.segments.map((each) => each.part)).toEqual(['tip', 'flutes', 'shank'])
+    expect(outline.height).toBe(19)
+  })
+
+  it('draws the seated collet on a measured holder too', () => {
+    const seated: ViewerHolderProfile = { ...profile, colletProtrusion: 2.5 }
+    const collet = drawn({ holder: seated }).segments.find((each) => each.part === 'collet')!
+
+    expect(collet.points).toEqual([
+      { r: 3, z: 16.5 },
+      { r: 3, z: 19 },
+    ])
+  })
+
+  it('calls the measurement vendor-stated unless the caller says otherwise', () => {
+    expect(
+      drawn({ holder: profile })
+        .segments.filter((each) => ['body', 'flange'].includes(each.part))
+        .map((each) => each.provenance),
+    ).toEqual(['vendor-stated', 'vendor-stated'])
+
+    const derived: ViewerHolderProfile = { ...profile, provenance: { points: 'derived' } }
+    expect(drawn({ holder: derived }).segments.at(-1)?.provenance).toBe('derived')
   })
 })

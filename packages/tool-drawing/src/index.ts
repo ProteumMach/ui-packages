@@ -5,7 +5,14 @@
  * targets, and the layout engine that places an outline on a sheet.
  */
 
-export type { Provenance, ViewerAssembly, ViewerHolder, ViewerTool } from './model/types.js'
+export type {
+  Provenance,
+  ViewerAssembly,
+  ViewerHolder,
+  ViewerHolderProfile,
+  ViewerTool,
+} from './model/types.js'
+export { isHolderProfile } from './model/types.js'
 export type { Box, Extent, Frame, FrameOptions, Orientation, Padding } from './model/frame.js'
 export { frameFor, orientationFor, typeSizeFor } from './model/frame.js'
 export type {

@@ -9,6 +9,7 @@ import {
   type BandRoom,
   type FormatLength,
 } from '../model/dimensions.js'
+import { isHolderProfile } from '../model/types.js'
 import type { ViewerAssembly } from '../model/types.js'
 import { SHEETS, assumedNames, sectionFill, type Theme } from './sheet.js'
 import { joins, sectionPoints, silhouettePath } from './silhouette.js'
@@ -158,6 +159,16 @@ export const ToolDrawing = ({
   const { tool, holder } = assembly
   const name = caption ?? tool.label ?? tool.form
   const outline = assemblyOutline(assembly)
+  /**
+   * Whether the holder reaches a stated spindle face.
+   *
+   * A measured profile states it by its datum — a `gage-line` profile *is*
+   * referenced to that face, and a `nose` one has no gauge plane to solve — so
+   * the two forms answer the same question from different fields.
+   */
+  const unstatedLength =
+    holder !== null &&
+    (isHolderProfile(holder) ? holder.datum !== 'gage-line' : holder.gaugeLength === null)
 
   /**
    * **An undrawable form is said in words, not drawn plausibly.**
@@ -395,7 +406,7 @@ export const ToolDrawing = ({
         }}
       >
         Drawn from stated dimensions{assumed.length > 0 ? `; ${assumed.join(', ')} assumed` : ''}.
-        {holder !== null && holder.gaugeLength === null ? ' The holder length is not stated.' : ''}
+        {unstatedLength ? ' The holder length is not stated.' : ''}
       </p>
     </figure>
   )

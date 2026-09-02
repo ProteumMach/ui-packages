@@ -1,4 +1,11 @@
-import type { Provenance, ViewerAssembly, ViewerTool } from './types.js'
+import { isHolderProfile } from './types.js'
+import type {
+  Provenance,
+  ViewerAssembly,
+  ViewerHolder,
+  ViewerHolderProfile,
+  ViewerTool,
+} from './types.js'
 
 /**
  * An assembly as a drawing: its outline in the plane of its own axis.
@@ -233,6 +240,169 @@ const tip = (tool: ViewerTool, LCF: number): Tip | null => {
 }
 
 /**
+ * A measured holder as segments, placed with its nose face at the stickout.
+ *
+ * Two frames meet here and they run opposite ways. A profile is stated on its
+ * own datum with `z` increasing toward the cutting end; an outline is stated
+ * with `z` increasing *up* from the tool tip. So the nose vertex — the last
+ * one, the highest `z` either way the profile is datumed — lands at the
+ * stickout and the stack is walked back from it:
+ *
+ * ```
+ * z = stickout + (noseZ - zProfile)
+ * ```
+ *
+ * **Nothing is resampled, smoothed or reduced.** The vertices are the
+ * measurement, grooves and thread reliefs included, and the whole point of
+ * carrying a profile is that they survive the trip.
+ *
+ * **The split is the gage line, and it is exact rather than a heuristic.**
+ * Everything above the spindle face is the connection — the flange and the cone
+ * that leads up to it — which the sheet draws in its own darker grey, and
+ * `z = 0` on a `gage-line` profile *is* that face. Where the polyline crosses
+ * it between two vertices the crossing point is interpolated and shared by both
+ * segments, as every other pair of segments here shares its meeting point. A
+ * `nose`-datumed profile has no spindle face to split on and stays one segment.
+ */
+const profileSegments = (holder: ViewerHolderProfile, stickout: number): Array<OutlineSegment> => {
+  const nose = holder.points[holder.points.length - 1]
+  if (holder.points.length < 2 || nose === undefined) {
+    return []
+  }
+  const provenance = holder.provenance?.['points'] ?? 'vendor-stated'
+  const gage = stickout + nose[0]
+  const up = [...holder.points]
+    .reverse()
+    .map(([z, r]): OutlinePoint => ({ r, z: stickout + (nose[0] - z) }))
+
+  const cut = holder.datum === 'gage-line' ? up.findIndex((point) => point.z > gage) : -1
+  if (cut <= 0) {
+    return [{ part: 'body', points: up, provenance }]
+  }
+  const below = up.slice(0, cut)
+  const above = up.slice(cut)
+  const last = below[below.length - 1]!
+  const first = above[0]!
+  const meet =
+    last.z === gage
+      ? last
+      : {
+          r: last.r + ((gage - last.z) / (first.z - last.z)) * (first.r - last.r),
+          z: gage,
+        }
+  if (meet !== last) {
+    below.push(meet)
+  }
+  above.unshift(meet)
+  return [
+    { part: 'body', points: below, provenance },
+    { part: 'flange', points: above, provenance },
+  ]
+}
+
+/**
+ * A holder as the vendor's table states it: a nose, a body, and a flange.
+ *
+ * The stylised form — every diameter a number somebody published, nothing
+ * between them invented. `top` is where the holder ends, which is what the
+ * assembly's own height is measured to.
+ */
+const parametricSegments = (
+  holder: ViewerHolder,
+  stickout: number,
+  DC: number,
+): Array<OutlineSegment> => {
+  if (holder.noseDiameter === null) {
+    return []
+  }
+  const segments: Array<OutlineSegment> = []
+  const rh = holder.noseDiameter / 2
+  const holderStated = (code: string): Provenance => holder.provenance?.[code] ?? 'vendor-stated'
+  let top = stickout
+
+  // The nose, for its stated length; with none stated, for the gauge length
+  // as before, so an older dataset draws what it always did.
+  const noseLength = holder.noseLength ?? holder.gaugeLength ?? Math.max(20, DC * 3)
+  segments.push({
+    part: 'nose',
+    points: [
+      { r: rh, z: stickout },
+      { r: rh, z: stickout + noseLength },
+    ],
+    provenance:
+      holder.noseLength !== null
+        ? holderStated('noseLength')
+        : holder.gaugeLength === null
+          ? 'assumed'
+          : holderStated('noseDiameter'),
+  })
+  top = stickout + noseLength
+  let radius = rh
+
+  if (holder.bodyDiameter !== null && holder.bodyLength !== null) {
+    const rb = holder.bodyDiameter / 2
+    segments.push({
+      part: 'body',
+      points: [
+        { r: rb, z: top },
+        { r: rb, z: top + holder.bodyLength },
+      ],
+      provenance: holderStated('bodyDiameter'),
+    })
+    top += holder.bodyLength
+    radius = rb
+  }
+
+  if (holder.projection !== null && holder.flangeDiameter !== null) {
+    const flangeAt = stickout + holder.projection
+    const rf = holder.flangeDiameter / 2
+    if (flangeAt > top) {
+      /**
+       * **The last stated diameter, carried up to the flange.**
+       *
+       * This was a cone from the body out to the flange, and it was an
+       * invention: on a PG 10 × 062 it flared ⌀18 to ⌀46 over 34 mm — more
+       * than half the drawn holder, in a shape the vendor never published,
+       * and the sweep treated it as solid. Tools were turned down for metal
+       * that is not there (Paul, 2026-08-31).
+       *
+       * Justin Mimbs' reach-curve note models a holder as cylinders: each
+       * layer at its widest, no credit for a taper, and the last diameter
+       * carried upward. This is that carry — assumed, because the vendor
+       * states nothing here, but assumed to be *no wider than what it
+       * states* rather than assumed to flare.
+       */
+      segments.push({
+        part: 'body',
+        points: [
+          { r: radius, z: top },
+          { r: radius, z: flangeAt },
+        ],
+        provenance: 'assumed',
+      })
+    }
+    // The flange: its diameter is the taper's, and it runs from the
+    // projection up to the gauge line — both stated. Where the gauge length
+    // is not, the 20 mm of a BT 30 V-flange stands in.
+    const flangeTop =
+      holder.gaugeLength !== null && holder.gaugeLength > holder.projection
+        ? stickout + holder.gaugeLength
+        : flangeAt + 20
+    segments.push({
+      part: 'flange',
+      points: [
+        { r: rf, z: flangeAt },
+        { r: rf, z: flangeTop },
+      ],
+      provenance: holder.gaugeLength === null ? 'assumed' : holderStated('flangeDiameter'),
+    })
+    top = flangeTop
+  }
+
+  return segments
+}
+
+/**
  * The outline of one assembly at its stickout.
  *
  * Flutes to the flute length, a neck where a shoulder is stated, the shank up
@@ -304,12 +474,17 @@ export const assemblyOutline = (assembly: ViewerAssembly): Outline | null => {
     top = shankTop
   }
 
-  if (stickout !== null && holder !== null && holder.noseDiameter !== null) {
-    const rh = holder.noseDiameter / 2
-    const holderStated = (code: string): Provenance => holder.provenance?.[code] ?? 'vendor-stated'
-
+  const holderSegments =
+    stickout === null || holder === null
+      ? []
+      : isHolderProfile(holder)
+        ? profileSegments(holder, stickout)
+        : parametricSegments(holder, stickout, DC)
+  if (stickout !== null && holder !== null && holderSegments.length > 0) {
     // The seated collet, standing proud of the nose by its protrusion, at its
-    // series diameter — a PG 6 collet is 6 mm across.
+    // series diameter — a PG 6 collet is 6 mm across. Common to both holder
+    // forms: a measured envelope is the holder's own solid, and the collet
+    // seated in its nut is no more present in that than in the vendor's table.
     const series = /(\d+(?:\.\d+)?)/.exec(holder.colletSeries ?? '')
     if (holder.colletProtrusion !== null && series) {
       const rc = Number(series[1]) / 2
@@ -319,88 +494,13 @@ export const assemblyOutline = (assembly: ViewerAssembly): Outline | null => {
           { r: rc, z: stickout - holder.colletProtrusion },
           { r: rc, z: stickout },
         ],
-        provenance: holderStated('colletProtrusion'),
+        provenance: holder.provenance?.['colletProtrusion'] ?? 'vendor-stated',
       })
     }
-
-    // The nose, for its stated length; with none stated, for the gauge length
-    // as before, so an older dataset draws what it always did.
-    const noseLength = holder.noseLength ?? holder.gaugeLength ?? Math.max(20, DC * 3)
-    segments.push({
-      part: 'nose',
-      points: [
-        { r: rh, z: stickout },
-        { r: rh, z: stickout + noseLength },
-      ],
-      provenance:
-        holder.noseLength !== null
-          ? holderStated('noseLength')
-          : holder.gaugeLength === null
-            ? 'assumed'
-            : holderStated('noseDiameter'),
-    })
-    top = stickout + noseLength
-    let radius = rh
-
-    if (holder.bodyDiameter !== null && holder.bodyLength !== null) {
-      const rb = holder.bodyDiameter / 2
-      segments.push({
-        part: 'body',
-        points: [
-          { r: rb, z: top },
-          { r: rb, z: top + holder.bodyLength },
-        ],
-        provenance: holderStated('bodyDiameter'),
-      })
-      top += holder.bodyLength
-      radius = rb
-    }
-
-    if (holder.projection !== null && holder.flangeDiameter !== null) {
-      const flangeAt = stickout + holder.projection
-      const rf = holder.flangeDiameter / 2
-      if (flangeAt > top) {
-        /**
-         * **The last stated diameter, carried up to the flange.**
-         *
-         * This was a cone from the body out to the flange, and it was an
-         * invention: on a PG 10 × 062 it flared ⌀18 to ⌀46 over 34 mm — more
-         * than half the drawn holder, in a shape the vendor never published,
-         * and the sweep treated it as solid. Tools were turned down for metal
-         * that is not there (Paul, 2026-08-31).
-         *
-         * Justin Mimbs' reach-curve note models a holder as cylinders: each
-         * layer at its widest, no credit for a taper, and the last diameter
-         * carried upward. This is that carry — assumed, because the vendor
-         * states nothing here, but assumed to be *no wider than what it
-         * states* rather than assumed to flare.
-         */
-        segments.push({
-          part: 'body',
-          points: [
-            { r: radius, z: top },
-            { r: radius, z: flangeAt },
-          ],
-          provenance: 'assumed',
-        })
-      }
-      // The flange: its diameter is the taper's, and it runs from the
-      // projection up to the gauge line — both stated. Where the gauge length
-      // is not, the 20 mm of a BT 30 V-flange stands in.
-      const flangeTop =
-        holder.gaugeLength !== null && holder.gaugeLength > holder.projection
-          ? stickout + holder.gaugeLength
-          : flangeAt + 20
-      segments.push({
-        part: 'flange',
-        points: [
-          { r: rf, z: flangeAt },
-          { r: rf, z: flangeTop },
-        ],
-        provenance: holder.gaugeLength === null ? 'assumed' : holderStated('flangeDiameter'),
-      })
-      top = flangeTop
-    }
+    segments.push(...holderSegments)
+    // Both forms end at their last vertex, so the assembly's height is that
+    // point rather than a total either helper has to hand back separately.
+    top = holderSegments[holderSegments.length - 1]!.points.at(-1)?.z ?? top
   }
 
   const radius = Math.max(...segments.flatMap((segment) => segment.points.map((point) => point.r)))
