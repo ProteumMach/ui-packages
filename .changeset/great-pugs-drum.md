@@ -4,12 +4,11 @@
 
 New package: a cutting tool and its holder drawn in 2D elevation.
 
-This first release is the geometry half. `@toolpath/tool-drawing/geometry`
-exports `assemblyOutline`, which turns a tool, a holder and a stickout into one
-silhouette of (radius, height) pairs, each segment carrying the provenance of
-the numbers it was drawn from. The root entry point exports the input contract —
-`ViewerTool`, `ViewerHolder`, `ViewerAssembly`, `Provenance` — and
-`@toolpath/tool-drawing/clearance` is reserved for the optional overlay.
+`@toolpath/tool-drawing/geometry` exports `assemblyOutline`, which turns a tool,
+a holder and a stickout into one silhouette of (radius, height) pairs, each
+segment carrying the provenance of the numbers it was drawn from. The root entry
+point exports the input contract — `ViewerTool`, `ViewerHolder`,
+`ViewerAssembly`, `Provenance`.
 
 Two things are deliberate. `assemblyOutline` returns `null` where there is no
 honest picture — a form with no generator, or a tool that states no cutting
