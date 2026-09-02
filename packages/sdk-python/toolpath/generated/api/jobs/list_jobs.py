@@ -16,6 +16,7 @@ def _get_kwargs(
     page: int | Unset = 1,
     page_size: int | Unset = 20,
     part_id: str | Unset = UNSET,
+    holder_id: str | Unset = UNSET,
     status: ListJobsStatus | Unset = UNSET,
 ) -> dict[str, Any]:
 
@@ -26,6 +27,8 @@ def _get_kwargs(
     params["pageSize"] = page_size
 
     params["partId"] = part_id
+
+    params["holderId"] = holder_id
 
     json_status: str | Unset = UNSET
     if not isinstance(status, Unset):
@@ -95,6 +98,7 @@ def sync_detailed(
     page: int | Unset = 1,
     page_size: int | Unset = 20,
     part_id: str | Unset = UNSET,
+    holder_id: str | Unset = UNSET,
     status: ListJobsStatus | Unset = UNSET,
 ) -> Response[ListJobsResponse | ProblemDetails]:
     """List jobs
@@ -104,6 +108,8 @@ def sync_detailed(
         page_size (int | Unset): Requested page size. Values above 100 are capped at 100. Default:
             20. Example: 20.
         part_id (str | Unset): Return only jobs for this part. Example:
+            0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
+        holder_id (str | Unset): Return only jobs for this holder. Example:
             0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
         status (ListJobsStatus | Unset): Return only jobs in this state. Example: succeeded.
 
@@ -119,6 +125,7 @@ def sync_detailed(
         page=page,
         page_size=page_size,
         part_id=part_id,
+        holder_id=holder_id,
         status=status,
     )
 
@@ -135,6 +142,7 @@ def sync(
     page: int | Unset = 1,
     page_size: int | Unset = 20,
     part_id: str | Unset = UNSET,
+    holder_id: str | Unset = UNSET,
     status: ListJobsStatus | Unset = UNSET,
 ) -> ListJobsResponse | ProblemDetails | None:
     """List jobs
@@ -144,6 +152,8 @@ def sync(
         page_size (int | Unset): Requested page size. Values above 100 are capped at 100. Default:
             20. Example: 20.
         part_id (str | Unset): Return only jobs for this part. Example:
+            0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
+        holder_id (str | Unset): Return only jobs for this holder. Example:
             0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
         status (ListJobsStatus | Unset): Return only jobs in this state. Example: succeeded.
 
@@ -160,6 +170,7 @@ def sync(
         page=page,
         page_size=page_size,
         part_id=part_id,
+        holder_id=holder_id,
         status=status,
     ).parsed
 
@@ -170,6 +181,7 @@ async def asyncio_detailed(
     page: int | Unset = 1,
     page_size: int | Unset = 20,
     part_id: str | Unset = UNSET,
+    holder_id: str | Unset = UNSET,
     status: ListJobsStatus | Unset = UNSET,
 ) -> Response[ListJobsResponse | ProblemDetails]:
     """List jobs
@@ -179,6 +191,8 @@ async def asyncio_detailed(
         page_size (int | Unset): Requested page size. Values above 100 are capped at 100. Default:
             20. Example: 20.
         part_id (str | Unset): Return only jobs for this part. Example:
+            0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
+        holder_id (str | Unset): Return only jobs for this holder. Example:
             0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
         status (ListJobsStatus | Unset): Return only jobs in this state. Example: succeeded.
 
@@ -194,6 +208,7 @@ async def asyncio_detailed(
         page=page,
         page_size=page_size,
         part_id=part_id,
+        holder_id=holder_id,
         status=status,
     )
 
@@ -208,6 +223,7 @@ async def asyncio(
     page: int | Unset = 1,
     page_size: int | Unset = 20,
     part_id: str | Unset = UNSET,
+    holder_id: str | Unset = UNSET,
     status: ListJobsStatus | Unset = UNSET,
 ) -> ListJobsResponse | ProblemDetails | None:
     """List jobs
@@ -217,6 +233,8 @@ async def asyncio(
         page_size (int | Unset): Requested page size. Values above 100 are capped at 100. Default:
             20. Example: 20.
         part_id (str | Unset): Return only jobs for this part. Example:
+            0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
+        holder_id (str | Unset): Return only jobs for this holder. Example:
             0195f02c-4b4a-7b5d-9b6e-8f139d5e2820.
         status (ListJobsStatus | Unset): Return only jobs in this state. Example: succeeded.
 
@@ -234,6 +252,7 @@ async def asyncio(
             page=page,
             page_size=page_size,
             part_id=part_id,
+            holder_id=holder_id,
             status=status,
         )
     ).parsed

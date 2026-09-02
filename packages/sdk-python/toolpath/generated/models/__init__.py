@@ -5,16 +5,34 @@ from .boss_facts import BossFacts
 from .cd_bounds import CdBounds
 from .cd_data import CdData
 from .chamfer_facts import ChamferFacts
+from .cone import Cone
+from .create_holder_response import CreateHolderResponse
 from .create_part_response import CreatePartResponse
 from .direction_z_bounds import DirectionZBounds
 from .direction_z_bounds_direction import DirectionZBoundsDirection
 from .dovetail_facts import DovetailFacts
+from .download_holder_fusion_format import DownloadHolderFusionFormat
+from .download_holder_fusion_trim import DownloadHolderFusionTrim
+from .export_fusion_holder_library_trim import ExportFusionHolderLibraryTrim
 from .face_facts import FaceFacts
 from .feature_datasheet import FeatureDatasheet
 from .feature_type import FeatureType
 from .health_response import HealthResponse
 from .health_response_db import HealthResponseDb
 from .health_response_status import HealthResponseStatus
+from .holder_response import HolderResponse
+from .holder_response_axis_direction import HolderResponseAxisDirection
+from .holder_response_axis_location import HolderResponseAxisLocation
+from .holder_response_nose import HolderResponseNose
+from .holder_response_options import HolderResponseOptions
+from .holder_response_taper_family_type_1 import HolderResponseTaperFamilyType1
+from .holder_response_taper_family_type_2_type_1 import HolderResponseTaperFamilyType2Type1
+from .holder_response_taper_family_type_3_type_1 import HolderResponseTaperFamilyType3Type1
+from .holder_response_units import HolderResponseUnits
+from .holder_units import HolderUnits
+from .holder_units_angle import HolderUnitsAngle
+from .holder_units_length import HolderUnitsLength
+from .holder_vec_3 import HolderVec3
 from .hole_facts import HoleFacts
 from .hole_process import HoleProcess
 from .job_detail import JobDetail
@@ -51,6 +69,10 @@ from .threading import Threading
 from .tolerance_band import ToleranceBand
 from .tool_fit_result import ToolFitResult
 from .tslot_facts import TslotFacts
+from .update_holder_fill_bays import UpdateHolderFillBays
+from .update_holder_flipped import UpdateHolderFlipped
+from .update_holder_response import UpdateHolderResponse
+from .update_holder_response_status import UpdateHolderResponseStatus
 from .update_part_feature_details import UpdatePartFeatureDetails
 from .update_part_features_request import UpdatePartFeaturesRequest
 from .update_part_features_response import UpdatePartFeaturesResponse
@@ -67,16 +89,34 @@ __all__ = (
     "CdBounds",
     "CdData",
     "ChamferFacts",
+    "Cone",
+    "CreateHolderResponse",
     "CreatePartResponse",
     "DirectionZBounds",
     "DirectionZBoundsDirection",
     "DovetailFacts",
+    "DownloadHolderFusionFormat",
+    "DownloadHolderFusionTrim",
+    "ExportFusionHolderLibraryTrim",
     "FaceFacts",
     "FeatureDatasheet",
     "FeatureType",
     "HealthResponse",
     "HealthResponseDb",
     "HealthResponseStatus",
+    "HolderResponse",
+    "HolderResponseAxisDirection",
+    "HolderResponseAxisLocation",
+    "HolderResponseNose",
+    "HolderResponseOptions",
+    "HolderResponseTaperFamilyType1",
+    "HolderResponseTaperFamilyType2Type1",
+    "HolderResponseTaperFamilyType3Type1",
+    "HolderResponseUnits",
+    "HolderUnits",
+    "HolderUnitsAngle",
+    "HolderUnitsLength",
+    "HolderVec3",
     "HoleFacts",
     "HoleProcess",
     "JobDetail",
@@ -113,6 +153,10 @@ __all__ = (
     "ToleranceBand",
     "ToolFitResult",
     "TslotFacts",
+    "UpdateHolderFillBays",
+    "UpdateHolderFlipped",
+    "UpdateHolderResponse",
+    "UpdateHolderResponseStatus",
     "UpdatePartFeatureDetails",
     "UpdatePartFeaturesRequest",
     "UpdatePartFeaturesResponse",
