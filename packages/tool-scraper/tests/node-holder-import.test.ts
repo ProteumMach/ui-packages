@@ -30,6 +30,8 @@ import {
   createHolderApi,
   describeApi,
   idempotencyKey,
+  retryAfterMs,
+  RATE_LIMIT_BACKOFF_MS,
   measureFamily,
   measureHolder,
   parseHolderResponse,
@@ -66,14 +68,37 @@ interface Seen {
  * exercised rather than short-circuited by an immediate success.
  */
 function api(
-  over: { job?: string[]; holder?: unknown; status?: number; pollTimeoutMs?: number } = {},
+  over: {
+    job?: string[]
+    holder?: unknown
+    status?: number
+    pollTimeoutMs?: number
+    /** Answer this many calls with 429 before answering normally. */
+    rateLimited?: number
+    /** The `Retry-After` those 429s carry, in seconds. Absent sends no header. */
+    retryAfter?: string
+    rateLimitAttempts?: number
+  } = {},
 ) {
   const seen: Seen[] = []
   const statuses = [...(over.job ?? ['succeeded'])]
+  let limited = over.rateLimited ?? 0
 
   const send = (url: string, init: RequestInit = {}) => {
     const headers = (init.headers ?? {}) as Record<string, string>
     seen.push({ method: init.method ?? 'GET', url, headers, body: init.body })
+
+    if (limited > 0) {
+      limited -= 1
+      return Promise.resolve({
+        ok: false,
+        status: 429,
+        headers: {
+          get: (name: string) => (name === 'retry-after' ? (over.retryAfter ?? null) : null),
+        },
+        json: () => Promise.resolve({}),
+      } as unknown as Response)
+    }
 
     const answer = (body: unknown): Response =>
       ({
@@ -106,6 +131,9 @@ function api(
       fetch: send as unknown as typeof globalThis.fetch,
       pollIntervalMs: 0,
       ...(over.pollTimeoutMs === undefined ? {} : { pollTimeoutMs: over.pollTimeoutMs }),
+      ...(over.rateLimitAttempts === undefined
+        ? {}
+        : { rateLimitAttempts: over.rateLimitAttempts }),
     }),
   }
 }
@@ -178,16 +206,32 @@ describe('measuring one holder', () => {
     expect(seen[2]!.url).toContain('flipped=false')
   })
 
-  it('keys the queue call on the part and its options', async () => {
+  it('keys the queue call on the holder the API just created, not on the part', async () => {
+    // The API binds a key to the holder it first saw and answers 409 when a
+    // later request reuses it for a different one. `measureHolder` creates a
+    // fresh holder every call, so a key derived from the catalog number is the
+    // same string naming a new holder on every run — which made the second
+    // measurement of any family fail on its first part, permanently.
     const { seen, client } = api()
     await measureHolder(client, PART, new Uint8Array())
-    expect(seen[2]!.headers['Idempotency-Key']).toBe(
-      idempotencyKey('BT30ER16060M', DEFAULT_IMPORT_OPTIONS),
+
+    expect(seen[2]!.headers['Idempotency-Key']).toBe(idempotencyKey('h-1', DEFAULT_IMPORT_OPTIONS))
+    expect(seen[2]!.headers['Idempotency-Key']).not.toContain('BT30ER16060M')
+  })
+
+  it('keeps the options in the key, because two tolerances are two measurements', async () => {
+    expect(idempotencyKey('h-1', DEFAULT_IMPORT_OPTIONS)).not.toBe(
+      idempotencyKey('h-1', { ...DEFAULT_IMPORT_OPTIONS, fillBays: true }),
     )
-    // The same holder queued twice with the same settings is one import, which
-    // is what stops a batch resumed at holder 400 from queueing 400 duplicates.
-    expect(idempotencyKey('BT30ER16060M', DEFAULT_IMPORT_OPTIONS)).not.toBe(
-      idempotencyKey('BT30ER16060M', { ...DEFAULT_IMPORT_OPTIONS, fillBays: true }),
+  })
+
+  it('gives two runs of one part two keys, which is what 409ed before', () => {
+    // One catalog number measured twice is two holders at the API, because
+    // every run creates one. Keying on the holder is what makes the second run
+    // a different key; keying on the part made it the same key for a holder the
+    // API had never seen, which it refuses.
+    expect(idempotencyKey('h-1', DEFAULT_IMPORT_OPTIONS)).not.toBe(
+      idempotencyKey('h-2', DEFAULT_IMPORT_OPTIONS),
     )
   })
 
@@ -225,6 +269,41 @@ describe('measuring one holder', () => {
     await expect(measureHolder(client, PART, new Uint8Array())).rejects.toThrow(
       'POST /v1/holders: the holder API answered 401',
     )
+  })
+
+  it('waits out a rate limit instead of ending the run on it', async () => {
+    // A 429 is the API scheduling this client, not refusing it. Treating one as
+    // fatal killed a 217-holder batch partway through on 2026-09-02.
+    const { seen, client } = api({ rateLimited: 2, retryAfter: '0.001' })
+    const result = await measureHolder(client, PART, new Uint8Array())
+
+    expect(result.gaugeLength).toBe(10)
+    // The two refusals, then the five calls that make a measurement.
+    expect(seen).toHaveLength(7)
+  })
+
+  it('gives up on a rate limit that never lifts, rather than retrying forever', async () => {
+    const { client } = api({ rateLimited: 99, retryAfter: '0.001', rateLimitAttempts: 2 })
+    await expect(measureHolder(client, PART, new Uint8Array())).rejects.toThrow(
+      'POST /v1/holders: the holder API answered 429',
+    )
+  })
+
+  it('prefers the API’s own Retry-After, and falls back where it cannot read one', () => {
+    const withHeader = {
+      headers: { get: () => '30' },
+    } as unknown as Response
+    const without = { headers: { get: () => null } } as unknown as Response
+    const dated = {
+      headers: { get: () => 'Wed, 02 Sep 2026 12:00:00 GMT' },
+    } as unknown as Response
+
+    expect(retryAfterMs(withHeader, 1)).toBe(30_000)
+    // An HTTP-date is a legal `Retry-After` this cannot read as a delay, and a
+    // NaN wait would be an immediate retry into the same closed window.
+    expect(retryAfterMs(dated, 1)).toBe(RATE_LIMIT_BACKOFF_MS)
+    expect(retryAfterMs(without, 1)).toBe(RATE_LIMIT_BACKOFF_MS)
+    expect(retryAfterMs(without, 3)).toBe(RATE_LIMIT_BACKOFF_MS * 3)
   })
 
   it('abandons a job that never settles rather than polling forever', async () => {

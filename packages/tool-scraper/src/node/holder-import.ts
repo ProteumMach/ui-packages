@@ -102,6 +102,31 @@ export const POLL_INTERVAL_MS = 500
 /** Milliseconds before an import job that never settles is abandoned. */
 export const POLL_TIMEOUT_MS = 120_000
 
+/**
+ * How many times one rate-limited request is retried before the run gives up.
+ *
+ * Generous on purpose: the window the API is asking the client to wait out is
+ * measured in tens of seconds, and the alternative to waiting is abandoning a
+ * batch that has already paid for every holder before this one.
+ */
+export const RATE_LIMIT_ATTEMPTS = 6
+
+/** What to wait when the API names no `Retry-After` of its own, in milliseconds. */
+export const RATE_LIMIT_BACKOFF_MS = 2_000
+
+/**
+ * How long to wait out a 429, preferring the API's own answer.
+ *
+ * `Retry-After` is in seconds and is the only number that knows when the
+ * window rolls, so it wins wherever it parses. A header that is absent, empty,
+ * or an HTTP-date rather than a delay yields `NaN`, and the fallback grows with
+ * the attempt so a client that cannot read the header still backs off.
+ */
+export function retryAfterMs(response: Response, attempt: number): number {
+  const stated = Number(response.headers.get('retry-after'))
+  return Number.isFinite(stated) && stated > 0 ? stated * 1_000 : RATE_LIMIT_BACKOFF_MS * attempt
+}
+
 /** The resolved API base URL, without its trailing slash. */
 export function apiUrl(): string {
   return (process.env[API_URL_ENV] || DEFAULT_API_URL).replace(/\/+$/, '')
@@ -131,6 +156,8 @@ export interface HolderApiOptions {
   timeoutMs?: number
   pollIntervalMs?: number
   pollTimeoutMs?: number
+  /** How many times one rate-limited request is retried. Zero never retries. */
+  rateLimitAttempts?: number
 }
 
 /** The transport {@link measureHolder} makes its five calls through. */
@@ -159,6 +186,7 @@ export function createHolderApi(options: HolderApiOptions = {}): HolderApi {
     timeoutMs = 60_000,
     pollIntervalMs = POLL_INTERVAL_MS,
     pollTimeoutMs = POLL_TIMEOUT_MS,
+    rateLimitAttempts = RATE_LIMIT_ATTEMPTS,
   } = options
 
   if (!apiKey) {
@@ -170,8 +198,23 @@ export function createHolderApi(options: HolderApiOptions = {}): HolderApi {
   }
 
   async function request(url: string, init: RequestInit): Promise<Response> {
-    const response = await send(url, { ...init, signal: AbortSignal.timeout(timeoutMs) })
-    if (!response.ok) {
+    for (let attempt = 1; ; attempt += 1) {
+      const response = await send(url, { ...init, signal: AbortSignal.timeout(timeoutMs) })
+      if (response.ok) {
+        return response
+      }
+
+      // A 429 is the API scheduling this client, not refusing it. Measuring is
+      // the most request-hungry thing this package does — five calls per holder
+      // and a poll until the job settles — so a family of any size reaches the
+      // per-key window, and a run that treated that as fatal died partway
+      // through a 217-holder batch with 47 holders left unmeasured. Every other
+      // non-2xx still stops the run.
+      if (response.status === 429 && attempt <= rateLimitAttempts) {
+        await pause(retryAfterMs(response, attempt))
+        continue
+      }
+
       // The status and the path, never the body: an error body from an
       // authenticated endpoint is the one place a token could be echoed back.
       throw new VendorResponseError(
@@ -179,7 +222,6 @@ export function createHolderApi(options: HolderApiOptions = {}): HolderApi {
         `the holder API answered ${response.status}`,
       )
     }
-    return response
   }
 
   return {
@@ -210,15 +252,30 @@ function importQuery(options: ImportOptions): string {
 }
 
 /**
- * A key that makes re-running an interrupted family free rather than expensive.
+ * A key that stops one retried queue call dispatching a second import.
  *
- * Derived from the part and the options it is being measured with, so the same
- * holder queued twice with the same settings is one import — which is what
- * stops a batch that died at holder 400 of 431 from queueing 400 duplicates on
- * the way back to where it stopped.
+ * **Keyed on the holder the API just created, not on the catalog number**, and
+ * the distinction is the whole correctness of this function. The API binds a
+ * key to the holder it first saw and refuses a later request that reuses the
+ * key for a different one — `idempotency_key_reused`, 409. {@link measureHolder}
+ * creates a *fresh* holder on every call, so a key derived from the catalog
+ * number is the same string naming a different holder on the second run: the
+ * second measurement of any family 409s on its first part, permanently, for
+ * that organisation. That is what this was doing until 2026-09-02.
+ *
+ * So the scope this can honestly promise is **one run**: a `PATCH` retried
+ * after a transport blip replays the job it already dispatched instead of
+ * queueing a second. It cannot make re-running an interrupted family free — the
+ * earlier docstring claimed that, and the API's own dedupe rule makes it
+ * unreachable, because there is no way to ask for the holder a previous run
+ * created. Resuming cheaply is `profiles.ts`'s job, by not re-measuring what
+ * the store already holds.
+ *
+ * The options stay in the key: the same holder imported at two tolerances is
+ * two different measurements and must not deduplicate to one.
  */
-export function idempotencyKey(catalogNumber: string, options: ImportOptions): string {
-  return `${catalogNumber} ${options.tolerance} ${options.fillBays} ${options.flipped}`.replaceAll(
+export function idempotencyKey(holderId: string, options: ImportOptions): string {
+  return `${holderId} ${options.tolerance} ${options.fillBays} ${options.flipped}`.replaceAll(
     /[^\x20-\x7e]/g,
     '-',
   )
@@ -339,7 +396,7 @@ export async function measureHolder(
   const queued = await api.call<unknown>(
     'PATCH',
     `/v1/holders/${holderId}${importQuery(options)}`,
-    { 'Idempotency-Key': idempotencyKey(part.catalogNumber, options) },
+    { 'Idempotency-Key': idempotencyKey(holderId, options) },
   )
   const jobId = stringField(queued, 'jobId', what)
 
