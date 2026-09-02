@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from ..models.pocket_facts import PocketFacts
     from ..models.profile_facts import ProfileFacts
     from ..models.reach_curve import ReachCurve
+    from ..models.surface_areas import SurfaceAreas
     from ..models.surface_facts import SurfaceFacts
     from ..models.tolerance_band import ToleranceBand
     from ..models.tslot_facts import TslotFacts
@@ -71,6 +72,14 @@ class FeatureDatasheet:
                 SurfaceFacts | TslotFacts | WallFacts): The per-kind facts; narrow on `facts.kind`.
             floorish_area (float | Unset): Deprecated: use `projectedFloorArea`. Removed in the next API major.
             wallish_area (float | Unset): Deprecated: use `projectedWallArea`. Removed in the next API major.
+            areas (SurfaceAreas | Unset): What a feature's surface is made of: every region of it in exactly one bucket, so
+                the five
+                add up to its surface area and nothing is counted twice.
+
+                A description of the feature, not of a pass — see `projectedFloorArea` for the pair that
+                says what a pass sweeps, and the picture there for how the two families differ. A bucket is
+                zero where the feature has no such surface. Areas are of the meshed regions, so a curved
+                surface reads a shade under its exact area.
     """
 
     feature_type: FeatureType
@@ -100,6 +109,7 @@ class FeatureDatasheet:
     )
     floorish_area: float | Unset = UNSET
     wallish_area: float | Unset = UNSET
+    areas: SurfaceAreas | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.boss_facts import BossFacts
@@ -164,6 +174,10 @@ class FeatureDatasheet:
 
         wallish_area = self.wallish_area
 
+        areas: dict[str, Any] | Unset = UNSET
+        if not isinstance(self.areas, Unset):
+            areas = self.areas.to_dict()
+
         field_dict: dict[str, Any] = {}
 
         field_dict.update(
@@ -188,6 +202,8 @@ class FeatureDatasheet:
             field_dict["floorishArea"] = floorish_area
         if wallish_area is not UNSET:
             field_dict["wallishArea"] = wallish_area
+        if areas is not UNSET:
+            field_dict["areas"] = areas
 
         return field_dict
 
@@ -201,6 +217,7 @@ class FeatureDatasheet:
         from ..models.pocket_facts import PocketFacts
         from ..models.profile_facts import ProfileFacts
         from ..models.reach_curve import ReachCurve
+        from ..models.surface_areas import SurfaceAreas
         from ..models.surface_facts import SurfaceFacts
         from ..models.tolerance_band import ToleranceBand
         from ..models.tslot_facts import TslotFacts
@@ -331,6 +348,13 @@ class FeatureDatasheet:
 
         wallish_area = d.pop("wallishArea", UNSET)
 
+        _areas = d.pop("areas", UNSET)
+        areas: SurfaceAreas | Unset
+        if isinstance(_areas, Unset):
+            areas = UNSET
+        else:
+            areas = SurfaceAreas.from_dict(_areas)
+
         feature_datasheet = cls(
             feature_type=feature_type,
             z_min=z_min,
@@ -348,6 +372,7 @@ class FeatureDatasheet:
             facts=facts,
             floorish_area=floorish_area,
             wallish_area=wallish_area,
+            areas=areas,
         )
 
         return feature_datasheet

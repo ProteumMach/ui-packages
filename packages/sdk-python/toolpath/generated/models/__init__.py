@@ -25,6 +25,7 @@ from .key_validation_response import KeyValidationResponse
 from .key_validation_response_status import KeyValidationResponseStatus
 from .list_jobs_response import ListJobsResponse
 from .list_jobs_status import ListJobsStatus
+from .offset_length import OffsetLength
 from .open_api_document import OpenApiDocument
 from .part_feature import PartFeature
 from .part_feature_axis import PartFeatureAxis
@@ -42,6 +43,7 @@ from .report_units import ReportUnits
 from .report_units_angle import ReportUnitsAngle
 from .report_units_length import ReportUnitsLength
 from .sink_facts import SinkFacts
+from .surface_areas import SurfaceAreas
 from .surface_facts import SurfaceFacts
 from .thread_process import ThreadProcess
 from .thread_spec import ThreadSpec
@@ -85,6 +87,7 @@ __all__ = (
     "KeyValidationResponseStatus",
     "ListJobsResponse",
     "ListJobsStatus",
+    "OffsetLength",
     "OpenApiDocument",
     "PartFeature",
     "PartFeatureAxis",
@@ -102,6 +105,7 @@ __all__ = (
     "ReportUnitsAngle",
     "ReportUnitsLength",
     "SinkFacts",
+    "SurfaceAreas",
     "SurfaceFacts",
     "Threading",
     "ThreadProcess",

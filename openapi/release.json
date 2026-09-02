@@ -1,7 +1,7 @@
 {
-  "apiVersion": "1.1.0",
+  "apiVersion": "1.2.0",
   "openApiVersion": "3.1.0",
-  "sha256": "d58f026b861cb72efc620213567364e0963b28b197b366a981f42a26e4323b81",
+  "sha256": "a862a277b20ea0dd78856f26ae70aa9490b90360179ea6271a1e3bf435affdcf",
   "generators": {
     "python": "openapi-python-client@0.29.0",
     "typescript": "openapi-generator:typescript-fetch@7.24.0"

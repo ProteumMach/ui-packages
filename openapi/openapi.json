@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Toolpath Engine API",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Public REST API for Toolpath engine operations.\n\n**Units.** All dimensional values — in parts and in feature details — are in\nmillimetres; all angles are in degrees. Each part response also states this in its `units` field.\n\n**Browser use.** CORS is per API key: a request only receives an\n`Access-Control-Allow-Origin` header when its `Origin` is in the allowlist configured on the\nkey used (set when creating or editing the key in the portal). A key with no allowed origins\nis server-to-server only. A Bearer API key placed in client-side JavaScript is readable by\nanyone — restrict its origins, prefer a `read_only` key (read_only keys may call GET\noperations only; writes are rejected with 403), or proxy requests through your own server."
   },
   "tags": [
@@ -694,6 +694,10 @@
             "deprecated": true,
             "description": "Deprecated: use `projectedWallArea`. Removed in the next API major."
           },
+          "areas": {
+            "$ref": "#/components/schemas/SurfaceAreas",
+            "description": "What the surface is made of, as a partition that sums to the feature's area."
+          },
           "facts": {
             "oneOf": [
               {
@@ -965,6 +969,10 @@
           "maxBottomDiameter": {
             "type": "number",
             "description": "Largest bottom diameter a terminal tool may have, in mm."
+          },
+          "wallLength": {
+            "$ref": "#/components/schemas/OffsetLength",
+            "description": "The outline a pass around the wall follows, sized for any tool. Absent where the\nprojection left no outline — a wall nothing can price, not one that is free."
           },
           "filletRadius": {
             "type": "number",
@@ -1269,6 +1277,25 @@
         ],
         "description": "How the user wants a hole machined."
       },
+      "OffsetLength": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "length": {
+            "type": "number",
+            "description": "The outline's own length, in mm — what a pass would travel with a tool of no width."
+          },
+          "dlDr": {
+            "type": "number",
+            "description": "How the travelled length changes per mm of tool radius: the outline's total signed\nturning, in radians and so dimensionless. Negative around an outline a tool runs\ninside of, positive around one it runs outside of, and `±2π` where the outline closes."
+          }
+        },
+        "required": [
+          "length",
+          "dlDr"
+        ],
+        "description": "An outline a pass follows, measured so that any tool's path length can be read off it.\n\nA pass does not walk the outline: it walks the tool *center*, offset by the tool radius to\nthe free side, which is shorter than the outline inside a pocket and longer around a boss.\nSo the length a tool of `radius` travels is `Math.max(0, length + radius * dlDr)`, and zero\nmeans the tool does not fit — the outline is shorter than the tool's own orbit, which a\ncaller pricing a pass must refuse rather than bill as free.\n\nExact for every tool the outline has room for, except at a corner sharper than the tool,\nwhere it reads long by that corner's miter — zero for the filleted corners a pocket that\nadmits the tool is made of."
+      },
       "PocketFacts": {
         "type": "object",
         "additionalProperties": false,
@@ -1285,6 +1312,10 @@
           "maxBottomDiameter": {
             "type": "number",
             "description": "The bottom diameter a terminal tool must not exceed; negative infinity when\nunconstrained."
+          },
+          "wallLength": {
+            "$ref": "#/components/schemas/OffsetLength",
+            "description": "The outline a pass around the wall follows, sized for any tool. Absent where the\nprojection left no outline — a wall nothing can price, not one that is free."
           },
           "filletRadius": {
             "type": "number",
@@ -1319,7 +1350,11 @@
           },
           "length": {
             "type": "number",
-            "description": "How far the pass travels, mm — the outline's own length."
+            "description": "How far the pass travels, mm — the outline's own length. The `radius = 0` term of\n`wallLength`, kept because it is what this boundary has always published; prefer the\noutline itself, which prices the tool actually used."
+          },
+          "wallLength": {
+            "$ref": "#/components/schemas/OffsetLength",
+            "description": "The outline the pass follows, sized for any tool. Never absent as it is on the other\nkinds: the silhouette is what a profile is."
           },
           "isModified": {
             "type": "boolean",
@@ -1382,6 +1417,40 @@
           "outerRadius"
         ],
         "description": "A countersink read as a cone of revolution: the circle its bevel starts from and the\none it opens to."
+      },
+      "SurfaceAreas": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "floorArea": {
+            "type": "number",
+            "description": "Surface square to the tool axis, in mm²."
+          },
+          "wallArea": {
+            "type": "number",
+            "description": "Surface running along it, in mm²."
+          },
+          "filletArea": {
+            "type": "number",
+            "description": "The concave rounds between the two, in mm² — as surface, so a quarter round of radius\n`r` over a length `L` reads `(π/2)·r·L`, not the `r·L` either projection sees."
+          },
+          "chamferArea": {
+            "type": "number",
+            "description": "The bevels, in mm²."
+          },
+          "contourArea": {
+            "type": "number",
+            "description": "Everything else, in mm²: surfaces with no flat to stand on."
+          }
+        },
+        "required": [
+          "floorArea",
+          "wallArea",
+          "filletArea",
+          "chamferArea",
+          "contourArea"
+        ],
+        "description": "What a feature's surface is made of: every region of it in exactly one bucket, so the five\nadd up to its surface area and nothing is counted twice.\n\nA description of the feature, not of a pass — see `projectedFloorArea` for the pair that\nsays what a pass sweeps, and the picture there for how the two families differ. A bucket is\nzero where the feature has no such surface. Areas are of the meshed regions, so a curved\nsurface reads a shade under its exact area."
       },
       "SurfaceFacts": {
         "type": "object",
@@ -1634,6 +1703,10 @@
           "cd": {
             "$ref": "#/components/schemas/CdData",
             "description": "Clearance-diameter limits for tools machining the wall."
+          },
+          "wallLength": {
+            "$ref": "#/components/schemas/OffsetLength",
+            "description": "The outline a pass around the wall follows, sized for any tool. Absent where the\nprojection left no outline — a wall nothing can price, not one that is free."
           }
         },
         "required": [

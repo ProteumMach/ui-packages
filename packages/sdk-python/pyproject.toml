@@ -31,5 +31,5 @@ line-length = 120
 select = ["F", "I", "UP"]
 
 [tool.toolpath]
-openapi-sha256 = "d58f026b861cb72efc620213567364e0963b28b197b366a981f42a26e4323b81"
-openapi-version = "1.1.0"
+openapi-sha256 = "a862a277b20ea0dd78856f26ae70aa9490b90360179ea6271a1e3bf435affdcf"
+openapi-version = "1.2.0"
