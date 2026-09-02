@@ -33,6 +33,10 @@ const releaseSensitivePaths = [
     ],
   },
   {
+    packageName: '@toolpath/tool-drawing',
+    paths: ['packages/tool-drawing/src/'],
+  },
+  {
     packageName: '@toolpath/tool-scraper',
     paths: ['packages/tool-scraper/src/'],
   },
