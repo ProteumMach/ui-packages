@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Toolpath Engine API",
-    "version": "1.1.0",
+    "version": "1.3.1",
     "description": "Public REST API for Toolpath engine operations.\n\n**Units.** All dimensional values — in parts and in feature details — are in\nmillimetres; all angles are in degrees. Each part response also states this in its `units` field.\n\n**Browser use.** CORS is per API key: a request only receives an\n`Access-Control-Allow-Origin` header when its `Origin` is in the allowlist configured on the\nkey used (set when creating or editing the key in the portal). A key with no allowed origins\nis server-to-server only. A Bearer API key placed in client-side JavaScript is readable by\nanyone — restrict its origins, prefer a `read_only` key (read_only keys may call GET\noperations only; writes are rejected with 403), or proxy requests through your own server."
   },
   "tags": [
@@ -21,6 +21,10 @@
     {
       "name": "Features",
       "description": "Part feature operations."
+    },
+    {
+      "name": "Holders",
+      "description": "Tool holder upload, import, and collision-envelope operations."
     },
     {
       "name": "Jobs",
@@ -47,6 +51,116 @@
       }
     },
     "schemas": {
+      "Turnability": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/NoAxis"
+          },
+          {
+            "$ref": "#/components/schemas/TurningAxis"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind",
+          "mapping": {
+            "NoAxis": "#/components/schemas/NoAxis",
+            "TurningAxis": "#/components/schemas/TurningAxis"
+          }
+        },
+        "description": "Whether the part belongs on a lathe; narrow on `kind`."
+      },
+      "NoAxis": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "NoAxis"
+            ],
+            "description": "Discriminator identifying a part with no turning axis."
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "TurningAxis": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "TurningAxis"
+            ],
+            "description": "Discriminator identifying a part with a turning axis."
+          },
+          "direction": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Vec3"
+              },
+              {
+                "type": "object",
+                "properties": {}
+              }
+            ],
+            "description": "Direction of the turning axis, as a unit vector."
+          },
+          "location": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Vec3"
+              },
+              {
+                "type": "object",
+                "properties": {}
+              }
+            ],
+            "description": "Point on the turning axis, in mm. Purely radial: its projection onto the axis is zero."
+          },
+          "areaFraction": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Fraction of the part’s surface area a turning setup about this axis could finish, from 0 to 1 — the area lying on the part’s envelope of revolution within tolerance."
+          },
+          "volumeFraction": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Fraction of the part’s envelope of revolution — what comes off the lathe — that the part keeps, from 0 to 1. The rest is what a turning setup leaves to be cut away some other way, so a radially unbalanced part scores low here however much of its surface lies on the envelope."
+          }
+        },
+        "required": [
+          "kind",
+          "direction",
+          "location",
+          "areaFraction",
+          "volumeFraction"
+        ]
+      },
+      "Vec3": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number",
+            "description": "X coordinate or direction component."
+          },
+          "y": {
+            "type": "number",
+            "description": "Y coordinate or direction component."
+          },
+          "z": {
+            "type": "number",
+            "description": "Z coordinate or direction component."
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "z"
+        ]
+      },
       "HealthResponse": {
         "type": "object",
         "properties": {
@@ -274,6 +388,17 @@
             },
             "description": "Part z extents for each candidate direction, or null when detail enrichment did not run."
           },
+          "turnability": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Turnability"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How much of the part one turning setup could finish, or null when no reading was taken."
+          },
           "meshPointCount": {
             "type": "integer",
             "minimum": 0,
@@ -339,6 +464,7 @@
           "features",
           "candidateDirections",
           "directionZBounds",
+          "turnability",
           "meshPointCount",
           "meshTriangleCount",
           "thumbnailUrl",
@@ -473,28 +599,6 @@
           "featureType",
           "machiningDirection",
           "axis"
-        ]
-      },
-      "Vec3": {
-        "type": "object",
-        "properties": {
-          "x": {
-            "type": "number",
-            "description": "X coordinate or direction component."
-          },
-          "y": {
-            "type": "number",
-            "description": "Y coordinate or direction component."
-          },
-          "z": {
-            "type": "number",
-            "description": "Z coordinate or direction component."
-          }
-        },
-        "required": [
-          "x",
-          "y",
-          "z"
         ]
       },
       "DirectionZBounds": {
@@ -694,6 +798,10 @@
             "deprecated": true,
             "description": "Deprecated: use `projectedWallArea`. Removed in the next API major."
           },
+          "areas": {
+            "$ref": "#/components/schemas/SurfaceAreas",
+            "description": "What the surface is made of, as a partition that sums to the feature's area."
+          },
           "facts": {
             "oneOf": [
               {
@@ -763,6 +871,366 @@
         ],
         "description": "One feature as machining sees it: static, self-contained, and enough to choose a\ntool against without having the part in hand. All lengths mm and angles degrees;\nz runs up the tool axis, so `zMin` is the bottom of the feature and `zMax` its top."
       },
+      "CreateHolderResponse": {
+        "type": "object",
+        "properties": {
+          "holderId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the newly created holder."
+          },
+          "uploadUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Short-lived URL that accepts a direct upload of the CAD source."
+          },
+          "sourceBucket": {
+            "type": "string",
+            "description": "Object-storage bucket receiving the CAD source."
+          },
+          "sourceS3Key": {
+            "type": "string",
+            "description": "Object-storage key assigned to the CAD source."
+          }
+        },
+        "required": [
+          "holderId",
+          "uploadUrl",
+          "sourceBucket",
+          "sourceS3Key"
+        ]
+      },
+      "UpdateHolderResponse": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the queued import job."
+          },
+          "holderId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the holder submitted for import."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued"
+            ],
+            "description": "Initial state of the accepted import job."
+          }
+        },
+        "required": [
+          "jobId",
+          "holderId",
+          "status"
+        ]
+      },
+      "HolderResponse": {
+        "type": "object",
+        "properties": {
+          "holderId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of this holder."
+          },
+          "importId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of this immutable holder result."
+          },
+          "jobId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the import job that produced this holder result."
+          },
+          "kernelVersion": {
+            "type": "string",
+            "description": "Version of the Toolpath kernel that produced this holder result."
+          },
+          "units": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HolderUnits"
+              },
+              {
+                "type": "object",
+                "properties": {}
+              }
+            ],
+            "description": "Units used by all dimensional values in this holder response."
+          },
+          "options": {
+            "type": "object",
+            "properties": {
+              "tolerance": {
+                "type": "number"
+              },
+              "fillBays": {
+                "type": "boolean"
+              },
+              "flipped": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "tolerance",
+              "fillBays",
+              "flipped"
+            ],
+            "description": "The import options this result was produced with."
+          },
+          "layers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Cone"
+            },
+            "description": "The collision envelope as a stack of cones, nose first — the solid the holder sweeps as the spindle turns it, not the modeled solid. Wrench flats, coolant bores and nut slots are inside it by construction. Always the complete envelope, taper included; a gauge-plane cut is an export option on `GET /v1/holders/{id}/fusion`."
+          },
+          "gaugeLength": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Distance from the bottom of the stack to the gauge plane, in mm, or null when it was not measured. Null is not zero: a straight shank or a Capto carries no cone to place a gauge plane on."
+          },
+          "sizeClass": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "The spindle taper’s nominal size — 30, 40 or 50 for a 7:24, one of 25 through 160 for an HSK — or null when no taper was found. A size, not a holder: geometry cannot tell BT40 from CAT40 from ISO40."
+          },
+          "taperFamily": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "iso7x24",
+              "hsk",
+              null
+            ],
+            "description": "Which interface `sizeClass` belongs to, or null when no taper was found. Read the two together: an HSK40 and an ISO40 are both 40 and are otherwise nothing alike."
+          },
+          "axisDirection": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HolderVec3"
+              },
+              {
+                "type": "object",
+                "properties": {}
+              }
+            ],
+            "description": "The axis the holder turns about, as a unit vector in the file’s coordinates. Its sign is arbitrary — it says nothing about which end goes in the spindle. The holder runs nose to spindle along it unless `flipped`."
+          },
+          "axisLocation": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HolderVec3"
+              },
+              {
+                "type": "object",
+                "properties": {}
+              }
+            ],
+            "description": "A point on that axis, purely radial. With `nose` it is what puts the layer stack back on the geometry it was measured from."
+          },
+          "nose": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HolderVec3"
+              },
+              {
+                "type": "object",
+                "properties": {}
+              }
+            ],
+            "description": "Where the holder’s nose sits, in the file’s coordinates. The layer stack starts here."
+          },
+          "axisAreaFraction": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Share of the file’s surface area carried by faces agreeing on the axis, or null when not measured. Low is a warning: a holder something is wrong with, not a holder measured badly."
+          },
+          "faceCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Faces across every body in the file — evidence the holder arrived intact rather than as the three faces of a failed translation."
+          },
+          "sampleCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Envelope bins before simplification. Against the length of `layers` it says how much of the holder was groove detail."
+          },
+          "flipped": {
+            "type": "boolean",
+            "description": "Whether the file models the holder spindle-end first."
+          },
+          "taperAtNose": {
+            "type": "boolean",
+            "description": "Whether the taper sits at the nose end of the stack instead of the spindle end, which happens only when the `flipped` option turned the holder away from the detected cone."
+          },
+          "meshPointCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of points in the generated envelope mesh."
+          },
+          "meshTriangleCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of triangles in the generated envelope mesh."
+          },
+          "thumbnailUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "15-minute URL for the rendered PNG thumbnail, or null when absent."
+          },
+          "meshStlUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "15-minute URL for the generated STL envelope mesh, or null when absent."
+          },
+          "meshGlbUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "15-minute URL for the generated GLB envelope mesh, or null when absent."
+          },
+          "fusionAvailable": {
+            "type": "boolean",
+            "description": "Whether an Autodesk Fusion holder definition is available for download at `GET /v1/holders/{id}/fusion`."
+          },
+          "fusionTrimmedAvailable": {
+            "type": "boolean",
+            "description": "Whether that download can serve an envelope cut at the gauge plane. False when there was nothing to cut at — no gauge plane was measured, or a flip put the taper at the nose — in which case `trim=true` serves the complete envelope."
+          },
+          "downloadMs": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Worker time spent downloading the source CAD file, in milliseconds."
+          },
+          "importMs": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Kernel time spent deriving the holder, in milliseconds."
+          },
+          "totalMs": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total worker processing time for this holder, in milliseconds."
+          }
+        },
+        "required": [
+          "holderId",
+          "importId",
+          "jobId",
+          "kernelVersion",
+          "units",
+          "options",
+          "layers",
+          "gaugeLength",
+          "sizeClass",
+          "taperFamily",
+          "axisDirection",
+          "axisLocation",
+          "nose",
+          "axisAreaFraction",
+          "faceCount",
+          "sampleCount",
+          "flipped",
+          "taperAtNose",
+          "meshPointCount",
+          "meshTriangleCount",
+          "thumbnailUrl",
+          "meshStlUrl",
+          "meshGlbUrl",
+          "fusionAvailable",
+          "fusionTrimmedAvailable",
+          "downloadMs",
+          "importMs",
+          "totalMs"
+        ]
+      },
+      "HolderUnits": {
+        "type": "object",
+        "properties": {
+          "length": {
+            "type": "string",
+            "enum": [
+              "mm"
+            ],
+            "description": "Unit used by every length and diameter measurement."
+          },
+          "angle": {
+            "type": "string",
+            "enum": [
+              "deg"
+            ],
+            "description": "Unit used by every angular measurement."
+          }
+        },
+        "required": [
+          "length",
+          "angle"
+        ]
+      },
+      "Cone": {
+        "type": "object",
+        "properties": {
+          "thickness": {
+            "type": "number",
+            "description": "Layer height in mm."
+          },
+          "bottomDiameter": {
+            "type": "number",
+            "description": "Diameter at the lower end in mm."
+          },
+          "topDiameter": {
+            "type": "number",
+            "description": "Diameter at the upper end in mm."
+          }
+        },
+        "required": [
+          "thickness",
+          "bottomDiameter",
+          "topDiameter"
+        ]
+      },
+      "HolderVec3": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number",
+            "description": "X coordinate."
+          },
+          "y": {
+            "type": "number",
+            "description": "Y coordinate."
+          },
+          "z": {
+            "type": "number",
+            "description": "Z coordinate."
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "z"
+        ]
+      },
       "ListJobsResponse": {
         "type": "object",
         "properties": {
@@ -801,9 +1269,20 @@
         "type": "object",
         "properties": {
           "partUuid": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "uuid",
-            "description": "Identifier of the part this job processes."
+            "description": "Identifier of the part this job processes, or null when its subject is a holder."
+          },
+          "holderUuid": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Identifier of the holder this job processes, or null when its subject is a part."
           },
           "jobUuid": {
             "type": "string",
@@ -812,7 +1291,7 @@
           },
           "productType": {
             "type": "string",
-            "description": "Product operation performed by the job, such as part processing or feature-detail processing."
+            "description": "Product operation performed by the job, such as part processing, feature-detail processing, or holder import."
           },
           "status": {
             "type": "string",
@@ -841,6 +1320,7 @@
         },
         "required": [
           "partUuid",
+          "holderUuid",
           "jobUuid",
           "productType",
           "status",
@@ -852,9 +1332,20 @@
         "type": "object",
         "properties": {
           "partUuid": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "uuid",
-            "description": "Identifier of the part this job processes."
+            "description": "Identifier of the part this job processes, or null when its subject is a holder."
+          },
+          "holderUuid": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Identifier of the holder this job processes, or null when its subject is a part."
           },
           "jobUuid": {
             "type": "string",
@@ -863,7 +1354,7 @@
           },
           "productType": {
             "type": "string",
-            "description": "Product operation performed by the job, such as part processing or feature-detail processing."
+            "description": "Product operation performed by the job, such as part processing, feature-detail processing, or holder import."
           },
           "status": {
             "type": "string",
@@ -899,6 +1390,14 @@
             "format": "uuid",
             "description": "Identifier of the part result produced by successful processing, or null until available."
           },
+          "importId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Identifier of the holder result produced by a successful import, or null until available."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -907,12 +1406,14 @@
         },
         "required": [
           "partUuid",
+          "holderUuid",
           "jobUuid",
           "productType",
           "status",
           "progress",
           "error",
           "reportId",
+          "importId",
           "createdAt"
         ]
       },
@@ -965,6 +1466,10 @@
           "maxBottomDiameter": {
             "type": "number",
             "description": "Largest bottom diameter a terminal tool may have, in mm."
+          },
+          "wallLength": {
+            "$ref": "#/components/schemas/OffsetLength",
+            "description": "The outline a pass around the wall follows, sized for any tool. Absent where the\nprojection left no outline — a wall nothing can price, not one that is free."
           },
           "filletRadius": {
             "type": "number",
@@ -1269,6 +1774,25 @@
         ],
         "description": "How the user wants a hole machined."
       },
+      "OffsetLength": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "length": {
+            "type": "number",
+            "description": "The outline's own length, in mm — what a pass would travel with a tool of no width."
+          },
+          "dlDr": {
+            "type": "number",
+            "description": "How the travelled length changes per mm of tool radius: the outline's total signed\nturning, in radians and so dimensionless. Negative around an outline a tool runs\ninside of, positive around one it runs outside of, and `±2π` where the outline closes."
+          }
+        },
+        "required": [
+          "length",
+          "dlDr"
+        ],
+        "description": "An outline a pass follows, measured so that any tool's path length can be read off it.\n\nA pass does not walk the outline: it walks the tool *center*, offset by the tool radius to\nthe free side, which is shorter than the outline inside a pocket and longer around a boss.\nSo the length a tool of `radius` travels is `Math.max(0, length + radius * dlDr)`, and zero\nmeans the tool does not fit — the outline is shorter than the tool's own orbit, which a\ncaller pricing a pass must refuse rather than bill as free.\n\nExact for every tool the outline has room for, except at a corner sharper than the tool,\nwhere it reads long by that corner's miter — zero for the filleted corners a pocket that\nadmits the tool is made of."
+      },
       "PocketFacts": {
         "type": "object",
         "additionalProperties": false,
@@ -1285,6 +1809,10 @@
           "maxBottomDiameter": {
             "type": "number",
             "description": "The bottom diameter a terminal tool must not exceed; negative infinity when\nunconstrained."
+          },
+          "wallLength": {
+            "$ref": "#/components/schemas/OffsetLength",
+            "description": "The outline a pass around the wall follows, sized for any tool. Absent where the\nprojection left no outline — a wall nothing can price, not one that is free."
           },
           "filletRadius": {
             "type": "number",
@@ -1319,7 +1847,11 @@
           },
           "length": {
             "type": "number",
-            "description": "How far the pass travels, mm — the outline's own length."
+            "description": "How far the pass travels, mm — the outline's own length. The `radius = 0` term of\n`wallLength`, kept because it is what this boundary has always published; prefer the\noutline itself, which prices the tool actually used."
+          },
+          "wallLength": {
+            "$ref": "#/components/schemas/OffsetLength",
+            "description": "The outline the pass follows, sized for any tool. Never absent as it is on the other\nkinds: the silhouette is what a profile is."
           },
           "isModified": {
             "type": "boolean",
@@ -1382,6 +1914,40 @@
           "outerRadius"
         ],
         "description": "A countersink read as a cone of revolution: the circle its bevel starts from and the\none it opens to."
+      },
+      "SurfaceAreas": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "floorArea": {
+            "type": "number",
+            "description": "Surface square to the tool axis, in mm²."
+          },
+          "wallArea": {
+            "type": "number",
+            "description": "Surface running along it, in mm²."
+          },
+          "filletArea": {
+            "type": "number",
+            "description": "The concave rounds between the two, in mm² — as surface, so a quarter round of radius\n`r` over a length `L` reads `(π/2)·r·L`, not the `r·L` either projection sees."
+          },
+          "chamferArea": {
+            "type": "number",
+            "description": "The bevels, in mm²."
+          },
+          "contourArea": {
+            "type": "number",
+            "description": "Everything else, in mm²: surfaces with no flat to stand on."
+          }
+        },
+        "required": [
+          "floorArea",
+          "wallArea",
+          "filletArea",
+          "chamferArea",
+          "contourArea"
+        ],
+        "description": "What a feature's surface is made of: every region of it in exactly one bucket, so the five\nadd up to its surface area and nothing is counted twice.\n\nA description of the feature, not of a pass — see `projectedFloorArea` for the pair that\nsays what a pass sweeps, and the picture there for how the two families differ. A bucket is\nzero where the feature has no such surface. Areas are of the meshed regions, so a curved\nsurface reads a shade under its exact area."
       },
       "SurfaceFacts": {
         "type": "object",
@@ -1634,6 +2200,10 @@
           "cd": {
             "$ref": "#/components/schemas/CdData",
             "description": "Clearance-diameter limits for tools machining the wall."
+          },
+          "wallLength": {
+            "$ref": "#/components/schemas/OffsetLength",
+            "description": "The outline a pass around the wall follows, sized for any tool. Absent where the\nprojection left no outline — a wall nothing can price, not one that is free."
           }
         },
         "required": [
@@ -1918,7 +2488,7 @@
             }
           },
           "409": {
-            "description": "The part source has not been uploaded.",
+            "description": "The part source has not been uploaded, or the Idempotency-Key was already used for a different operation.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2237,6 +2807,606 @@
         }
       }
     },
+    "/v1/holders": {
+      "post": {
+        "operationId": "createHolder",
+        "tags": [
+          "Holders"
+        ],
+        "summary": "Create a holder upload",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "example": "holder.step"
+            },
+            "required": false,
+            "name": "filename",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The holder was created and is ready for direct upload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateHolderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The holder could not be created.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Authentication is temporarily unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/holders/{id}": {
+      "patch": {
+        "operationId": "updateHolder",
+        "tags": [
+          "Holders"
+        ],
+        "summary": "Queue holder import",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0195f02c-4b4a-7b5d-9b6e-8f139d5e2820"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 10,
+              "default": 0.05,
+              "example": 0.05,
+              "description": "Simplification tolerance in mm of radius. Simplification is one-sided, so the envelope contains the measured silhouette at any value. Defaults to 0.05."
+            },
+            "required": false,
+            "description": "Simplification tolerance in mm of radius. Simplification is one-sided, so the envelope contains the measured silhouette at any value. Defaults to 0.05.",
+            "name": "tolerance",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "default": "true",
+              "example": "false",
+              "description": "Raise each solid's enclosed bays — a V-flange groove, a thread relief — to their brims. Adds material nothing can collide with and cuts the layer count sharply. Defaults to true."
+            },
+            "required": false,
+            "description": "Raise each solid's enclosed bays — a V-flange groove, a thread relief — to their brims. Adds material nothing can collide with and cuts the layer count sharply. Defaults to true.",
+            "name": "fillBays",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "default": "false",
+              "example": "true",
+              "description": "Turn the holder end for end after the automatic orientation, which reads the 7:24 taper and otherwise puts the widest feature at the spindle end. Defaults to false."
+            },
+            "required": false,
+            "description": "Turn the holder end for end after the automatic orientation, which reads the 7:24 taper and otherwise puts the widest feature at the spindle end. Defaults to false.",
+            "name": "flipped",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "example": "holder-import-123"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "The import job was accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateHolderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The holder does not exist.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The holder source has not been uploaded, an import is already in progress, or the Idempotency-Key was already used for a different operation.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The import job could not be submitted.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Authentication is temporarily unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "getHolder",
+        "tags": [
+          "Holders"
+        ],
+        "summary": "Get the holder",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0195f02c-4b4a-7b5d-9b6e-8f139d5e2820"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0195f02c-4b4a-7b5d-9b6e-8f139d5e2820",
+              "description": "Return the holder result for this specific import run instead of the latest result."
+            },
+            "required": false,
+            "description": "Return the holder result for this specific import run instead of the latest result.",
+            "name": "jobId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The holder result for the latest or requested import run.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The holder or its result was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The holder could not be retrieved.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Authentication is temporarily unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/holders/{id}/fusion": {
+      "get": {
+        "operationId": "downloadHolderFusion",
+        "tags": [
+          "Holders"
+        ],
+        "summary": "Download the Autodesk Fusion holder definition",
+        "description": "Returns the derived holder as Autodesk Fusion writes one: millimetres, segments nose-first,\nhyphenated keys.\n\nBy default this is a **tool library** (`format=library`) that Fusion can import directly.\n`format=document` returns the bare holder document the kernel wrote, which carries the same\ngeometry but cannot be imported on its own.\n\nThe exported envelope stops at the gauge plane by default: material above it is inside the\nspindle and cannot collide with anything. Pass `trim=false` for the complete envelope,\nincluding the taper. Both are written by the kernel during the import, so neither is a\nreshaping of the other. `trim=true` falls back to the complete envelope for a holder that has\nno gauge plane to cut at, or whose taper a flip put at the nose.\n\nAn unmeasured gauge length is not written as zero. In a library it becomes the sum of every\nsegment height — Fusion's own idiom for a holder whose geometry is its gauge length; in a\ndocument the field is omitted, which puts Fusion's own field into manual mode.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0195f02c-4b4a-7b5d-9b6e-8f139d5e2820"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Download the definition from this specific import run instead of the latest result."
+            },
+            "required": false,
+            "description": "Download the definition from this specific import run instead of the latest result.",
+            "name": "jobId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "library",
+                "document"
+              ],
+              "default": "library",
+              "description": "`library` (default) returns an importable Fusion tool library; `document` returns the bare holder document written by the kernel."
+            },
+            "required": false,
+            "description": "`library` (default) returns an importable Fusion tool library; `document` returns the bare holder document written by the kernel.",
+            "name": "format",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "default": "true",
+              "description": "Serve the envelope cut at the gauge plane. Defaults to true, and falls back to the complete envelope when the holder has none. Both variants are the kernel’s own output."
+            },
+            "required": false,
+            "description": "Serve the envelope cut at the gauge plane. Defaults to true, and falls back to the complete envelope when the holder has none. Both variants are the kernel’s own output.",
+            "name": "trim",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "description": "Name for the holder in the library. Defaults to the uploaded filename without its extension, then to the holder id."
+            },
+            "required": false,
+            "description": "Name for the holder in the library. Defaults to the uploaded filename without its extension, then to the holder id.",
+            "name": "description",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 255,
+              "description": "Library vendor field."
+            },
+            "required": false,
+            "description": "Library vendor field.",
+            "name": "vendor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 255,
+              "description": "Library product-id field."
+            },
+            "required": false,
+            "description": "Library product-id field.",
+            "name": "productId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 2048,
+              "description": "Library product-link field."
+            },
+            "required": false,
+            "description": "Library product-link field.",
+            "name": "productLink",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The Autodesk Fusion holder definition.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "description": "The Autodesk Fusion holder document, as written by the kernel's exporter."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The holder, its result, or its Fusion definition was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The Fusion definition could not be retrieved.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Authentication is temporarily unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/holder-libraries/fusion": {
+      "get": {
+        "operationId": "exportFusionHolderLibrary",
+        "tags": [
+          "Holders"
+        ],
+        "summary": "Export several holders as one Autodesk Fusion library",
+        "description": "Composes the named holders into a single Autodesk Fusion tool library — how a shop keeps its crib\nin one file. Each holder must already have been imported; this reads their stored results and\ncreates nothing.\n\nHolders appear in the order they were named, and a repeated id is exported once. Each entry\ntakes its name from the holder’s uploaded filename.\n\nEvery named holder has to be exportable. A holder that does not exist, or that has no import\nresult yet, fails the whole request and is named in the response — a library that silently\ncontained fewer holders than were asked for would be worse than an error.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "0195f02c-4b4a-7b5d-9b6e-8f139d5e2820,0195f02c-4b4a-7b5d-9b6e-8f139d5e2821",
+              "description": "Comma-separated holder ids, at most 200."
+            },
+            "required": true,
+            "description": "Comma-separated holder ids, at most 200.",
+            "name": "ids",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "default": "true",
+              "description": "Serve every envelope cut at its gauge plane. Defaults to true, falling back per holder to the complete envelope where there was no gauge plane to cut at. Both variants are the kernel’s own output."
+            },
+            "required": false,
+            "description": "Serve every envelope cut at its gauge plane. Defaults to true, falling back per holder to the complete envelope where there was no gauge plane to cut at. Both variants are the kernel’s own output.",
+            "name": "trim",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "An Autodesk Fusion tool library containing the requested holders.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "description": "The Autodesk Fusion tool library document."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The API key is missing or invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "One or more holders do not exist.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "One or more holders have no import result to export.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The library could not be composed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Authentication is temporarily unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/jobs": {
       "get": {
         "operationId": "listJobs",
@@ -2279,6 +3449,18 @@
             "required": false,
             "description": "Return only jobs for this part.",
             "name": "partId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "0195f02c-4b4a-7b5d-9b6e-8f139d5e2820",
+              "description": "Return only jobs for this holder."
+            },
+            "required": false,
+            "description": "Return only jobs for this holder.",
+            "name": "holderId",
             "in": "query"
           },
           {
@@ -2464,7 +3646,7 @@
                 "schema": {
                   "type": "string",
                   "description": "Each `job` event has a JSON `data` field matching JobDetail.",
-                  "example": "event: job\ndata: {\"partUuid\":\"0195f02c-4b4a-7b5d-9b6e-8f139d5e2820\",\"jobUuid\":\"0195f02c-4b4a-7b5d-9b6e-8f139d5e2821\",\"productType\":\"analyze-part\",\"status\":\"running\",\"progress\":null,\"error\":null,\"reportId\":null,\"createdAt\":\"2026-08-05T12:00:00.000Z\"}\n\n"
+                  "example": "event: job\ndata: {\"partUuid\":\"0195f02c-4b4a-7b5d-9b6e-8f139d5e2820\",\"holderUuid\":null,\"jobUuid\":\"0195f02c-4b4a-7b5d-9b6e-8f139d5e2821\",\"productType\":\"analyze-part\",\"status\":\"running\",\"progress\":null,\"error\":null,\"reportId\":null,\"importId\":null,\"createdAt\":\"2026-08-05T12:00:00.000Z\"}\n\n"
                 }
               }
             }

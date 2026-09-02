@@ -9,9 +9,11 @@ from attrs import field as _attrs_field
 
 if TYPE_CHECKING:
     from ..models.direction_z_bounds import DirectionZBounds
+    from ..models.no_axis import NoAxis
     from ..models.part_feature import PartFeature
     from ..models.part_response_units import PartResponseUnits
     from ..models.region import Region
+    from ..models.turning_axis import TurningAxis
     from ..models.vec_3 import Vec3
 
 
@@ -32,6 +34,8 @@ class PartResponse:
         candidate_directions (list[Vec3]): Directions from which the part can be machined.
         direction_z_bounds (list[DirectionZBounds] | None): Part z extents for each candidate direction, or null when
             detail enrichment did not run.
+        turnability (NoAxis | None | TurningAxis): How much of the part one turning setup could finish, or null when no
+            reading was taken.
         mesh_point_count (int): Number of points in the generated mesh.
         mesh_triangle_count (int): Number of triangles in the generated mesh.
         thumbnail_url (None | str): 15-minute URL for the rendered PNG thumbnail, or null when absent.
@@ -52,6 +56,7 @@ class PartResponse:
     features: list[PartFeature]
     candidate_directions: list[Vec3]
     direction_z_bounds: list[DirectionZBounds] | None
+    turnability: NoAxis | None | TurningAxis
     mesh_point_count: int
     mesh_triangle_count: int
     thumbnail_url: None | str
@@ -64,6 +69,9 @@ class PartResponse:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        from ..models.no_axis import NoAxis
+        from ..models.turning_axis import TurningAxis
+
         part_id = str(self.part_id)
 
         report_id = str(self.report_id)
@@ -99,6 +107,14 @@ class PartResponse:
         else:
             direction_z_bounds = self.direction_z_bounds
 
+        turnability: dict[str, Any] | None
+        if isinstance(self.turnability, NoAxis):
+            turnability = self.turnability.to_dict()
+        elif isinstance(self.turnability, TurningAxis):
+            turnability = self.turnability.to_dict()
+        else:
+            turnability = self.turnability
+
         mesh_point_count = self.mesh_point_count
 
         mesh_triangle_count = self.mesh_triangle_count
@@ -133,6 +149,7 @@ class PartResponse:
                 "features": features,
                 "candidateDirections": candidate_directions,
                 "directionZBounds": direction_z_bounds,
+                "turnability": turnability,
                 "meshPointCount": mesh_point_count,
                 "meshTriangleCount": mesh_triangle_count,
                 "thumbnailUrl": thumbnail_url,
@@ -150,9 +167,11 @@ class PartResponse:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.direction_z_bounds import DirectionZBounds
+        from ..models.no_axis import NoAxis
         from ..models.part_feature import PartFeature
         from ..models.part_response_units import PartResponseUnits
         from ..models.region import Region
+        from ..models.turning_axis import TurningAxis
         from ..models.vec_3 import Vec3
 
         d = dict(src_dict)
@@ -207,6 +226,29 @@ class PartResponse:
 
         direction_z_bounds = _parse_direction_z_bounds(d.pop("directionZBounds"))
 
+        def _parse_turnability(data: object) -> NoAxis | None | TurningAxis:
+            if data is None:
+                return data
+            try:
+                if not isinstance(data, dict):
+                    raise TypeError()
+                componentsschemas_turnability_type_0 = NoAxis.from_dict(data)
+
+                return componentsschemas_turnability_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            try:
+                if not isinstance(data, dict):
+                    raise TypeError()
+                componentsschemas_turnability_type_1 = TurningAxis.from_dict(data)
+
+                return componentsschemas_turnability_type_1
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(NoAxis | None | TurningAxis, data)
+
+        turnability = _parse_turnability(d.pop("turnability"))
+
         mesh_point_count = d.pop("meshPointCount")
 
         mesh_triangle_count = d.pop("meshTriangleCount")
@@ -250,6 +292,7 @@ class PartResponse:
             features=features,
             candidate_directions=candidate_directions,
             direction_z_bounds=direction_z_bounds,
+            turnability=turnability,
             mesh_point_count=mesh_point_count,
             mesh_triangle_count=mesh_triangle_count,
             thumbnail_url=thumbnail_url,
