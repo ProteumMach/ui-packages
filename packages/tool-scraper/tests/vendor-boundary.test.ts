@@ -83,6 +83,7 @@ const SHARED_BY_CONTRACT = new Map([
   // EMUGE-FRANKEN is the second vendor to publish a drill and a tap, so the two
   // entries this list said the second vendor would add back are here.
   ['RECORD_MAPPERS', 'the mapper table every cutting-tool adapter exports'],
+  ['HOLDING_MAPPERS', 'its toolholding counterpart, for a vendor that ships holders or collets'],
   ['endmillRecord', 'the end mill half of that contract'],
   ['drillRecord', 'the drill half of it, which two vendors now publish'],
   ['tapRecord', 'the tap half — same contract, two unrelated tap vocabularies'],

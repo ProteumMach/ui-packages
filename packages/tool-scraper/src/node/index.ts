@@ -13,5 +13,6 @@
 export * from './cad-mirror.js'
 export * from './cli.js'
 export * from './csv.js'
+export * from './holder-import.js'
 export * from './paths.js'
 export * from './receipts.js'

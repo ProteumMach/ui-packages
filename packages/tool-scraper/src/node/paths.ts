@@ -84,6 +84,28 @@ export function stepDir(brand: BrandName): string {
 }
 
 /**
+ * One vendor's measured holder profiles, one JSON per holder family.
+ *
+ * Beside {@link stepDir} rather than under it: a STEP model is the vendor's
+ * binary and a profile is this package's own derived measurement, and only the
+ * second one is ever meant to leave.
+ */
+export function profilesDir(brand: BrandName): string {
+  return join(scrapeRoot(), brand, 'profiles')
+}
+
+/**
+ * The merged profiles document, across every vendor.
+ *
+ * At the root rather than under a brand, because it is the cross-vendor
+ * document — keyed by guid, which is the one namespace holders of every brand
+ * share.
+ */
+export function profilesJson(): string {
+  return join(scrapeRoot(), 'profiles.json')
+}
+
+/**
  * Where one family's CSV lives, resolved through its own brand.
  *
  * Takes a bare CSV name rather than a path, so a caller cannot pass a file

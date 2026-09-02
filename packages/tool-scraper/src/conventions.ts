@@ -22,6 +22,7 @@
  * | `Description` carries the vendor's own free text   | Harvey, MariTool          |
  * | `contact` says how a holder seats                  | REGO-FIX, MariTool        |
  * | `CST` names the collet series a holder takes       | REGO-FIX, MariTool        |
+ * | `Collet Series` names the series a collet is        | Kennametal, REGO-FIX      |
  * | `L1_in`/`L1_mm` carry a holder's gage length       | REGO-FIX, MariTool        |
  * | Unmapped vendor codes keep a `DIN_` prefix         | REGO-FIX; rule is general |
  * | The identity columns                               | **broken** — see below    |
@@ -149,6 +150,22 @@ export const CONTACT_COLUMN = 'contact'
 export const COLLET_SERIES_COLUMN = 'CST'
 
 /**
+ * The CSV column naming the series a collet **is** — `ER16`, `PG25`, `PGST15`.
+ *
+ * The other half of {@link COLLET_SERIES_COLUMN}, and deliberately a second
+ * column rather than the same one: `CST` is the series a *holder takes* and
+ * this is the series a *collet belongs to*, so the join between a holder family
+ * and a collet family is a comparison of the two. One column carrying both
+ * would make that join a row's comparison with itself.
+ *
+ * Vendor-neutral and here rather than in either adapter for the reason
+ * {@link CAD_COLUMN} is: Kennametal's ER collet tables and REGO-FIX's PG collet
+ * index both write it, and neither owns it. Both close the vendor's own spacing
+ * before writing, exactly as they do for `CST` — two spellings join to nothing.
+ */
+export const COLLET_DESIGNATION_COLUMN = 'Collet Series'
+
+/**
  * The CSV columns carrying a holder's gage length, one per unit system.
  *
  * A **pair** with exactly one cell filled, rather than one column and a unit
@@ -256,6 +273,32 @@ export function dimensionalColumn(label: string, unit: string): string {
  */
 export function identityColumns(brand: BrandName): readonly string[] {
   return IDENTITY_DEVIATIONS[brand] ?? IDENTITY_COLUMNS
+}
+
+/**
+ * The identity column a human reads one part by.
+ *
+ * The catalog designation where the vendor publishes one, and the sole
+ * identifier where it does not — the **last** of {@link identityColumns},
+ * because that is the order the pair is written in and a deviation lists the
+ * one column its vendor has.
+ *
+ * A lookup rather than a read of the row, for the reason {@link identityColumns}
+ * gives: a header that is missing `ISO Catalog Number` is indistinguishable
+ * from a scrape that lost it, so a caller that fell back column by column would
+ * name half a family's files after part numbers and never say why.
+ *
+ * It exists because `node/cad-mirror.ts` names a mirrored file after the part
+ * it holds, and hardcoded `'ISO Catalog Number'` to do it. That is Kennametal's
+ * pair; MariTool publishes one number per part under `Material Number` and no
+ * catalog designation at all, so every one of its 357 STEP models was skipped
+ * with a warning that the row had no catalog number to name it.
+ */
+export function catalogColumn(brand: BrandName): string {
+  const columns = identityColumns(brand)
+  // Non-null: `IDENTITY_COLUMNS` has two entries and every deviation has at
+  // least one, which `tests/conventions.test.ts` holds the table to.
+  return columns[columns.length - 1]!
 }
 
 /**

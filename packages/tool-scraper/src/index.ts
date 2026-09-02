@@ -20,19 +20,27 @@
  * point, because a backend embedding this wants the data and a maintainer
  * running the CLI wants the file, and only one of those two needs `fs`.
  *
- * ## Cutting tools become records; toolholding is rows
+ * ## Three record types, one guid space
  *
- * **`ToolRecord` is the uniform output for cutting tools, and only for those.**
- * `registry.toRecords` maps one cutting-tool family's scrape onto it, through
- * the adapter its brand binds. Holders and collets have no record type and no
- * mapper: REGO-FIX and MariTool ship toolholding and nothing else, so a scrape
- * of either ends at rows and a receipt, and a consumer that wants a holder
- * reads the CSV's own columns — the shared ones are named in `conventions`.
+ * `ToolRecord` is the uniform output for **cutting tools**, and `HolderRecord`
+ * and `ColletRecord` are the toolholding half — `registry.toRecords` and
+ * `registry.toHolding` map one family's scrape onto them through the adapter
+ * its brand binds. All three are minted by `identity.recordGuid` in one
+ * namespace per brand, which is what lets a consumer build a catalog from
+ * holders and tools together and refuse a collision between them.
  *
- * That is a real gap rather than a design: `identity.recordGuid` already exists
- * so that a holder and a tool can be minted into one guid space, and nothing
- * mints a holder yet. Until something does, `toRecords` is the tool half and
- * the receipt is the whole of the toolholding half.
+ * They are three types rather than one because the vocabularies do not overlap:
+ * a tool answers `DC`, a flute count and a workpiece material group; a holder
+ * answers a taper, a clamping mode and a gage length; a collet answers a series
+ * and a capacity band. `holding.ts` states that at length, and `families/index.ts`
+ * already drew the same line for the config tables.
+ *
+ * **A vendor may publish holders, collets, both or neither, and none of it is
+ * required.** REGO-FIX ships toolholding and no cutting tools; MariTool ships
+ * holders and no collets; Harvey, EMUGE-FRANKEN and Destiny Tool ship neither.
+ * A brand with no mapper for a kind still scrapes, still writes a CSV and still
+ * checks a receipt — `registry.toHolding` is the only call that refuses, and it
+ * names the brand and what that brand does map.
  */
 
 export * from './columns.js'
@@ -40,8 +48,10 @@ export * from './conventions.js'
 export * from './errors.js'
 export * from './family.js'
 export * from './fetch.js'
+export * from './holding.js'
 export * from './identity.js'
 export * from './measure.js'
+export * from './profiles.js'
 export * from './provenance.js'
 export * from './records.js'
 export * from './scrape.js'

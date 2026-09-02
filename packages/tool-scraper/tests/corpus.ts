@@ -26,7 +26,7 @@ import type { TestContext } from 'vitest'
 
 import { parseCsv } from '../src/node/csv.js'
 import { familyCsv } from '../src/node/paths.js'
-import type { ScrapedRow } from '../src/scrape.js'
+import type { ScrapeResult, ScrapedRow } from '../src/scrape.js'
 import { describeRoot } from '../src/node/paths.js'
 
 /**
@@ -44,7 +44,7 @@ const REQUIRE_ENV = 'TOOLPATH_REQUIRE_CORPUS'
  * somewhere this run is not looking" are the same symptom and different
  * problems — and `TOOLPATH_SCRAPE_ROOT` is what separates them.
  */
-export function rows(ctx: TestContext, name: string): ScrapedRow[] {
+function csvPath(ctx: TestContext, name: string): string {
   const path = familyCsv(name)
   if (!existsSync(path)) {
     const message =
@@ -53,7 +53,28 @@ export function rows(ctx: TestContext, name: string): ScrapedRow[] {
     if (process.env[REQUIRE_ENV]) throw new Error(message)
     ctx.skip(message)
   }
-  return parseCsv(readFileSync(path, 'utf8')).rows
+  return path
+}
+
+export function rows(ctx: TestContext, name: string): ScrapedRow[] {
+  return parseCsv(readFileSync(csvPath(ctx, name), 'utf8')).rows
+}
+
+/**
+ * One family's scraped CSV as a {@link ScrapeResult}, for the calls that take
+ * one — `registry.toRecords` and `registry.toHolding`.
+ *
+ * The header is the file's own and not the union of the rows' keys: a row whose
+ * cell is empty still occupies its column, and `checkIdentityColumns` reads the
+ * header, so deriving it would hide exactly the failure that check exists for.
+ *
+ * `source` says the file rather than a URL. Re-issuing the request is not a
+ * thing a test can do, and a fabricated URL in a `ScrapeResult` would be the
+ * one field of it that was not evidence.
+ */
+export function scrape(ctx: TestContext, name: string): ScrapeResult {
+  const parsed = parseCsv(readFileSync(csvPath(ctx, name), 'utf8'))
+  return { ...parsed, source: `file://${familyCsv(name)}`, familyCode: null }
 }
 
 /** One row of a scraped CSV, by its catalog number. */

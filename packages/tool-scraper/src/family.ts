@@ -20,6 +20,7 @@
 import type { UnitSystem } from './conventions.js'
 import { ScraperConfigError } from './errors.js'
 import type { BrandName } from './identity.js'
+import type { HoldingMapper, ToolholdingKind } from './holding.js'
 import type { Fact } from './provenance.js'
 import type { ColumnMap, ToolKind, ToolRecord } from './records.js'
 import type { MapperOptions, ScrapedRow } from './scrape.js'
@@ -138,8 +139,22 @@ export type BoundFamily = Omit<FamilyDefinition, 'columns'> &
     readonly records: RecordMapper
   }
 
-/** A toolholding family after its facts have been checked and projected. */
-export type BoundToolholding = ToolholdingDefinition & FamilyFacts
+/**
+ * A toolholding family after its facts have been checked and projected.
+ *
+ * `kind` is projected by the registry from **which table declared the family**,
+ * rather than being a key on {@link ToolholdingDefinition}: the table is the
+ * fact, and a `kind` beside it would be a second copy free to disagree with it.
+ * `records` is the mapper that brand binds for that kind, and it is optional
+ * because a vendor's holders may be scraped long before anybody has read its
+ * columns — see `holding.HoldingMappers`.
+ */
+export type BoundToolholding = ToolholdingDefinition &
+  FamilyFacts & {
+    readonly kind: ToolholdingKind
+    /** The adapter that turns this family's rows into records, where there is one. */
+    readonly records?: HoldingMapper
+  }
 
 /**
  * A family's id: `<brand>:<vendor-local id>`.

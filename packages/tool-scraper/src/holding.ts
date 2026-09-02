@@ -1,0 +1,652 @@
+/**
+ * What a holder and a collet become, and the two gates that refuse one.
+ *
+ * `records.ts` is the cutting-tool half of this package's output. This is the
+ * toolholding half, and it is a separate module rather than a third `ToolKind`
+ * because the three vocabularies genuinely do not overlap: a tool answers `DC`,
+ * a flute count and a workpiece material group; a holder answers a taper, a
+ * clamping mode and a gage length; a collet answers a series and a capacity
+ * band. `families/index.ts` states the same rule for the config tables —
+ *
+ * > Separate tables rather than a `kind` on one, because a holder and a collet
+ * > are not variants of a thing.
+ *
+ * — and the records follow it. What they *do* share is identity, the unit rule
+ * and the guid space, which is why both live here and not in two more files:
+ * `identity.recordGuid` mints a holder and a tool into one namespace per brand,
+ * so a consumer building a catalog from both can refuse a collision between
+ * them.
+ *
+ * ## Two copies of a dimension, and only where something compares them
+ *
+ * A fit-bearing dimension is kept twice — once in the family's native unit for
+ * display, once in canonical millimetres for arithmetic. The reason is that fit
+ * and filtering are different questions: a 3/8 in shank is 9.525 mm and
+ * genuinely seats in a metric 9-10 mm collet, so a fit comparison must convert,
+ * while a range *filter* must still refuse to, because "between 9 and 10 mm" is
+ * not a question an inch tool answers.
+ *
+ * Only {@link HolderRecord.bore}, {@link HolderRecord.gaugeLength},
+ * {@link ColletRecord.clampMin} and {@link ColletRecord.clampMax} get a twin.
+ * Everything else — usable length, body diameter, adjustment range — is
+ * displayed and never compared, and a second copy of a number nothing reads is
+ * a field to keep in sync for free.
+ *
+ * **The twin is derived here rather than read from the other unit column**, and
+ * that is a deliberate departure from the reference implementation, which read
+ * `D1_mm` directly whatever the family's unit was. Vendors publish pairs that
+ * disagree — see {@link checkUnitAgreement} — and a record whose `bore` and
+ * `boreMm` came from two contradicting cells is one record stating two sizes.
+ * Deriving makes `boreMm` exactly `bore` in millimetres by construction, so the
+ * pair cannot drift and a test can pin one to the other.
+ *
+ * ## Which refusal a vendor's row earns
+ *
+ * The split is **blank versus wrong**, and it decides whether one bad part ends
+ * a family:
+ *
+ * - A cell the vendor left **blank** that a part cannot exist without — no gage
+ *   length, no bore on a bore-clamping holder, no capacity on a collet — is an
+ *   `errors.IncompletePartError`. `registry.toHolding` warns and drops the row,
+ *   the same call `registry.toRecords` makes for a cutting tool, and for the
+ *   same reason: MariTool leaves `Shank Size` blank on four HSK holders out of
+ *   527, and losing five families over four rows is not a trade worth making.
+ * - A value that is **present and unreadable**, or two present values that
+ *   **contradict** — a clamping mode this package has no word for, a holder
+ *   that names both a bore and a collet series, a collet whose nominal size
+ *   falls outside its own published capacity — is an `errors.VendorResponseError`
+ *   and stops the family. Those say the vendor's vocabulary or this package's
+ *   reading of it has moved, and skipping past one quietly is how a scraper
+ *   starts publishing a catalog nobody checked.
+ */
+
+import { dimensionalColumn, UNIT_SUFFIX, type UnitSystem } from './conventions.js'
+import { IncompletePartError, ScraperConfigError, VendorResponseError } from './errors.js'
+import type { BoundToolholding } from './family.js'
+import { BRANDS, productLink, recordGuid, type BrandName } from './identity.js'
+import { convertLength, fractionValue } from './measure.js'
+import { consoleWarn, type ScrapedRow, type Warn } from './scrape.js'
+
+/**
+ * How a holder grips the thing it holds.
+ *
+ * Four values where the reference implementation had two. `bore` and `collet`
+ * are its own; `shrink` and `hydraulic` are here because MariTool's leaf
+ * categories already classify parts as those and the distinction is a real one
+ * a buyer makes — a shrink-fit holder needs an induction heater on the bench
+ * and a hydraulic chuck needs an actuation screw, where both are otherwise the
+ * same answer to "what fits in it".
+ *
+ * They are the same *fit* question, which is what {@link BORE_CLAMPINGS} says:
+ * all three grip a shank directly and are held to one rule. Kennametal's
+ * shrink-fit and hydraulic families declare `bore` and stay declaring it —
+ * the vendor states the mode as a bore and this package does not re-classify a
+ * family's own words. `style` is the finer axis and already carries
+ * `shrink-fit-gp` and `hydraulic-chuck`.
+ */
+export type ClampingMode = 'bore' | 'collet' | 'shrink' | 'hydraulic'
+
+/** Every {@link ClampingMode}, for a message that can list what it knows. */
+export const CLAMPING_MODES: readonly ClampingMode[] = ['bore', 'collet', 'shrink', 'hydraulic']
+
+/**
+ * The clamping modes that grip a shank directly, and therefore publish a bore.
+ *
+ * One rule over three values rather than three rules: the gate in
+ * {@link checkHolder} asks whether a holder takes a shank or a collet, and
+ * every mode but `collet` takes a shank.
+ */
+export const BORE_CLAMPINGS: readonly ClampingMode[] = ['bore', 'shrink', 'hydraulic']
+
+/**
+ * Whether the flange face seats on the spindle face as well as the cone.
+ *
+ * Never defaulted. `taper` is the common case, and defaulting to it would
+ * record a dual-contact family as a plain cone on no evidence — the same
+ * silent-wrong-answer shape as a bore-clamping holder with no bore.
+ */
+export type ContactMode = 'taper' | 'face'
+
+/** Every {@link ContactMode}, for the same reason {@link CLAMPING_MODES} is a list. */
+export const CONTACT_MODES: readonly ContactMode[] = ['taper', 'face']
+
+/** What every toolholding record shares with every `records.ToolRecord`. */
+export interface HoldingIdentity {
+  /** `holder` or `collet` — which of the two record types this is. */
+  readonly kind: ToolholdingKind
+  /**
+   * The brand key the record was minted under — `identity.BRANDS`'s own key.
+   *
+   * Here for the reason `records.ToolRecord.brand` is: {@link HoldingIdentity.guid}
+   * is minted in this brand's namespace, so without the key the guid is
+   * underivable from the record.
+   */
+  readonly brand: BrandName
+  /** What this brand's records call the vendor — `identity.BRANDS[brand].vendor`. */
+  readonly vendor: string
+  /** `identity.recordGuid(brand, materialNumber)`, minted by the factories below. */
+  readonly guid: string
+  readonly materialNumber: string
+  readonly catalogNumber: string
+  /**
+   * The vendor's own free text about this part, verbatim — `''` where the
+   * vendor publishes none.
+   *
+   * **Never a copy of another field**, the rule `records.ToolRecord.description`
+   * already states. The reference implementation set it to the catalog number
+   * on every holder and collet, which put one string in two fields and told a
+   * consumer nothing it did not already have. Kennametal and REGO-FIX publish
+   * no description column for toolholding, so `''` is the honest answer for
+   * both; MariTool publishes a product name and that is what its records carry.
+   */
+  readonly description: string
+  readonly productLink: string
+  /**
+   * Which unit system this record's native dimensions are in.
+   *
+   * **Per record, not per family.** REGO-FIX publishes `PG 25 Ø 6.0 mm` and
+   * `PG 25 Ø 1/4"` as two rows of one product group, and MariTool gages two
+   * parts on one listing page in different systems. A family-level constant
+   * would be contradicted row by row, which is why `families/maritool.ts`
+   * declares no `unit` fact and the scraper promotes an `L1_in`/`L1_mm` pair
+   * with one cell filled instead.
+   */
+  readonly unit: UnitSystem
+}
+
+/** One holder — a spindle interface, a way of gripping, and a gage length. */
+export interface HolderRecord extends HoldingIdentity {
+  readonly kind: 'holder'
+  /** The spindle interface, as the vendor designates it — `BT30`, `HSK63A`. */
+  readonly taper: string
+  readonly contact: ContactMode
+  readonly clamping: ClampingMode
+  /** The vendor's own product style — `er-collet-chuck`, `shrink-fit-gp`. */
+  readonly style: string
+  /**
+   * The collet series this holder takes, on a collet-clamping holder only.
+   *
+   * Joins to {@link ColletRecord.series}. Written exactly as the vendor
+   * designates it, so a `PGST15` collet matches no `PG25` holder — the
+   * conservative direction on purpose, because hiding a collet that would have
+   * fitted costs an option while offering one that does not fit costs a
+   * machinist a purchase.
+   */
+  readonly colletSeries: string | null
+  /** `D1` — the bore a shank seats in, on a bore-clamping holder only. */
+  readonly bore: number | null
+  readonly boreMm: number | null
+  /** `L1` — gage line to nose. Required: without it there is no stickout. */
+  readonly gaugeLength: number
+  readonly gaugeLengthMm: number
+  /** `L2` — usable length. */
+  readonly usableLength: number | null
+  /** `L9` — clamping length. */
+  readonly clampingLength: number | null
+  /** `V` — the adjustment range. */
+  readonly adjustmentRange: number | null
+  /** `D2` — body diameter. */
+  readonly bodyDiameter: number | null
+  /** `D11` — lock-nut diameter. */
+  readonly lockNutDiameter: number | null
+  /** `conventions.CAD_COLUMN`, or null where the vendor publishes no model. */
+  readonly cadModelUrl: string | null
+  /** `conventions.CAD_DXF_COLUMN`, or null where the vendor publishes no profile. */
+  readonly cadDxfUrl: string | null
+}
+
+/** One collet — a series, a capacity band, and the sizes in between. */
+export interface ColletRecord extends HoldingIdentity {
+  readonly kind: 'collet'
+  /** `ER16`, `PG25`, `PGST15` — joins to {@link HolderRecord.colletSeries}. */
+  readonly series: string
+  /** The vendor's own product style — `er-standard`, `pg-coolant-flush`. */
+  readonly style: string
+  /** `D1` — the nominal size the vendor designates the collet by. */
+  readonly nominal: number | null
+  /**
+   * `CCCN`/`CCCX` — the vendor's published clamping capacity, never derived.
+   *
+   * DIN 6499 is usually summarised as a 1 mm band, which is wrong at the small
+   * end of every series (`16ER010M` clamps 1.0 down to 0.5) and wrong by a
+   * whole millimetre on a sealed coolant-through collet, where the two are
+   * equal and the collet takes one exact size.
+   */
+  readonly clampMin: number
+  readonly clampMax: number
+  readonly clampMinMm: number
+  readonly clampMaxMm: number
+  /** `BDX` — body diameter. */
+  readonly bodyDiameter: number | null
+  /** `LF` — functional length. */
+  readonly functionalLength: number | null
+  /** `L` — overall length. */
+  readonly overallLength: number | null
+}
+
+/** Either toolholding record. Narrow on {@link HoldingIdentity.kind}. */
+export type HoldingRecord = HolderRecord | ColletRecord
+
+/**
+ * Which of the two toolholding tables a family came from.
+ *
+ * Not a key on `family.ToolholdingDefinition`: which table declares a family
+ * *is* the fact, and a `kind` beside it would be a second copy to disagree with
+ * it. `registry.boundToolholding` projects it onto the bound config, which is
+ * where the registry already knows the answer.
+ */
+export type ToolholdingKind = 'holder' | 'collet'
+
+/** One toolholding row -> one record. A vendor adapter supplies these. */
+export type HolderMapper = (
+  row: ScrapedRow,
+  family: BoundToolholding,
+  options?: { warn?: Warn },
+) => HolderRecord
+
+/** The collet half of the same contract. */
+export type ColletMapper = (
+  row: ScrapedRow,
+  family: BoundToolholding,
+  options?: { warn?: Warn },
+) => ColletRecord
+
+/**
+ * A vendor adapter's toolholding mappers, both optional.
+ *
+ * **Partial on purpose.** REGO-FIX publishes holders and collets, MariTool
+ * holders only, and Harvey, EMUGE and Destiny Tool neither. A brand absent from
+ * `registry.HOLDING_ADAPTERS`, or present with no mapper for the kind, keeps
+ * today's behaviour exactly: the scrape ends at rows and a receipt. That is
+ * what makes minting records additive rather than a break, and it is the honest
+ * state for a vendor whose columns nobody has read yet.
+ */
+export interface HoldingMappers {
+  holder?: HolderMapper
+  collet?: ColletMapper
+}
+
+/** Either mapper, as the registry stores the one a family binds. */
+export type HoldingMapper = HolderMapper | ColletMapper
+
+/**
+ * A per-family constant a toolholding mapper cannot proceed without.
+ *
+ * `family.fact`'s counterpart for a family with no `id` and no `ToolKind`. The
+ * two are separate rather than one widened function because the subject of the
+ * message differs: a cutting-tool family is named by its vendor-local id and a
+ * toolholding family by the catalog name a human reads.
+ *
+ * Refusing rather than defaulting, for the reason `family.fact` states: every
+ * default is a claim the family never made, and a missing `taper` becoming
+ * `''` ships a holder that fits no spindle and raises nothing.
+ */
+export function holdingFact<T>(family: BoundToolholding, key: string, value: T | undefined): T {
+  if (value === undefined) {
+    throw new ScraperConfigError(
+      family.catalogName,
+      `a ${family.kind} family must state ${key} as a fact`,
+    )
+  }
+  return value
+}
+
+/**
+ * A value the vendor left blank on one part, refused as an incomplete part.
+ *
+ * The toolholding counterpart of `columns.required`, and it throws the same
+ * type for the same reason: this is the one refusal `registry.toHolding` skips
+ * past, because a single part with an unpublished cell must not end a family's
+ * conversion. See `errors.IncompletePartError` for why the others must not be
+ * skipped alike.
+ */
+export function published<T extends string | number>(
+  value: T | null | undefined,
+  what: string,
+  label: string,
+): T {
+  if (value === null || value === undefined || value === '') {
+    throw new IncompletePartError(what, `publishes no ${label}`)
+  }
+  return value
+}
+
+/**
+ * Round a converted value to six decimals.
+ *
+ * **This removes error rather than adding precision.** 9.525 mm is exactly
+ * 0.375 in, but `9.525 / 25.4` is `0.37500000000000006` in binary floating
+ * point, and that is the number that would land in a catalog and in a
+ * prefix-matched size string. Six places is far coarser than the ~1e-14 the
+ * error reaches at these magnitudes and far finer than the four decimals a
+ * vendor prints, so nothing anybody stated is lost.
+ */
+function round6(value: number): number {
+  return Math.round(value * 1e6) / 1e6
+}
+
+/**
+ * `value`, stated in `from`, as a number in `to` — a no-op when they agree.
+ *
+ * The one conversion every toolholding mapper makes, so that the rounding above
+ * is applied in one place rather than wherever somebody remembers to.
+ */
+export function asUnit(value: number, from: UnitSystem, to: UnitSystem): number {
+  return from === to ? value : round6(convertLength(value, from, to))
+}
+
+/** `value`, stated in `unit`, as millimetres. */
+export function millimeters(value: number, unit: UnitSystem): number
+export function millimeters(value: number | null, unit: UnitSystem): number | null
+export function millimeters(value: number | null, unit: UnitSystem): number | null {
+  return value === null ? null : asUnit(value, unit, 'millimeters')
+}
+
+/**
+ * One dimension in `unit`, converted from the other system where that is all
+ * the vendor published.
+ *
+ * **The fallback is load-bearing, not defensive.** Kennametal's `D1` is a unit
+ * pair on the BT30 hydraulic chucks and metric-only on the HSK63A HP line — an
+ * *inch* family with no `D1_in` column at all. A bare suffixed read is correct
+ * on the first and yields null on the second, producing a holder with no bore:
+ * it matches no tool, raises nothing, and looks like an empty result rather
+ * than a bug.
+ *
+ * The grammar is `measure.fractionValue`'s, which is the package's one reader
+ * for a machinist's number and refuses a range rather than summing it.
+ */
+export function dim(row: ScrapedRow, label: string, unit: UnitSystem): number | null {
+  const native = fractionValue(row[dimensionalColumn(label, unit)] ?? '')
+  if (native !== null) return native
+
+  const other: UnitSystem = unit === 'millimeters' ? 'inches' : 'millimeters'
+  const fallback = fractionValue(row[dimensionalColumn(label, other)] ?? '')
+  if (fallback === null) return null
+  return round6(convertLength(fallback, other, unit))
+}
+
+/** Half a unit in the last decimal place a cell actually printed. */
+function halfUlp(raw: string): number {
+  const fraction = raw.includes('.') ? raw.slice(raw.indexOf('.') + 1) : ''
+  return 0.5 * 10 ** -fraction.length
+}
+
+/**
+ * Report where a vendor's own millimetre and inch cells disagree.
+ *
+ * **Vendors really do publish contradictory pairs.** Kennametal's `16ERSS0312`
+ * states `D1`'s metric cell as `0.3125` — the inch value sitting in the metric
+ * column, a factor of 25.4 out — and `25ER130M` publishes `CCCN` as both
+ * 12.0 mm and 0.437 in, which is 11.1 mm. Both are in the source HTML.
+ *
+ * **This reports; it does not gate.** Two disagreeing cells cannot say which
+ * one is wrong, so refusing the family would trade a knowable warning for an
+ * unusable pipeline, and correcting a cell here would make this package a place
+ * tool data is authored by hand. What protects the output instead is that
+ * {@link dim} reads the family's *native* column and never the other one, plus
+ * {@link checkCollet}'s native-unit test that a nominal size falls inside its
+ * own published capacity. Every disagreement found so far sits in the column
+ * {@link dim} ignores; escalate this to a gate if one ever lands in a native
+ * column.
+ *
+ * **The tolerance is the vendor's own rounding, not a percentage.** A relative
+ * tolerance cannot tell rounding from error at small sizes: `16ER010M`
+ * publishes 0.5 mm as `0.02` in, correct to the two decimals it states and
+ * 1.6 % off as a ratio. Half a unit in each column's last printed place is
+ * exactly the slack the printed precision allows, and it is nowhere near the
+ * 7.6 mm a value in the wrong column produces.
+ *
+ * Returns whether it warned, so a caller can count.
+ */
+export function checkUnitAgreement(
+  row: ScrapedRow,
+  label: string,
+  what: string,
+  warn: Warn = consoleWarn,
+): boolean {
+  const rawMm = (row[label + UNIT_SUFFIX.millimeters] ?? '').trim()
+  const rawIn = (row[label + UNIT_SUFFIX.inches] ?? '').trim()
+  const mm = fractionValue(rawMm)
+  const inch = fractionValue(rawIn)
+  if (mm === null || inch === null) return false
+
+  const slack = halfUlp(rawIn) * convertLength(1, 'inches', 'millimeters') + halfUlp(rawMm)
+  const asMm = convertLength(inch, 'inches', 'millimeters')
+  if (Math.abs(mm - asMm) <= slack) return false
+
+  warn(
+    `  WARNING: ${what}: ${label} disagrees across unit systems — ` +
+      `${mm} mm vs ${inch} in (= ${asMm} mm); the native column is used`,
+  )
+  return true
+}
+
+/**
+ * One cell as a {@link ContactMode}, refusing a word this package cannot read.
+ *
+ * A `VendorResponseError` and not an incomplete part: a *blank* contact is the
+ * caller's `published` call, and a contact the vendor states in a word nobody
+ * has mapped is the vocabulary having moved.
+ */
+export function contactMode(value: string, what: string): ContactMode {
+  if ((CONTACT_MODES as readonly string[]).includes(value)) return value as ContactMode
+  throw new VendorResponseError(
+    what,
+    `contact is ${JSON.stringify(value)} — it must be one of ` + `${CONTACT_MODES.join(', ')}`,
+  )
+}
+
+/** One cell as a {@link ClampingMode}, on the same terms as {@link contactMode}. */
+export function clampingMode(value: string, what: string): ClampingMode {
+  if ((CLAMPING_MODES as readonly string[]).includes(value)) return value as ClampingMode
+  throw new VendorResponseError(
+    what,
+    `clamping is ${JSON.stringify(value)} — it must be one of ` + `${CLAMPING_MODES.join(', ')}`,
+  )
+}
+
+/**
+ * One cell as a {@link UnitSystem}, on the same terms as {@link contactMode}.
+ *
+ * For the vendor that states the unit per row rather than per family: REGO-FIX
+ * publishes `PG 25 Ø 6.0 mm` and `PG 25 Ø 1/4"` in one product group, so its
+ * collet scrape writes the system it read off each designation into a column.
+ */
+export function unitSystem(value: string, what: string): UnitSystem {
+  if (Object.hasOwn(UNIT_SUFFIX, value)) return value as UnitSystem
+  throw new VendorResponseError(
+    what,
+    `unit is ${JSON.stringify(value)} — it must be one of ` +
+      `${Object.keys(UNIT_SUFFIX).sort().join(', ')}`,
+  )
+}
+
+/** How a record names itself in a warning or a refusal. */
+function subject(fields: { catalogNumber: string; materialNumber: string }): string {
+  return `${fields.catalogNumber} (${fields.materialNumber})`
+}
+
+/**
+ * Vendor HTML is a system boundary, so this validates rather than guarding
+ * against a caller mistake.
+ *
+ * The `clamping` discriminant and the fields it implies must agree. **That is
+ * what turns Kennametal's missing-bore case into a failed conversion instead of
+ * a holder that quietly fits nothing** — a bore-clamping holder with no bore is
+ * the exact shape of that bug, and it raises nothing anywhere else.
+ */
+export function checkHolder(record: HolderRecord): void {
+  const what = subject(record)
+  const bore = BORE_CLAMPINGS.includes(record.clamping)
+
+  if (bore) {
+    if (record.bore === null) {
+      throw new IncompletePartError(
+        what,
+        `publishes no bore, and a ${record.clamping}-clamping holder grips a shank directly`,
+      )
+    }
+    if (record.colletSeries !== null) {
+      throw new VendorResponseError(
+        what,
+        `is ${record.clamping}-clamping and also names collet series ` +
+          `${JSON.stringify(record.colletSeries)} — a holder grips one way or the other`,
+      )
+    }
+  } else {
+    if (record.colletSeries === null) {
+      throw new IncompletePartError(what, 'is collet-clamping and names no collet series')
+    }
+    if (record.bore !== null) {
+      throw new VendorResponseError(
+        what,
+        `is collet-clamping and also publishes a bore of ${record.bore} — ` +
+          `a holder grips one way or the other`,
+      )
+    }
+  }
+
+  // Optional is fine; *malformed* is refused. A consumer renders this as a
+  // download button, and a truncated or redirected link is the one failure that
+  // looks like a working feature until somebody clicks it. Widened from the
+  // reference implementation's `.stp`-only test because MariTool publishes both
+  // spellings.
+  const url = record.cadModelUrl
+  if (url !== null && !/^https:\/\/.+\.ste?p$/i.test(url)) {
+    throw new VendorResponseError(
+      what,
+      `CAD model URL is not an https .stp or .step: ${JSON.stringify(url)}`,
+    )
+  }
+}
+
+/**
+ * The same boundary rule for a collet.
+ *
+ * A collet with no capacity would match every shank or none depending on which
+ * way a comparison read a null, which is why {@link ColletRecord.clampMin} and
+ * {@link ColletRecord.clampMax} are not nullable and the mapper refuses the row
+ * before it gets here.
+ */
+export function checkCollet(record: ColletRecord): void {
+  const what = subject(record)
+
+  // Equality is a sealed coolant-through collet clamping one exact size — real,
+  // and not a bug. Only an inverted range is impossible.
+  if (record.clampMin > record.clampMax) {
+    throw new VendorResponseError(
+      what,
+      `capacity is inverted: ${record.clampMin} > ${record.clampMax}`,
+    )
+  }
+
+  // In the native unit, which is the gate with teeth: these are the values a
+  // consumer compares, and the contradictory cells this catalog knows about all
+  // sit in the column `dim` ignores.
+  if (
+    record.nominal !== null &&
+    (record.nominal < record.clampMin || record.nominal > record.clampMax)
+  ) {
+    throw new VendorResponseError(
+      what,
+      `nominal ${record.nominal} is outside its own capacity ` +
+        `${record.clampMin}-${record.clampMax}`,
+    )
+  }
+}
+
+/**
+ * The nullable holder dimensions a mapper may simply not mention.
+ *
+ * They stay **required on the type** so a consumer reading a record never
+ * handles `undefined`; only the construction is optional, which is the shape
+ * `records.toolRecord` already has. Kennametal publishes every one of them and
+ * REGO-FIX four fewer, and writing `usableLength: null` five times in an
+ * adapter is how a null becomes a default nobody notices.
+ */
+type OptionalHolderFields =
+  | 'colletSeries'
+  | 'bore'
+  | 'usableLength'
+  | 'clampingLength'
+  | 'adjustmentRange'
+  | 'bodyDiameter'
+  | 'lockNutDiameter'
+  | 'cadModelUrl'
+  | 'cadDxfUrl'
+
+/** What a mapper supplies to build a holder; the rest is derived or minted. */
+type HolderFields = Omit<
+  HolderRecord,
+  'kind' | 'guid' | 'vendor' | 'productLink' | 'boreMm' | 'gaugeLengthMm' | OptionalHolderFields
+> &
+  Partial<Pick<HolderRecord, OptionalHolderFields>>
+
+/**
+ * Build a {@link HolderRecord}: mint its guid, derive its millimetre twins, and
+ * refuse the states that cannot be true.
+ *
+ * `guid`, `vendor` and `productLink` are not inputs at all — every adapter
+ * minting them would be three copies of `recordGuid(brand, materialNumber)` to
+ * drift, on the value that is the join key for every downstream consumer. The
+ * nullable dimensions stay **required on the type** so a consumer reading a
+ * record never handles `undefined`; only the construction is optional, which is
+ * the shape `records.toolRecord` already has.
+ *
+ * The result is frozen: a record is an interchange value, and a mapper that
+ * mutated one would be reaching back across the seam this type exists to draw.
+ */
+export function holderRecord(fields: HolderFields): HolderRecord {
+  const record: HolderRecord = Object.freeze({
+    ...fields,
+    kind: 'holder' as const,
+    guid: recordGuid(fields.brand, fields.materialNumber),
+    vendor: BRANDS[fields.brand].vendor,
+    productLink: productLink(fields.brand, fields.materialNumber),
+    colletSeries: fields.colletSeries ?? null,
+    bore: fields.bore ?? null,
+    boreMm: millimeters(fields.bore ?? null, fields.unit),
+    gaugeLengthMm: millimeters(fields.gaugeLength, fields.unit),
+    usableLength: fields.usableLength ?? null,
+    clampingLength: fields.clampingLength ?? null,
+    adjustmentRange: fields.adjustmentRange ?? null,
+    bodyDiameter: fields.bodyDiameter ?? null,
+    lockNutDiameter: fields.lockNutDiameter ?? null,
+    cadModelUrl: fields.cadModelUrl ?? null,
+    cadDxfUrl: fields.cadDxfUrl ?? null,
+  })
+
+  checkHolder(record)
+  return record
+}
+
+/** The same, for a collet. REGO-FIX publishes none of these four. */
+type OptionalColletFields = 'nominal' | 'bodyDiameter' | 'functionalLength' | 'overallLength'
+
+/** What a mapper supplies to build a collet. */
+type ColletFields = Omit<
+  ColletRecord,
+  'kind' | 'guid' | 'vendor' | 'productLink' | 'clampMinMm' | 'clampMaxMm' | OptionalColletFields
+> &
+  Partial<Pick<ColletRecord, OptionalColletFields>>
+
+/** Build a {@link ColletRecord}, on the same terms as {@link holderRecord}. */
+export function colletRecord(fields: ColletFields): ColletRecord {
+  const record: ColletRecord = Object.freeze({
+    ...fields,
+    kind: 'collet' as const,
+    guid: recordGuid(fields.brand, fields.materialNumber),
+    vendor: BRANDS[fields.brand].vendor,
+    productLink: productLink(fields.brand, fields.materialNumber),
+    nominal: fields.nominal ?? null,
+    clampMinMm: millimeters(fields.clampMin, fields.unit),
+    clampMaxMm: millimeters(fields.clampMax, fields.unit),
+    bodyDiameter: fields.bodyDiameter ?? null,
+    functionalLength: fields.functionalLength ?? null,
+    overallLength: fields.overallLength ?? null,
+  })
+
+  checkCollet(record)
+  return record
+}
