@@ -15,9 +15,11 @@
  *   entry — the first vendor since Kennametal that needs none.
  * - **A point angle, per drill.** Kennametal's drill families assume theirs; the
  *   detail record states it, so `SIG` is a mapped column here and no fact. On
- *   all but one part: 2,669 of 2,670 drill variants state one and the last
- *   leaves the cell empty, which is why `records.RECORD_GEOMETRY.drill` lists
- *   `SIG` under `sometimes`.
+ *   all but one part: 2,669 of 2,670 drill variants state one, and part
+ *   `000000000010727800` publishes a single classification feature and no
+ *   dimensional properties at all — so its row carries no `SIG` **key**, not
+ *   an empty one. That is why `records.RECORD_GEOMETRY.drill` lists `SIG`
+ *   under `sometimes`, and why {@link angle} reads the row rather than `cell`.
  * - **A per-part ISO 513 index.** `applicationMaterials` returns the vendor's
  *   own P/M/K/N/S/H rating for each part, which fills `materialGroups` as
  *   `vendor-stated`.
@@ -308,7 +310,11 @@ const { cell, required, optional } = columnReaders(measureIn)
  *
  * A column the family maps to nothing refuses too, and is a third thing again
  * — this adapter's drill family maps `point angle`, so its absence is that map
- * having changed rather than anything the vendor did.
+ * having changed rather than anything the vendor did. **That is a fact about
+ * the map and not about a row**, which is why it is asked of `columns` and not
+ * inferred from a missing cell: a part publishing no dimensional properties
+ * has no such key either, and reading the two as one refused every drill in
+ * the family over one incomplete part.
  * `records.REQUIRED_GEOMETRY` cannot catch it: `SIG` is not listed under its
  * `drill` entry, because Kennametal's drills supply theirs as a fact and map
  * no column at all.
@@ -320,8 +326,14 @@ function angle(
   what: string,
   warn: Warn,
 ): number | null {
-  const raw = cell(row, columns, 'SIG', unit)
-  if (raw === undefined) {
+  // `cell` cannot be used here. It answers `undefined` for two different
+  // things — the family mapping no `SIG` column, and *this row* carrying no
+  // such key — and those are the regression and the vendor's silence
+  // respectively. Asking the map directly separates them: `column` is null
+  // only when the map has nothing, so an absent key is left to be read off the
+  // row like any other blank.
+  const column = columns.column('SIG', unit)
+  if (column === null) {
     throw new VendorResponseError(
       what,
       `is a drill whose family maps no point angle column — EMUGE states one ` +
@@ -329,7 +341,8 @@ function angle(
     )
   }
 
-  if (raw.trim() === '') {
+  const raw = row[column]
+  if (raw === undefined || raw.trim() === '') {
     warn(`  WARNING: ${what}: the vendor publishes no point angle — omitted`)
     return null
   }

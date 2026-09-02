@@ -294,6 +294,47 @@ describe('a drill', () => {
     expect(said.join('\n')).toContain('no point angle')
   })
 
+  it('omits the point angle where the row carries no such key, and keeps the family', () => {
+    // Part `000000000010727800` is the one whose *detail* record is nearly
+    // empty: its variant states every dimension, and the detail publishes no
+    // `point angle` property at all — so the row has no such **key**, where
+    // the case above has the key and an empty value.
+    //
+    // `cell` answers `undefined` for both an absent key and an unmapped
+    // column, and `angle` read that as the column map having changed: a
+    // `VendorResponseError`, which is exactly the refusal `toRecords` does
+    // *not* skip. One incomplete part therefore cost all 2,670 drills, and the
+    // scrape receipt blamed a column map that was perfectly correct.
+    //
+    // Two rows, because the header is the union of them: the complete one is
+    // what makes `point angle` a column the family maps and the scrape writes,
+    // which is the state `checkColumnsExist` sees in a real run.
+    const bare = variantRow(
+      DRILL_GROUP,
+      { ...DRILL_VARIANT, code: '000000000010727800', articleCode: 'TA219744.0301' },
+      {
+        ...DRILL_DETAIL,
+        code: '000000000010727800',
+        technicalDetails: DRILL_DETAIL.technicalDetails.filter(
+          (each) => each.property !== 'point angle',
+        ),
+      },
+      'millimeters',
+    )
+
+    const said: string[] = []
+    const records = toRecords('emuge_drills.csv', scrapeOf([drillRow(), bare]), {
+      warn: (m) => said.push(m),
+    })
+
+    expect(records).toHaveLength(2)
+    expect(records[0]?.geometry.SIG).toBe(140)
+    expect(records[1]?.geometry.SIG).toBeUndefined()
+    // The dimensions the variant did publish still arrive.
+    expect(records[1]?.geometry.DC).toBe(3)
+    expect(said.join('\n')).toContain('no point angle')
+  })
+
   it('takes the flute count from the family fact, which the vendor states nowhere', () => {
     expect(record?.geometry.NOF).toBe(2)
   })
