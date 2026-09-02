@@ -14,59 +14,63 @@
 
 import { mapValues } from '../runtime.js'
 /**
- * A 2D vector (a plain `{ x, y }` object).
+ *
  * @export
- * @interface Vec2
+ * @interface NoAxis
  */
-export interface Vec2 {
+export interface NoAxis {
   /**
-   * Horizontal x coordinate in the current frame.
-   * @type {number}
-   * @memberof Vec2
+   * Discriminator identifying a part with no turning axis.
+   * @type {NoAxisKindEnum}
+   * @memberof NoAxis
    */
-  x: number
-  /**
-   * Horizontal y coordinate in the current frame.
-   * @type {number}
-   * @memberof Vec2
-   */
-  y: number
+  kind: NoAxisKindEnum
 }
 
 /**
- * Check if a given object implements the Vec2 interface.
+ * @export
  */
-export function instanceOfVec2(value: object): value is Vec2 {
-  if (!('x' in value) || value['x'] === undefined) return false
-  if (!('y' in value) || value['y'] === undefined) return false
+export const NoAxisKindEnum = {
+  NoAxis: 'NoAxis',
+} as const
+export type NoAxisKindEnum = (typeof NoAxisKindEnum)[keyof typeof NoAxisKindEnum]
+
+/**
+ * Check if a given object implements the NoAxis interface.
+ */
+export function instanceOfNoAxis(value: object): value is NoAxis {
+  if (!('kind' in value) || value['kind'] === undefined) return false
+  if (value['kind'] !== 'NoAxis') return false
+
   return true
 }
 
-export function Vec2FromJSON(json: any): Vec2 {
-  return Vec2FromJSONTyped(json, false)
+export function NoAxisFromJSON(json: any): NoAxis {
+  return NoAxisFromJSONTyped(json, false)
 }
 
-export function Vec2FromJSONTyped(json: any, ignoreDiscriminator: boolean): Vec2 {
+export function NoAxisFromJSONTyped(json: any, ignoreDiscriminator: boolean): NoAxis {
   if (json == null) {
     return json
   }
   return {
-    x: json['x'],
-    y: json['y'],
+    kind: json['kind'],
   }
 }
 
-export function Vec2ToJSON(json: any): Vec2 {
-  return Vec2ToJSONTyped(json, false)
+export function NoAxisToJSON(json: any): NoAxis {
+  return NoAxisToJSONTyped(json, false)
 }
 
-export function Vec2ToJSONTyped(value?: Vec2 | null, ignoreDiscriminator: boolean = false): any {
+export function NoAxisToJSONTyped(
+  value?: NoAxis | null,
+  ignoreDiscriminator: boolean = false,
+): any {
   if (value == null) {
     return value
   }
 
   return {
-    x: value['x'],
-    y: value['y'],
+    kind: value['kind'],
   }
 }

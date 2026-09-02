@@ -14,51 +14,49 @@
 
 import { mapValues } from '../runtime.js'
 /**
- * Candidate machining direction whose tool-axis frame defines these bounds.
+ * Point on the turning axis, in mm. Purely radial: its projection onto the axis is zero.
  * @export
- * @interface DirectionZBoundsDirection
+ * @interface TurningAxisLocation
  */
-export interface DirectionZBoundsDirection {
+export interface TurningAxisLocation {
   /**
    * X coordinate or direction component.
    * @type {number}
-   * @memberof DirectionZBoundsDirection
+   * @memberof TurningAxisLocation
    */
   x: number
   /**
    * Y coordinate or direction component.
    * @type {number}
-   * @memberof DirectionZBoundsDirection
+   * @memberof TurningAxisLocation
    */
   y: number
   /**
    * Z coordinate or direction component.
    * @type {number}
-   * @memberof DirectionZBoundsDirection
+   * @memberof TurningAxisLocation
    */
   z: number
 }
 
 /**
- * Check if a given object implements the DirectionZBoundsDirection interface.
+ * Check if a given object implements the TurningAxisLocation interface.
  */
-export function instanceOfDirectionZBoundsDirection(
-  value: object,
-): value is DirectionZBoundsDirection {
+export function instanceOfTurningAxisLocation(value: object): value is TurningAxisLocation {
   if (!('x' in value) || value['x'] === undefined) return false
   if (!('y' in value) || value['y'] === undefined) return false
   if (!('z' in value) || value['z'] === undefined) return false
   return true
 }
 
-export function DirectionZBoundsDirectionFromJSON(json: any): DirectionZBoundsDirection {
-  return DirectionZBoundsDirectionFromJSONTyped(json, false)
+export function TurningAxisLocationFromJSON(json: any): TurningAxisLocation {
+  return TurningAxisLocationFromJSONTyped(json, false)
 }
 
-export function DirectionZBoundsDirectionFromJSONTyped(
+export function TurningAxisLocationFromJSONTyped(
   json: any,
   ignoreDiscriminator: boolean,
-): DirectionZBoundsDirection {
+): TurningAxisLocation {
   if (json == null) {
     return json
   }
@@ -69,12 +67,12 @@ export function DirectionZBoundsDirectionFromJSONTyped(
   }
 }
 
-export function DirectionZBoundsDirectionToJSON(json: any): DirectionZBoundsDirection {
-  return DirectionZBoundsDirectionToJSONTyped(json, false)
+export function TurningAxisLocationToJSON(json: any): TurningAxisLocation {
+  return TurningAxisLocationToJSONTyped(json, false)
 }
 
-export function DirectionZBoundsDirectionToJSONTyped(
-  value?: DirectionZBoundsDirection | null,
+export function TurningAxisLocationToJSONTyped(
+  value?: TurningAxisLocation | null,
   ignoreDiscriminator: boolean = false,
 ): any {
   if (value == null) {

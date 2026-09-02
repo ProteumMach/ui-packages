@@ -43,6 +43,8 @@ from .key_validation_response import KeyValidationResponse
 from .key_validation_response_status import KeyValidationResponseStatus
 from .list_jobs_response import ListJobsResponse
 from .list_jobs_status import ListJobsStatus
+from .no_axis import NoAxis
+from .no_axis_kind import NoAxisKind
 from .offset_length import OffsetLength
 from .open_api_document import OpenApiDocument
 from .part_feature import PartFeature
@@ -69,6 +71,10 @@ from .threading import Threading
 from .tolerance_band import ToleranceBand
 from .tool_fit_result import ToolFitResult
 from .tslot_facts import TslotFacts
+from .turning_axis import TurningAxis
+from .turning_axis_direction import TurningAxisDirection
+from .turning_axis_kind import TurningAxisKind
+from .turning_axis_location import TurningAxisLocation
 from .update_holder_fill_bays import UpdateHolderFillBays
 from .update_holder_flipped import UpdateHolderFlipped
 from .update_holder_response import UpdateHolderResponse
@@ -127,6 +133,8 @@ __all__ = (
     "KeyValidationResponseStatus",
     "ListJobsResponse",
     "ListJobsStatus",
+    "NoAxis",
+    "NoAxisKind",
     "OffsetLength",
     "OpenApiDocument",
     "PartFeature",
@@ -153,6 +161,10 @@ __all__ = (
     "ToleranceBand",
     "ToolFitResult",
     "TslotFacts",
+    "TurningAxis",
+    "TurningAxisDirection",
+    "TurningAxisKind",
+    "TurningAxisLocation",
     "UpdateHolderFillBays",
     "UpdateHolderFlipped",
     "UpdateHolderResponse",
