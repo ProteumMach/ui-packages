@@ -26,10 +26,15 @@
  *
  * ## What the vendor gets wrong
  *
- * Four faults found on 2026-08-29, all reported as warnings rather than
+ * Four faults found on 2026-08-29. Three are reported as warnings rather than
  * fixed — two disagreeing vendor cells cannot say which one is wrong, and a
  * scraper that corrects one becomes a place tool data is authored by hand.
  * This is the same call `vendors/regofix/scrape.ts` made on its three.
+ *
+ * The fourth is resolved rather than reported, and the difference is where the
+ * answer came from: `docs/ADDING-A-VENDOR.md` says that when a vendor label is
+ * unclear you **ask**, and record the answer and its date. That is what
+ * happened — see fault 2.
  *
  * 1. **`BT40-ER32-60` publishes no `Taper` row at all**, alone among the 529
  *    parts in scope. Its row is kept with `taper` and `contact` empty rather
@@ -38,10 +43,21 @@
  * 2. **`Collet Size` carries a collet *nut* designation on two parts.**
  *    `CAT40-ER25-3.0MD` and `BT30-ER25-60M` both state `ER25M`, and `ER25M` is
  *    not a collet series — `HSK40E-ER16-3.0M` puts exactly that shape of value
- *    in its own `Collet Nut` cell, which is the column it belongs in. The
- *    string is written into `CST` as designated, so it joins to no collet
- *    family, and it is warned about. Widening it to `ER25` would offer a
- *    machinist a collet that may not seat.
+ *    in its own `Collet Nut` cell, which is the column it belongs in.
+ *
+ *    **`ER25M` is the mini collet nut series, and the collet it closes is a
+ *    plain ER25** (JG 2026-09-02). So {@link colletSeries} resolves the cell to
+ *    the collet the holder actually takes, and the two parts join to the ER25
+ *    collets they fit. Until that answer existed the string was written through
+ *    as designated and warned about, because widening a series on a guess is
+ *    how a machinist is offered a collet that does not seat — and the cost of
+ *    being wrong the other way was one option, not a purchase.
+ *
+ *    **Nothing is lost by resolving it.** `Collet Size` is one of the vendor's
+ *    own labels and is carried into the CSV verbatim, so the receipt still says
+ *    `ER25M` and still says which of the two parts has a mini nut. What changes
+ *    is only `CST`, which is a derived join key rather than a record of what the
+ *    vendor published — the same thing the spacing rule below does to it.
  * 3. **`Collet Size` is spaced inconsistently within one style** — `ER 11`
  *    and `ER11` are both published. {@link colletSeries} closes the space,
  *    because `CST` is a join key and two spellings of one series join to
@@ -578,20 +594,44 @@ export function parseGageLength(cell: string): GageLength {
 }
 
 /**
+ * A `Collet Size` cell that names the **nut** rather than the collet.
+ *
+ * `M` is MariTool's mini collet nut, and the collet a mini nut closes is the
+ * plain one of that series (JG 2026-09-02). The vendor's own `Collet Nut`
+ * column carries `ER11M`, `ER16M`, `ER20M` and `ER25M` beside a `Collet Size`
+ * of plain `ER 11`, `ER 16`, `ER 20` and `ER 25` on 57 parts, which is the
+ * column those values belong in.
+ *
+ * Anchored on `ER\d+` rather than stripping a trailing letter, so a suffix that
+ * turns out to designate something else still reaches {@link holderRow}'s
+ * warning instead of being quietly shortened into a series that fits nothing.
+ */
+const NUT_DESIGNATION = /^(ER\d+)M$/
+
+/**
  * A `Collet Size` cell as the series `CST` joins a collet family on.
  *
- * Only the spacing is closed. MariTool publishes `ER 11` and `ER11` within one
- * style, and two spellings of one series join to nothing — `CST` is the key
- * `families/kennametal.ts` states the holder-to-collet join against, and the
- * collet side of it spells the series without a space.
+ * **Derived, not a receipt.** `CST` is the key `families/kennametal.ts` states
+ * the holder-to-collet join against, so what belongs in it is the series of the
+ * collet the holder takes. The vendor's own cell is carried into the CSV under
+ * its own label and untouched, which is where the two normalisations below are
+ * still visible.
  *
- * Nothing else is normalised. `ER25M` is written through as designated even
- * though no such collet series exists, because the alternative is to decide on
- * the vendor's behalf that its `M` is the mini nut its `Collet Nut` column
- * carries elsewhere — see this module's docstring. {@link holderRow} warns.
+ * Two things are closed, and both exist because two spellings of one series
+ * join to nothing:
+ *
+ * - **Spacing.** MariTool publishes `ER 11` and `ER11` within one style, and
+ *   the collet side of the join spells the series without a space.
+ * - **A nut designation.** `ER25M` names a mini nut, not a collet series — see
+ *   {@link NUT_DESIGNATION} and this module's docstring.
+ *
+ * Nothing else is. A cell this leaves as neither `ER<n>` nor a nut designation
+ * is written through as the vendor designated it, and {@link holderRow} warns
+ * that it joins to no collet.
  */
 export function colletSeries(cell: string): string {
-  return cell.replace(/\s+/g, '')
+  const closed = cell.replace(/\s+/g, '')
+  return NUT_DESIGNATION.exec(closed)?.[1] ?? closed
 }
 
 /**

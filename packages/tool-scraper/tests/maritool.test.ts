@@ -365,11 +365,21 @@ describe('a collet size cell', () => {
     expect(colletSeries('ER 32')).toBe('ER32')
   })
 
-  it('writes a value that is not a collet series through as designated', () => {
+  it('resolves a nut designation to the collet series the holder takes', () => {
     // `ER25M` is a collet *nut* designation in a `Collet Size` cell, on two
-    // parts. Widening it to `ER25` would offer a machinist a collet that may
-    // not seat; leaving it costs an option, and the row warns.
-    expect(colletSeries('ER25M')).toBe('ER25M')
+    // parts. `M` is the mini nut, and the collet a mini nut closes is a plain
+    // ER25 (JG 2026-09-02) — so `CST` names the collet, and the two parts join
+    // to the ER25 collets they fit instead of to nothing.
+    expect(colletSeries('ER25M')).toBe('ER25')
+    expect(colletSeries('ER 25 M')).toBe('ER25')
+  })
+
+  it('writes a suffix nobody has an answer for through as designated', () => {
+    // The reason the pattern is anchored rather than a trailing-letter strip:
+    // a designation that turns out to mean something else has to reach the
+    // warning rather than be shortened into a series that fits nothing.
+    expect(colletSeries('ER25X')).toBe('ER25X')
+    expect(colletSeries('TG100')).toBe('TG100')
   })
 })
 
@@ -451,14 +461,31 @@ describe('a holder row', () => {
     expect(warnings.join('\n')).toContain('states no Taper')
   })
 
-  it('warns where Collet Size is not a collet series, and does not correct it', () => {
+  it('joins a mini-nut holder to the collet it takes, keeping the vendor’s cell', () => {
+    // Both halves of the call. `CST` is a derived join key and names the ER25
+    // collet the holder really takes; `Collet Size` is one of the vendor's own
+    // labels, so the receipt still says `ER25M` and still says which part has
+    // the mini nut. Nothing warns, because nothing here is unresolved.
     const warnings: string[] = []
     const row = holderRow(CAT40_ER, ER16_LISTING, { ...ER16_SPECS, 'Collet Size': 'ER25M' }, (m) =>
       warnings.push(m),
     )
 
-    expect(row['CST']).toBe('ER25M')
+    expect(row['CST']).toBe('ER25')
     expect(row['Collet Size']).toBe('ER25M')
+    expect(warnings).toEqual([])
+  })
+
+  it('warns where Collet Size is a designation nobody has an answer for', () => {
+    // The sensor that survives the ER25M answer: the next surprise in this cell
+    // still reaches a person rather than being shortened into a series.
+    const warnings: string[] = []
+    const row = holderRow(CAT40_ER, ER16_LISTING, { ...ER16_SPECS, 'Collet Size': 'TG 100' }, (m) =>
+      warnings.push(m),
+    )
+
+    expect(row['CST']).toBe('TG100')
+    expect(row['Collet Size']).toBe('TG 100')
     expect(warnings.join('\n')).toContain('is not a collet series')
   })
 

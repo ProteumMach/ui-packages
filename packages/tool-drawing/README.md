@@ -45,6 +45,30 @@ chamfer. Where a number has to be assumed to draw at all — a drill point angle
 the vendor never published — the segment says so in its `provenance`, and a
 renderer is expected to show it.
 
+## Two kinds of holder
+
+`holder` is a union, and the two members are different inputs rather than two
+grades of one:
+
+```ts
+// What a vendor's table states: a nose, a body, a flange.
+holder: { noseDiameter: 28, noseLength: null, gaugeLength: 50, /* … */ }
+
+// What the vendor's own CAD model measures: the silhouette, `[z, r]` in mm.
+holder: { points: [[-48.4, 16], /* … */ [60, 8.5]], datum: 'gage-line', /* … */ }
+```
+
+A measured profile is **not** projected onto the parametric fields — the
+V-flange groove and the thread relief are the reason to measure at all, and a
+nose diameter and a body length cannot carry them. It is drawn as measured,
+vertex for vertex, with its nose face at the stickout. `isHolderProfile`
+narrows the union for an adapter that holds both.
+
+On a `gage-line` profile the drawing splits at `z = 0` — the spindle face — so
+everything above it is shaded as the spindle connection, exactly as the
+parametric flange is. A `nose`-datumed profile has no spindle face to split on
+and no gauge length to state, and the note under the drawing says so.
+
 `geometry` keys are the scraper's own field names (`DC`, `SFDM`, `OAL`, `LCF`,
 `RE`, `SIG`, `NOF`, `shoulder-diameter`, `shoulder-length`). They are not
 renamed here: a translation table between two vocabularies is where an `SFDM`
@@ -80,7 +104,6 @@ unit a shop reads in is the application's.
 
 ```tsx
 import { ClearanceOverlay, tightestGaps, describeGaps } from '@toolpath/tool-drawing/clearance'
-
 ;<ToolDrawing assembly={assembly} collisions={collisions} verdict={{ clears, note }}>
   <ClearanceOverlay
     profile={profile}

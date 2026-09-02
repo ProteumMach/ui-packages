@@ -36,13 +36,23 @@ import {
 } from './family.js'
 import { COLLET_FAMILIES, FAMILIES, HOLDER_FAMILIES } from './families/index.js'
 import { IncompletePartError, ScraperConfigError } from './errors.js'
+import type {
+  ColletMapper,
+  HolderMapper,
+  HoldingMappers,
+  HoldingRecord,
+  ToolholdingKind,
+} from './holding.js'
 import { checkFact, type Fact } from './provenance.js'
 import { checkColumnMap, checkColumnsExist, type ToolRecord } from './records.js'
 import { consoleWarn, type MapperOptions, type ScrapeResult } from './scrape.js'
 import { RECORD_MAPPERS as DESTINYTOOL } from './vendors/destinytool/records.js'
 import { RECORD_MAPPERS as EMUGE } from './vendors/emuge/records.js'
 import { RECORD_MAPPERS as HARVEY } from './vendors/harvey/records.js'
+import { HOLDING_MAPPERS as KM_HOLDING } from './vendors/kennametal/holding.js'
 import { RECORD_MAPPERS as KENNAMETAL } from './vendors/kennametal/records.js'
+import { HOLDING_MAPPERS as MARITOOL_HOLDING } from './vendors/maritool/holding.js'
+import { HOLDING_MAPPERS as REGOFIX_HOLDING } from './vendors/regofix/holding.js'
 
 /**
  * Brand -> its row-to-record mappers, by tool kind.
@@ -59,6 +69,32 @@ export const ADAPTERS: Record<string, RecordMappers> = {
   destinytool: DESTINYTOOL,
   harvey: HARVEY,
   emuge: EMUGE,
+}
+
+/**
+ * Brand -> its toolholding mappers, by the kind of thing they build.
+ *
+ * The toolholding counterpart of {@link ADAPTERS}, and **partial in both
+ * directions on purpose**. A brand absent from here can still be scraped: its
+ * families bind, its CSVs are written, and its receipt is checked, exactly as
+ * before — what it cannot do is mint records. A brand present with a mapper for
+ * only one kind is the same statement one level down; MariTool publishes ER
+ * collets that this package does not scrape, so it maps holders and nothing
+ * else.
+ *
+ * That is what makes minting records additive rather than a break. Nothing here
+ * changes what a vendor with no entry does today, and the refusal only happens
+ * where a caller explicitly asks for records from a family whose brand maps
+ * none — {@link toHolding}, which names the brand and what it does map.
+ *
+ * One entry serves two brands for the reason {@link ADAPTERS} states: Kennametal
+ * and WIDIA are the same platform and the same table vocabulary.
+ */
+export const HOLDING_ADAPTERS: Record<string, HoldingMappers> = {
+  kennametal: KM_HOLDING,
+  widia: KM_HOLDING,
+  regofix: REGOFIX_HOLDING,
+  maritool: MARITOOL_HOLDING,
 }
 
 /**
@@ -130,27 +166,54 @@ export function boundFamilies(): Map<string, BoundFamily> {
 }
 
 /**
- * Every holder and collet family, with its facts checked and projected.
+ * Every holder and collet family, with its facts checked and projected, and
+ * bound to the mapper its brand supplies for its kind.
  *
- * They bind no adapter — only cutting tools go through a column map — but
- * their facts pass the same gate: a taper or a clamping mode is a per-family
- * constant no variant table states, exactly like a drill's flute count.
+ * Their facts pass the same gate cutting-tool families' do: a taper or a
+ * clamping mode is a per-family constant no variant table states, exactly like
+ * a drill's flute count.
+ *
+ * **A family whose brand maps nothing binds `undefined` rather than throwing**,
+ * which is where this differs from {@link boundFamilies}. A cutting-tool family
+ * with no mapper is a catalog fault — nothing can be done with it — but a
+ * toolholding family with no mapper is the state every one of them was in until
+ * records existed, and it still scrapes, writes a CSV and checks a receipt.
+ * Refusing at bind time would take that away from every consumer that never
+ * asked for a record. {@link toHolding} is where the absence is reported, at
+ * the one call that cannot proceed without it.
  */
 export function boundToolholding(): Map<string, BoundToolholding> {
   if (toolholding !== null) return toolholding
 
   const bound = new Map<string, BoundToolholding>()
-  for (const [table, families_] of [
+  for (const [kind, families_] of [
     ['holder', HOLDER_FAMILIES],
     ['collet', COLLET_FAMILIES],
-  ] as const) {
+  ] as const satisfies readonly (readonly [ToolholdingKind, object])[]) {
     for (const [name, cfg] of Object.entries(families_)) {
-      bound.set(name, project(table, name, cfg) as BoundToolholding)
+      const mappers = HOLDING_ADAPTERS[familyBrand(cfg)]
+      bound.set(name, {
+        ...project(kind, name, cfg),
+        kind,
+        records: mappers?.[kind],
+      } as BoundToolholding)
     }
   }
 
   toolholding = bound
   return bound
+}
+
+/** One bound toolholding family by CSV name. */
+export function boundHolding(name: string): BoundToolholding {
+  const cfg = boundToolholding().get(name)
+  if (cfg === undefined) {
+    throw new ScraperConfigError(
+      name,
+      `unknown toolholding family (known: ${[...boundToolholding().keys()].sort().join(', ')})`,
+    )
+  }
+  return cfg
 }
 
 /** One bound cutting-tool family by CSV name. */
@@ -232,6 +295,69 @@ export function toRecords(
   for (const row of scrape.rows) {
     try {
       records.push(cfg.records(row, cfg, cfg.columns, options))
+    } catch (error) {
+      if (!(error instanceof IncompletePartError)) throw error
+      warn(`  WARNING: ${error.message} — no record written for it`)
+    }
+  }
+  return records
+}
+
+/**
+ * One toolholding family's scrape, as {@link HoldingRecord}s.
+ *
+ * {@link toRecords}'s counterpart, and deliberately the same shape: the two
+ * checks run before the first row, one incomplete part does not end the family,
+ * and the count of what was dropped is not returned because the caller has the
+ * row count it passed in and the length it got back.
+ *
+ * **It refuses only where a caller asked for something this package cannot
+ * give.** A toolholding family whose brand maps no mapper binds one anyway
+ * (see {@link boundToolholding}) and scrapes exactly as it did before; this is
+ * the one call that cannot proceed without one, so this is where the absence is
+ * named — with the brand and with what that brand does map, the way
+ * {@link boundFamilies} names a missing tool mapper.
+ *
+ * `checkColumnsExist` has no counterpart here: a holder family carries no
+ * `ColumnMap`, because the columns a holder publishes are the vendor's own and
+ * are read by that vendor's mapper rather than through a canonical name. What
+ * does still run is {@link checkIdentityColumns}, which catches the failure that
+ * matters most — a re-scrape whose part-number column was renamed still parses,
+ * still has the right row count, and mints every guid off an empty string.
+ */
+export function toHolding(
+  familyName: string,
+  scrape: ScrapeResult,
+  options?: MapperOptions,
+): HoldingRecord[] {
+  const cfg = boundHolding(familyName)
+  const warn = options?.warn ?? consoleWarn
+  const brand = familyBrand(cfg)
+
+  const mapper = cfg.records
+  if (mapper === undefined) {
+    const mappers = HOLDING_ADAPTERS[brand]
+    throw new ScraperConfigError(
+      familyName,
+      `brand ${JSON.stringify(brand)} has no ${cfg.kind} mapper ` +
+        (mappers === undefined
+          ? `— it maps no toolholding at all, so this family ends at rows and ` +
+            `a receipt (brands that map some: ` +
+            `${Object.keys(HOLDING_ADAPTERS).sort().join(', ')})`
+          : `(it maps: ${Object.keys(mappers).sort().join(', ')})`),
+    )
+  }
+
+  checkIdentityColumns(brand, scrape.header)
+
+  const records: HoldingRecord[] = []
+  for (const row of scrape.rows) {
+    try {
+      records.push(
+        cfg.kind === 'holder'
+          ? (mapper as HolderMapper)(row, cfg, options)
+          : (mapper as ColletMapper)(row, cfg, options),
+      )
     } catch (error) {
       if (!(error instanceof IncompletePartError)) throw error
       warn(`  WARNING: ${error.message} — no record written for it`)

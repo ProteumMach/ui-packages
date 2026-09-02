@@ -8,4 +8,11 @@
 
 export type { Outline, OutlinePart, OutlinePoint, OutlineSegment } from '../model/outline.js'
 export { assemblyOutline } from '../model/outline.js'
-export type { Provenance, ViewerAssembly, ViewerHolder, ViewerTool } from '../model/types.js'
+export type {
+  Provenance,
+  ViewerAssembly,
+  ViewerHolder,
+  ViewerHolderProfile,
+  ViewerTool,
+} from '../model/types.js'
+export { isHolderProfile } from '../model/types.js'

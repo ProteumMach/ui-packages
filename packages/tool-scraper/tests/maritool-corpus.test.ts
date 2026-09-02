@@ -13,7 +13,8 @@
  *
  * There is no `toRecords` half here, unlike `harvey-corpus`. MariTool ships
  * toolholding and no cutting tools, so it binds no record mapper and no column
- * map — the REGO-FIX case. The columns below are the receipt itself.
+ * map — the REGO-FIX case. The columns below are the receipt itself, and the
+ * records those columns become are `tests/holding-corpus.test.ts`.
  */
 
 import { describe, expect, it } from 'vitest'

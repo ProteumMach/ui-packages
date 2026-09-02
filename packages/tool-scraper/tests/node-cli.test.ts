@@ -18,13 +18,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { REQUEST_DELAY_MS } from '../src/scrape.js'
 import { CATEGORY_ROOTS as HARVEY_ROOTS } from '../src/vendors/harvey/catalog.js'
-import { checkIdentityColumns } from '../src/conventions.js'
+import { CAD_COLUMN, CAD_DXF_COLUMN, checkIdentityColumns } from '../src/conventions.js'
 import { parseCsv } from '../src/node/csv.js'
-import { HOLDER_FAMILIES } from '../src/families/index.js'
+import { HOLDER_FAMILIES, familyConfig } from '../src/families/index.js'
+import { familyBrand } from '../src/family.js'
 import { LEAVES as MARITOOL_LEAVES } from '../src/families/maritool.js'
 import { categoryUrl } from '../src/vendors/maritool/scrape.js'
 import { toCsv } from '../src/node/csv.js'
-import { SCRAPE_ROOT_ENV, describeRoot, familyCsv } from '../src/node/paths.js'
+import {
+  SCRAPE_ROOT_ENV,
+  describeRoot,
+  familyCsv,
+  profilesJson,
+  stepDir,
+} from '../src/node/paths.js'
+import { API_URL_ENV, type HolderApi } from '../src/node/holder-import.js'
 import * as receipts from '../src/node/receipts.js'
 import { run } from '../src/node/cli.js'
 import { asFetcher, recordPauses, recorder, stub } from './stubs.js'
@@ -59,6 +67,8 @@ describe('every command states where scraped data lands', () => {
     ['cad'],
     ['materials'],
     ['mirror-cad'],
+    ['coverage'],
+    ['profiles'],
   ])('announces the root for %j', async (...argv) => {
     // Somebody reading the usage text is the person most likely to be about to
     // point a scrape at the wrong place.
@@ -576,16 +586,39 @@ describe('the in-place commands', () => {
     await expect(run(['cad', 'nope.csv'], io, noNetwork)).rejects.toThrow(/unknown holder CSV/)
   })
 
-  it('rejects the cad step on a holder that is not a Kennametal one', async () => {
+  it('makes no request for the cad step on a vendor that has no lookup', async () => {
     // `annotateCadUrls` posts to Kennametal's CDS and rewrites CAD_STEP_URL on
-    // every row, so running it over the REGO-FIX holders sent that vendor's
-    // SKUs to Kennametal and blanked the URLs its own scrape had filled in.
-    const { io, err } = recorder()
+    // every row, so running it over the REGO-FIX holders would send that
+    // vendor's SKUs to Kennametal and blank the URLs its own scrape filled in.
+    // `noNetwork` throws on any request, so a green run here is the assertion.
+    const { io, out } = recorder()
     const name = Object.keys(HOLDER_FAMILIES).find((n) => n.startsWith('regofix'))
     expect(name).toBeDefined()
 
-    expect(await run(['cad', name!], io, noNetwork)).toBe(2)
-    expect(err.join('\n')).toContain('cad step is')
+    expect(await run(['cad', name!], io, noNetwork)).toBe(0)
+    expect(out.join('\n')).toContain(`${name}: nothing to annotate — regofix publishes`)
+  })
+
+  it('carries on past a vendor it cannot annotate, family after family', async () => {
+    // It exited 2 on the first non-Kennametal family until 2026-09-02, which
+    // made `cad <every holder family>` impossible on a catalog holding more
+    // than one vendor's — the argument for a no-op with a message.
+    const names = Object.keys(HOLDER_FAMILIES).filter(
+      (n) => familyBrand(familyConfig(n)) !== 'kennametal',
+    )
+    expect(new Set(names.map((n) => familyBrand(familyConfig(n)))).size).toBeGreaterThan(1)
+    const { io, out } = recorder()
+
+    expect(await run(['cad', ...names], io, noNetwork)).toBe(0)
+    for (const name of names) expect(out.join('\n'), name).toContain(`${name}: nothing to annotate`)
+  })
+
+  it('reports one family it has no CSV for rather than failing on it', async () => {
+    const { io, out } = recorder()
+    const name = Object.keys(HOLDER_FAMILIES).find((n) => n.startsWith('regofix'))
+
+    expect(await run(['cad', name!], io, noNetwork)).toBe(0)
+    expect(out.join('\n')).toContain('not scraped on this machine')
   })
 
   it('rejects a CSV that is not a tool family', async () => {
@@ -624,6 +657,224 @@ describe('the in-place commands', () => {
     expect(written.split('\r\n')[0]).toBe('Material Number,D1-TDZ,Thread Pitch,Z,Thread System')
     expect(written).toContain('1,#4-40,0.025,2,inch')
     expect(out.join('\n')).toContain(`${TAPS}: 1 rows updated`)
+  })
+})
+
+describe('the coverage command', () => {
+  /** One holder family's CSV on disk, with `n` rows and `withStep` of them modelled. */
+  function holders(name: string, rows: number, withStep: number, withDxf = 0): void {
+    const path = familyCsv(name)
+    mkdirSync(dirname(path), { recursive: true })
+    writeFileSync(
+      path,
+      toCsv(
+        ['Material Number', CAD_COLUMN, CAD_DXF_COLUMN],
+        Array.from({ length: rows }, (_, i) => ({
+          'Material Number': `P${i}`,
+          [CAD_COLUMN]: i < withStep ? `https://cdn.invalid/${i}.stp` : '',
+          [CAD_DXF_COLUMN]: i < withDxf ? `https://cdn.invalid/${i}.dxf` : '',
+        })),
+      ),
+    )
+  }
+
+  const MARITOOL = 'maritool_cat40_holders.csv'
+  const REGOFIX = 'regofix_bt30_pg_holders.csv'
+
+  it('reports the share of a family that publishes a model, and asks for none of it', async () => {
+    holders(MARITOOL, 10, 7, 9)
+    const { io, out } = recorder()
+
+    // `noNetwork` throws on any request. This command reads CSVs and nothing else.
+    expect(await run(['coverage', MARITOOL], io, noNetwork)).toBe(0)
+    expect(out.join('\n')).toContain(`${MARITOOL}: 10 rows, 7 STEP (70%), 9 DXF`)
+  })
+
+  it('totals across families, and only when there is more than one to total', async () => {
+    holders(MARITOOL, 10, 7)
+    holders(REGOFIX, 10, 10)
+    const { io, out } = recorder()
+
+    expect(await run(['coverage', MARITOOL, REGOFIX], io, noNetwork)).toBe(0)
+    expect(out.join('\n')).toContain('2 families: 20 rows, 17 STEP (85%), 0 DXF')
+
+    const one = recorder()
+    expect(await run(['coverage', MARITOOL], one.io, noNetwork)).toBe(0)
+    expect(one.out.join('\n')).not.toContain('families:')
+  })
+
+  it('reports a family it has no CSV for rather than failing the whole report', async () => {
+    // The whole command is a report, and one absent CSV must not stop it
+    // printing the rest — which is the shape the `cad` step had wrong.
+    holders(MARITOOL, 4, 4)
+    const { io, out } = recorder()
+
+    expect(await run(['coverage', MARITOOL, REGOFIX], io, noNetwork)).toBe(0)
+    expect(out.join('\n')).toContain(`${REGOFIX}: not scraped on this machine`)
+    expect(out.join('\n')).toContain(`${MARITOOL}: 4 rows, 4 STEP (100%)`)
+  })
+
+  it('covers every holder family when given no arguments', async () => {
+    holders(MARITOOL, 2, 1)
+    const { io, out } = recorder()
+
+    expect(await run(['coverage'], io, noNetwork)).toBe(0)
+    for (const name of Object.keys(HOLDER_FAMILIES)) {
+      expect(out.join('\n'), name).toContain(name)
+    }
+  })
+
+  it('refuses a CSV name no holder family claims', async () => {
+    const { io } = recorder()
+
+    await expect(run(['coverage', 'nope.csv'], io, noNetwork)).rejects.toThrow(/unknown holder CSV/)
+  })
+
+  it('reads an empty family as no rows rather than as a division by zero', async () => {
+    holders(MARITOOL, 0, 0)
+    const { io, out } = recorder()
+
+    expect(await run(['coverage', MARITOOL], io, noNetwork)).toBe(0)
+    expect(out.join('\n')).toContain(`${MARITOOL}: 0 rows, 0 STEP (—), 0 DXF`)
+  })
+})
+
+describe('the profiles command', () => {
+  /**
+   * A Kennametal ER-adapter CSV on disk. Its family declares the taper, the
+   * contact and the clamping mode as facts, so a row is a part number, a gage
+   * length and the collet series it takes.
+   */
+  const ADAPTERS = 'bt30_er_collet_adapters_metric.csv'
+
+  function scraped(parts: { catalog: string; material: string; l1: string }[]): void {
+    const path = familyCsv(ADAPTERS)
+    mkdirSync(dirname(path), { recursive: true })
+    writeFileSync(
+      path,
+      toCsv(
+        ['Material Number', 'ISO Catalog Number', 'L1_mm', 'CST'],
+        parts.map((p) => ({
+          'Material Number': p.material,
+          'ISO Catalog Number': p.catalog,
+          L1_mm: p.l1,
+          CST: 'ER16',
+        })),
+      ),
+    )
+  }
+
+  /** One mirrored STEP file, whose contents nothing here reads. */
+  function mirrored(catalog: string): void {
+    const dir = stepDir('kennametal')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, `${catalog}.stp`), 'ISO-10303-21;')
+  }
+
+  /** A holder API that measures every part as the same 60 mm BT30 chuck. */
+  function measuring(): HolderApi {
+    return {
+      pollIntervalMs: 0,
+      pollTimeoutMs: 1000,
+      call: <T>(method: string, path: string) => {
+        if (method === 'POST') {
+          return Promise.resolve({
+            holderId: 'h-1',
+            uploadUrl: 'https://storage.invalid/put',
+          } as T)
+        }
+        if (method === 'PATCH') return Promise.resolve({ jobId: 'j-1' } as T)
+        if (path.includes('/v1/jobs/')) return Promise.resolve({ status: 'succeeded' } as T)
+        return Promise.resolve({
+          kernelVersion: '0.7.2',
+          options: { tolerance: 0.05, fillBays: false, flipped: false },
+          layers: [
+            { thickness: 48.4, bottomDiameter: 32, topDiameter: 17 },
+            { thickness: 60, bottomDiameter: 23, topDiameter: 32 },
+          ],
+          gaugeLength: 60,
+          sizeClass: 30,
+          taperFamily: 'iso7x24',
+        } as T)
+      },
+      put: () => Promise.resolve(),
+    }
+  }
+
+  it('announces the API base URL beside the scrape root, before anything uploads', async () => {
+    // This is the one command that sends a vendor's binary to Toolpath, and
+    // production is still v1.1.0 with none of these routes on it.
+    scraped([{ catalog: 'BT30ER16060M', material: '1258023', l1: '60' }])
+    mirrored('BT30ER16060M')
+    const { io, out } = recorder()
+
+    expect(await run(['profiles', ADAPTERS], io, noNetwork, measuring())).toBe(0)
+    expect(out[0]).toContain('scrape root:')
+    expect(out[1]).toContain(`holder API:`)
+    expect(out[1]).toContain(API_URL_ENV)
+  })
+
+  it('writes the family document and the merged one, and counts what agrees', async () => {
+    scraped([
+      { catalog: 'BT30ER16060M', material: '1258023', l1: '60' },
+      { catalog: 'BT30ER16100M', material: '1258024', l1: '100' },
+    ])
+    mirrored('BT30ER16060M')
+    mirrored('BT30ER16100M')
+    const { io, out } = recorder()
+
+    expect(await run(['profiles', ADAPTERS], io, noNetwork, measuring())).toBe(0)
+
+    const family = JSON.parse(
+      readFileSync(join(root, 'kennametal/profiles/bt30_er_collet_adapters_metric.json'), 'utf8'),
+    )
+    expect(family.holderCount).toBe(2)
+    expect(family.unit).toBe('millimeters')
+    expect(family.kernelVersion).toBe('0.7.2')
+
+    // The stub measures both at 60 mm, so the 100 mm row is 40 mm short — well
+    // past the 1 mm tolerance, and reported as such rather than smoothed over.
+    expect(out.join('\n')).toContain('2 profiles, 1 complete')
+
+    const merged = JSON.parse(readFileSync(profilesJson(), 'utf8'))
+    expect(Object.keys(merged.holders)).toEqual(Object.keys(family.holders))
+  })
+
+  it('reports a holder with no mirrored model rather than failing on it', async () => {
+    // MariTool publishes no STEP model for about a third of its parts and none
+    // at all for its CAT50 line.
+    scraped([
+      { catalog: 'BT30ER16060M', material: '1258023', l1: '60' },
+      { catalog: 'BT30ER20060M', material: '1258025', l1: '60' },
+    ])
+    mirrored('BT30ER16060M')
+    const { io, out } = recorder()
+
+    expect(await run(['profiles', ADAPTERS], io, noNetwork, measuring())).toBe(0)
+    expect(out.join('\n')).toContain('1 holders publish no mirrored model')
+    expect(out.join('\n')).toContain('1 profiles, 1 complete')
+  })
+
+  it('writes nothing and says why when the family has no mirrored models at all', async () => {
+    scraped([{ catalog: 'BT30ER16060M', material: '1258023', l1: '60' }])
+    const { io, out } = recorder()
+
+    expect(await run(['profiles', ADAPTERS], io, noNetwork, measuring())).toBe(0)
+    expect(out.join('\n')).toContain('run mirror-cad first')
+    expect(existsSync(profilesJson())).toBe(false)
+  })
+
+  it('refuses a CSV name no holder family claims', async () => {
+    const { io } = recorder()
+    await expect(run(['profiles', 'nope.csv'], io, noNetwork, measuring())).rejects.toThrow(
+      /unknown holder CSV/,
+    )
+  })
+
+  it('prints the usage rather than measuring nothing', async () => {
+    const { io, err } = recorder()
+    expect(await run(['profiles'], io, noNetwork)).toBe(2)
+    expect(err.join('\n')).toContain('usage: toolpath-scrape')
   })
 })
 

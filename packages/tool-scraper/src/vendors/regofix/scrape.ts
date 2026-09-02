@@ -56,6 +56,7 @@
 
 import {
   CAD_COLUMN,
+  COLLET_DESIGNATION_COLUMN,
   COLLET_SERIES_COLUMN,
   CONTACT_COLUMN,
   DIN_PREFIX,
@@ -506,7 +507,7 @@ export function colletRow(source: Source, warn: Warn = consoleWarn): ScrapedRow 
   const row: Record<string, string> = {
     'Material Number': sku,
     'ISO Catalog Number': title,
-    'Collet Series': (parsed['series'] ?? '').replaceAll(' ', ''),
+    [COLLET_DESIGNATION_COLUMN]: (parsed['series'] ?? '').replaceAll(' ', ''),
     unit,
     o_mm: plain(one(source, 'o_mm')),
     Square_mm: '',

@@ -6,4 +6,5 @@
  * `docs/REGOFIX_PRODUCTFINDER_API.md`.
  */
 
+export * from './holding.js'
 export * from './scrape.js'

@@ -15,16 +15,24 @@
 import { describe, expect, it } from 'vitest'
 
 import { IncompletePartError, ScraperConfigError, VendorResponseError } from '../src/errors.js'
-import { familyBrand, familyId } from '../src/family.js'
+import {
+  familyBrand,
+  familyId,
+  type FamilyDefinition,
+  type ToolholdingDefinition,
+} from '../src/family.js'
 import { ALL_FAMILIES, COLLET_FAMILIES, FAMILIES, HOLDER_FAMILIES } from '../src/families/index.js'
 import { BRANDS, recordGuid, type BrandName } from '../src/identity.js'
 import { ColumnMap, REQUIRED_GEOMETRY, type ToolKind } from '../src/records.js'
 import type { ScrapeResult, ScrapedRow } from '../src/scrape.js'
 import {
   ADAPTERS,
+  HOLDING_ADAPTERS,
   boundFamilies,
   boundFamily,
+  boundHolding,
   boundToolholding,
+  resetBindings,
   toRecords,
 } from '../src/registry.js'
 
@@ -197,12 +205,18 @@ describe('fact projection', () => {
     // as a fact — two copies that agree today and drift the first time
     // somebody edits the obvious one. `FamilyDefinition` declares no constant
     // keys, so it does not compile now and there is nothing left to check.
-    // @ts-expect-error `unit` is a fact, not a plain key
+    //
+    // **The directive sits on the offending property, not on the declaration.**
+    // It was on the `const` line, and `FamilyDefinition` was never imported into
+    // this file — so what it suppressed was an unresolved type name, and this
+    // test proved nothing at all until 2026-09-02. An excess property is
+    // reported where the property is written.
     const bad: FamilyDefinition = {
       id: 'x',
       rows: 1,
       kind: 'drill' as ToolKind,
       columns: {},
+      // @ts-expect-error `unit` is a fact, not a plain key
       unit: 'inches',
     }
     expect(bad).toBeDefined()
@@ -368,6 +382,96 @@ describe('the tables themselves', () => {
       for (const field of REQUIRED_GEOMETRY[cfg.kind]) {
         expect(cfg.columns.mapped(), name).toContain(field)
       }
+    }
+  })
+})
+
+describe('toolholding is optional, per vendor and per kind', () => {
+  // The requirement in one sentence: **any vendor may publish holders, collets,
+  // both or neither, and none of it is required.** It has been true since the
+  // config tables were split, and it was true by accident — nothing said so, so
+  // nothing would have noticed the first table that started assuming otherwise.
+  //
+  // Every case below is read off the real catalog rather than rostered, so the
+  // vendor that makes each one true is named by the data and not by this file.
+  // A catalog that stopped holding an example of one of these has stopped
+  // proving the claim, and that is worth failing on: it means the next vendor
+  // is being added against three shapes instead of four.
+  const brandsOf = (table: Record<string, FamilyDefinition | ToolholdingDefinition>) =>
+    new Set(Object.values(table).map((cfg) => familyBrand(cfg)))
+
+  const holders = brandsOf(HOLDER_FAMILIES)
+  const collets = brandsOf(COLLET_FAMILIES)
+  const tools = brandsOf(FAMILIES)
+
+  it('has a vendor with holders and no collets', () => {
+    // MariTool today. Its ER collets exist and this package does not scrape
+    // them, which is the ordinary state of a vendor half-read rather than a
+    // gap to fill before the holders are usable.
+    expect([...holders].filter((brand) => !collets.has(brand))).not.toEqual([])
+  })
+
+  it('has a vendor that ships toolholding and no cutting tools', () => {
+    // REGO-FIX and MariTool. Neither goes through a column map or binds a
+    // `RECORD_MAPPERS` entry, and `boundFamilies` never sees them.
+    expect([...new Set([...holders, ...collets])].filter((b) => !tools.has(b))).not.toEqual([])
+  })
+
+  it('has a vendor that ships cutting tools and no toolholding', () => {
+    // Harvey Tool, EMUGE-FRANKEN, Destiny Tool and WIDIA. The mirror image, and
+    // the one that would break first if toolholding were ever assumed present.
+    expect([...tools].filter((b) => !holders.has(b) && !collets.has(b))).not.toEqual([])
+  })
+
+  it('binds every family of every brand, neither table needing the other', () => {
+    // The claim stated as a total. Both tables cover their own catalog and
+    // nothing in either is waiting on an entry in the other.
+    expect(boundFamilies().size).toBe(Object.keys(FAMILIES).length)
+    expect(boundToolholding().size).toBe(
+      Object.keys(HOLDER_FAMILIES).length + Object.keys(COLLET_FAMILIES).length,
+    )
+    for (const [name, cfg] of boundToolholding()) {
+      expect(['holder', 'collet'], name).toContain(cfg.kind)
+    }
+  })
+
+  it('names a real brand in every HOLDING_ADAPTERS key', () => {
+    // The hazard the partial table introduces, and the one `ADAPTERS` does not
+    // have. A missing brand there fails at bind time naming the family; here
+    // absence is legal, so `HOLDING_ADAPTERS.regofx` would read as "regofix
+    // maps nothing" and no bind, no scrape and no conversion would say otherwise
+    // until somebody noticed a vendor's records had quietly stopped being minted.
+    for (const brand of Object.keys(HOLDING_ADAPTERS)) {
+      expect(Object.keys(BRANDS), brand).toContain(brand)
+    }
+  })
+
+  it('binds a toolholding family whose brand maps nothing, and still scrapes it', () => {
+    // The state every toolholding family was in until records existed, and the
+    // state a vendor whose columns nobody has read is in now. Binding must not
+    // refuse it: the family still scrapes, still writes a CSV and still checks
+    // its receipt, and only `toHolding` cannot proceed.
+    const name = Object.keys(HOLDER_FAMILIES).find(
+      (n) => familyBrand(HOLDER_FAMILIES[n]!) === 'maritool',
+    )
+    expect(name).toBeDefined()
+
+    const kept = HOLDING_ADAPTERS['maritool']
+    try {
+      delete HOLDING_ADAPTERS['maritool']
+      resetBindings()
+
+      const cfg = boundHolding(name!)
+      expect(cfg.kind).toBe('holder')
+      expect(cfg.records).toBeUndefined()
+      expect(cfg.rows).toBeGreaterThan(0)
+      // And the rest of the catalog is untouched by one brand's absence.
+      expect(boundToolholding().size).toBe(
+        Object.keys(HOLDER_FAMILIES).length + Object.keys(COLLET_FAMILIES).length,
+      )
+    } finally {
+      HOLDING_ADAPTERS['maritool'] = kept as never
+      resetBindings()
     }
   })
 })

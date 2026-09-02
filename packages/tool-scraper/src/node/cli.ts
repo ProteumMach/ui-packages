@@ -12,6 +12,8 @@
  * toolpath-scrape cad             add the vendor CAD model column
  * toolpath-scrape materials       add the ISO workpiece-group column
  * toolpath-scrape mirror-cad      download the vendor STEP models
+ * toolpath-scrape coverage        report which rows publish a CAD model
+ * toolpath-scrape profiles        measure the mirrored models into profiles
  * ```
  *
  * **One binary with subcommands.** Seven names in `node_modules/.bin` for one
@@ -27,19 +29,29 @@
  * tree.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { basename, dirname } from 'node:path'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
 
 import { ScraperConfigError, VendorResponseError } from '../errors.js'
 import { familyBrand } from '../family.js'
+import type { HolderRecord } from '../holding.js'
 import { ALL_FAMILIES, FAMILIES, HOLDER_FAMILIES, familyConfig } from '../families/index.js'
 import { createFetcher, type Fetcher } from '../fetch.js'
+import { buildProfiles, type MeasuredHolder, type ProfilesDocument } from '../profiles.js'
 import { AEM_BRANDS, type AemBrandName, type BrandName } from '../identity.js'
-import { boundFamily } from '../registry.js'
+import { boundFamily, toHolding } from '../registry.js'
 import { pause, REQUEST_DELAY_MS, type ScrapeResult } from '../scrape.js'
-import { mirrorFamilySteps } from './cad-mirror.js'
+import { cadCoverage, mirrorFamilySteps, type CadCoverage } from './cad-mirror.js'
 import { parseCsv, toCsv } from './csv.js'
-import { describeRoot, familyCsv, stepDir } from './paths.js'
+import {
+  API_KEY_ENV,
+  API_URL_ENV,
+  createHolderApi,
+  describeApi,
+  measureFamily,
+  type HolderApi,
+} from './holder-import.js'
+import { describeRoot, familyCsv, profilesDir, profilesJson, stepDir } from './paths.js'
 import * as receipts from './receipts.js'
 import { scrapeFamily } from '../vendors/kennametal/scrape.js'
 import { annotateCadUrls } from '../vendors/kennametal/cad.js'
@@ -67,6 +79,32 @@ import { scrapeCategory } from '../vendors/emuge/scrape.js'
  * that fit nothing.
  */
 const BT30_COLLET_SIZES = ['6', '10', '15', '25'] as const
+
+/**
+ * Brand -> the step that fills `conventions.CAD_COLUMN` for it, where the
+ * vendor needs a second request to say where its model is.
+ *
+ * **Two brands are in here and three are deliberately not.** `annotateCadUrls`
+ * is Kennametal's CDS Visual lookup, not a vendor-neutral one: it queries
+ * product-config.net and rewrites the column on every row. Run against a
+ * REGO-FIX holder it would post that vendor's SKUs to Kennametal and blank the
+ * STEP URLs the REGO-FIX scrape had already filled in.
+ *
+ * A brand that is absent is **not** a brand this command refuses. REGO-FIX and
+ * MariTool write the column during the scrape itself, so for them there is
+ * nothing to annotate and the honest answer is to say so and report what the
+ * CSV already carries — see {@link cad}. It exited 2 until 2026-09-02, which
+ * made `cad <every holder family>` impossible to run over a catalog holding
+ * more than one vendor's.
+ *
+ * A table here rather than a check against `AEM_BRANDS`, because being on
+ * Kennametal's AEM platform and having a CAD lookup are two different facts
+ * that happen to coincide across two brands.
+ */
+const CAD_ANNOTATORS: Partial<Record<BrandName, typeof annotateCadUrls>> = {
+  kennametal: annotateCadUrls,
+  widia: annotateCadUrls,
+}
 
 const USAGE = `usage: toolpath-scrape <command> [args]
 
@@ -131,6 +169,20 @@ const USAGE = `usage: toolpath-scrape <command> [args]
   mirror-cad HOLDERS.csv [more.csv ...]
       Downloads each row's STEP model into <root>/<brand>/step. Run \`cad\`
       first — a CSV with no CAD column yields nothing and says so.
+
+  profiles HOLDERS.csv [more.csv ...]
+      Measures each mirrored STEP model through the Toolpath Engine API and
+      writes the gage-line profile document — one per family under
+      <root>/<brand>/profiles, plus the merged <root>/profiles.json.
+      Needs ${API_KEY_ENV} set, and ${API_URL_ENV} until the holder routes
+      reach production. Run \`mirror-cad\` first: a holder with no mirrored
+      model is reported and skipped, not measured.
+
+  coverage [HOLDERS.csv ...]
+      Reports how many rows of each holder family publish a STEP model and a
+      DXF. Reads the scraped CSVs and makes no requests at all. With no
+      arguments it reports every holder family, and says which ones have not
+      been scraped on this machine rather than failing on them.
 
 An output path is used verbatim; scraped CSVs belong under the scrape root,
 in <brand>/csv/. The in-place commands take a bare CSV name and resolve it
@@ -213,6 +265,7 @@ export async function run(
   argv: string[],
   io: Console_ = STDOUT,
   fetcher: Fetcher = createFetcher(),
+  api?: HolderApi,
 ): Promise<number> {
   // Somebody reading the usage text is the person most likely to be about to
   // point a scrape at the wrong place, so help gets the root too.
@@ -245,6 +298,10 @@ export async function run(
       return materials(rest, io, fetcher)
     case 'mirror-cad':
       return mirrorCad(rest, io, fetcher)
+    case 'coverage':
+      return coverage(rest, io)
+    case 'profiles':
+      return profiles(rest, io, api)
     default:
       io.error(`unknown command ${JSON.stringify(command)}\n\n${USAGE}`)
       return 2
@@ -472,27 +529,39 @@ function threadPitch(argv: string[], io: Console_): number {
   return 0
 }
 
+/**
+ * Fill the CAD model column, for the vendors that need a second request to.
+ *
+ * Vendor-dispatched through {@link CAD_ANNOTATORS} rather than gated on
+ * `AEM_BRANDS`. A brand with no annotator is a **no-op with a message**, not a
+ * refusal: its scrape already wrote the column, so there is nothing this
+ * command could add, and exiting 2 on it meant `cad` could not be run across a
+ * catalog holding more than one vendor's holders. `mirror-cad` reads the column
+ * and is neutral; this writes it and is not.
+ */
 async function cad(argv: string[], io: Console_, fetcher: Fetcher): Promise<number> {
   if (argv.length === 0) {
     io.error(USAGE)
     return 2
   }
   for (const name of namesIn(argv, HOLDER_FAMILIES, 'holder')) {
-    // `annotateCadUrls` is Kennametal's CDS lookup, not a vendor-neutral one —
-    // it queries product-config.net and rewrites `CAD_COLUMN` on every row. Run
-    // against a REGO-FIX holder it would post that vendor's SKUs to Kennametal
-    // and blank the STEP URLs the REGO-FIX scrape had already filled in.
-    // `mirror-cad` reads the column and *is* neutral; this writes it and is not.
     const brand = familyBrand(familyConfig(name))
-    if (!AEM_BRANDS.includes(brand as AemBrandName)) {
-      io.error(
-        `${name}: the cad step is ${[...AEM_BRANDS].sort().join('/')}-only — ` +
-          `${brand} publishes its own CAD URLs with the scrape`,
-      )
-      return 2
-    }
     const path = familyCsv(name)
-    const { scrape, found } = await annotateCadUrls(fetcher, readCsv(name, path))
+
+    const annotate = CAD_ANNOTATORS[brand]
+    if (annotate === undefined) {
+      const found = coverageOf(name)
+      io.log(
+        `${name}: nothing to annotate — ${brand} publishes its CAD URLs with ` +
+          `the scrape` +
+          (found === null
+            ? ' (not scraped on this machine)'
+            : ` (${found.step} of ${found.rows} rows carry one)`),
+      )
+      continue
+    }
+
+    const { scrape, found } = await annotate(fetcher, readCsv(name, path))
     writeCsv(path, scrape)
     io.log(`${name}: ${found} CAD models`)
   }
@@ -537,6 +606,7 @@ async function mirrorCad(argv: string[], io: Console_, fetcher: Fetcher): Promis
     const written = await mirrorFamilySteps(
       fetcher,
       readCsv(name, path).rows,
+      brand,
       stepDir(brand),
       undefined,
       io.error,
@@ -545,6 +615,140 @@ async function mirrorCad(argv: string[], io: Console_, fetcher: Fetcher): Promis
     io.log(`${name}: ${written.length} STEP files, ${Math.floor(total / 1024)} KB`)
   }
   return 0
+}
+
+/** One family's CAD coverage, or null where it has not been scraped here. */
+function coverageOf(name: string): CadCoverage | null {
+  const path = familyCsv(name)
+  if (!existsSync(path)) return null
+  return cadCoverage(parseCsv(readFileSync(path, 'utf8')).rows)
+}
+
+/**
+ * How much of the holder catalog publishes a model, before anything downloads
+ * one.
+ *
+ * **The one command here that makes no requests and writes no files.** It is
+ * the number that bounds anything built on measured geometry, and it is worth
+ * having before the mirror runs rather than after: MariTool is 527 of the 601
+ * holder rows and publishes a STEP for about two thirds of them.
+ *
+ * A family that has not been scraped on this machine is **reported, not
+ * refused**, even when it was asked for by name. The whole command is a report,
+ * and one absent CSV must not stop it printing the rest — which is exactly the
+ * shape the `cad` step had wrong.
+ */
+function coverage(argv: string[], io: Console_): number {
+  const names =
+    argv.length === 0
+      ? Object.keys(HOLDER_FAMILIES).sort()
+      : namesIn(argv, HOLDER_FAMILIES, 'holder')
+
+  const total: CadCoverage = { rows: 0, step: 0, dxf: 0 }
+  let counted = 0
+
+  for (const name of names) {
+    const found = coverageOf(name)
+    if (found === null) {
+      io.log(`${name}: not scraped on this machine`)
+      continue
+    }
+    counted += 1
+    total.rows += found.rows
+    total.step += found.step
+    total.dxf += found.dxf
+    io.log(`${name}: ${describeCoverage(found)}`)
+  }
+
+  if (counted > 1) io.log(`${counted} families: ${describeCoverage(total)}`)
+  return 0
+}
+
+/** One coverage line: the counts, and the STEP share a mirror would get. */
+function describeCoverage(found: CadCoverage): string {
+  // Guarded rather than assumed: an empty CSV is a scrape that produced a header
+  // and no parts, and a NaN percentage would read as a parsing fault here
+  // instead of as the empty file it is.
+  const share = found.rows === 0 ? '—' : `${Math.round((100 * found.step) / found.rows)}%`
+  return `${found.rows} rows, ${found.step} STEP (${share}), ${found.dxf} DXF`
+}
+
+/**
+ * Measure one holder family's mirrored models into a profiles document.
+ *
+ * **The one command that sends data to Toolpath rather than reading from a
+ * vendor.** The API takes a direct upload of the STEP file — it does not fetch
+ * the vendor's URL itself — so every measurement puts a vendor's binary in
+ * Toolpath object storage, which is why the API base URL is printed beside the
+ * scrape root before anything is uploaded.
+ *
+ * Per family *and* merged, because the two answer different questions: a family
+ * document is what a re-measure of that family replaces, and the merged one is
+ * what a consumer loads. Both are built by `profiles.buildProfiles`, so a guid
+ * that appeared twice would be refused rather than silently overwritten.
+ */
+async function profiles(argv: string[], io: Console_, api?: HolderApi): Promise<number> {
+  if (argv.length === 0) {
+    io.error(USAGE)
+    return 2
+  }
+
+  const names = namesIn(argv, HOLDER_FAMILIES, 'holder')
+  io.log(describeApi())
+  const client = api ?? createHolderApi()
+
+  const everyMeasurement: MeasuredHolder[] = []
+  const everyHolder: HolderRecord[] = []
+
+  for (const name of names) {
+    const path = familyCsv(name)
+    const brand = familyBrand(familyConfig(name))
+    // Holders only: a collet publishes no CAD model and is not drawn, because
+    // it sits inside the nut the holder's own profile already includes.
+    const holders = toHolding(name, readCsv(name, path), { warn: io.error }) as HolderRecord[]
+
+    const run = await measureFamily(client, holders, stepDir(brand), undefined, undefined, io.error)
+    if (run.unmirrored.length > 0) {
+      io.log(`${name}: ${run.unmirrored.length} holders publish no mirrored model`)
+    }
+    if (run.failed.length > 0) {
+      io.log(`${name}: ${run.failed.length} imports the kernel refused`)
+    }
+    if (run.measured.length === 0) {
+      io.log(`${name}: nothing measured — run mirror-cad first`)
+      continue
+    }
+
+    const document = buildProfiles(run.measured, holders)
+    writeJson(join(profilesDir(brand), `${basename(name, '.csv')}.json`), document)
+    io.log(`${name}: ${describeProfiles(document)}`)
+
+    everyMeasurement.push(...run.measured)
+    everyHolder.push(...holders)
+  }
+
+  if (everyMeasurement.length === 0) return 0
+
+  const merged = buildProfiles(everyMeasurement, everyHolder)
+  writeJson(profilesJson(), merged)
+  io.log(`${profilesJson()}: ${describeProfiles(merged)}`)
+  return 0
+}
+
+/** One profiles line: how many holders, and how many agree with the vendor's L1. */
+function describeProfiles(document: ProfilesDocument): string {
+  const complete = Object.values(document.holders).filter((p) => p.complete).length
+  return (
+    `${document.holderCount} profiles, ${complete} complete ` +
+    `(kernel ${document.kernelVersion}, tolerance ${document.options.tolerance}, ` +
+    `fillBays ${document.options.fillBays})`
+  )
+}
+
+/** A derived document onto disk, its directory created and a trailing newline on it. */
+function writeJson(path: string, document: unknown): void {
+  mkdirSync(dirname(path), { recursive: true })
+  writeFileSync(path, `${JSON.stringify(document, null, 1)}\n`)
 }
 
 /** The process entry point: run, and turn a refusal into an exit code. */

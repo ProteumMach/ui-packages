@@ -8,4 +8,5 @@
  */
 
 export * from './catalog.js'
+export * from './holding.js'
 export * from './scrape.js'

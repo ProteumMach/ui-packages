@@ -311,10 +311,23 @@ series join to nothing.
 **`ER25M` is a collet nut designation in a `Collet Size` cell**, on
 `CAT40-ER25-3.0MD` and `BT30-ER25-60M`. There is no ER25M collet series;
 `HSK40E-ER16-3.0M` puts a value of exactly that shape in its own `Collet Nut`
-cell, which is the column it belongs in. It is written into `CST` as designated
-— so it joins to no collet — and warned about. Widening it to `ER25` would offer
-a machinist a collet that may not seat, which costs a purchase; leaving it costs
-an option.
+cell, which is the column it belongs in, and 57 parts carry `ER11M`, `ER16M`,
+`ER20M` or `ER25M` there beside a `Collet Size` of the plain series.
+
+**`ER25M` is the mini collet nut series, and the collet a mini nut closes is a
+plain ER25** (JG 2026-09-02). `colletSeries` therefore resolves the cell, and
+the two parts join to the ER25 collets they fit. Until that answer existed the
+string was written into `CST` as designated — joining to no collet — and warned
+about, because widening a series on a guess offers a machinist a collet that may
+not seat, which costs a purchase, where leaving it costs an option.
+
+The vendor's own `Collet Size` cell is untouched and still says `ER25M`, so the
+CSV still records which of the two parts carries a mini nut. `CST` is a derived
+join key rather than a record of what the vendor published — the same thing the
+spacing rule does to it — and `HolderRecord.colletSeries` is that key. **A
+consumer that needs the nut variant reads `Collet Size`**; nothing on the record
+carries it, under the standing rule that a field arrives when something displays
+it.
 
 ### 4.5 `Hydraulic Type` is not a constant
 
@@ -326,12 +339,16 @@ sampled parts said `HC` — and the full catalog is what settled it.
 
 ## 5. What the vendor gets wrong
 
-Four faults, all reported as warnings and none corrected.
+Four faults. Three are reported as warnings and left uncorrected; the fourth was
+resolved by asking, which is what `docs/ADDING-A-VENDOR.md` says to do with a
+vendor label nobody can pin down.
 
 1. **`BT40-ER32-60` publishes no `Taper` row**, alone among the 529 parts in
    scope. Its row is kept with `taper` and `contact` empty. The hole is what
    the vendor published.
-2. **`ER25M` in a `Collet Size` cell**, on two parts — §4.4.
+2. **`ER25M` in a `Collet Size` cell**, on two parts — §4.4. The one that is
+   resolved rather than reported: `M` is the mini nut, the collet is a plain
+   ER25, and `CST` names the collet.
 3. **A product slug can hold a `/`.** MariTool builds the slug from the product
    name and does not escape it, so
    `.../p29006/CAT50-3/4-TAPERED-NOSE-SHRINK-FIT-TOOL-HOLDER-.750-5.0/product_info.html`
