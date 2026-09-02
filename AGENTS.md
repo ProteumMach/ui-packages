@@ -1,7 +1,7 @@
 # Toolpath UI Packages Agent Guide
 
 This repository publishes libraries. It is not an application: nothing here is deployed, and
-every meaningful change lands in somebody else's `node_modules`. Four npm packages and one
+every meaningful change lands in somebody else's `node_modules`. Five npm packages and one
 PyPI package ship from this tree, alongside the examples that prove they work and the
 generation pipeline that keeps two of them honest against the API.
 
@@ -16,6 +16,7 @@ cost for everyone downstream. Those are the risks worth spending review attentio
 | `@toolpath/ui`           | `packages/ui/`             | npm — React component kit + theme  |
 | `@toolpath/viewer`       | `packages/viewer/`         | npm — three.js/R3F part viewer     |
 | `@toolpath/api`          | `packages/sdk-typescript/` | npm — generated TypeScript SDK     |
+| `@toolpath/tool-drawing` | `packages/tool-drawing/`   | npm — 2D tool/holder elevation     |
 | `@toolpath/tool-scraper` | `packages/tool-scraper/`   | npm — vendor tool-catalog scraping |
 | `toolpath`               | `packages/sdk-python/`     | PyPI — generated Python SDK        |
 
@@ -35,6 +36,10 @@ are never published. They exist to exercise a package the way a consumer would.
 - `packages/viewer/src/model/` and `src/render/` are pure — geometry, selection, camera, theme.
   The `.tsx` files at `packages/viewer/src/` are the React surface over them. New behavior that
   can be pure belongs in `model/` or `render/`, where it is cheap to test without a canvas.
+- `packages/tool-drawing/src/` splits the same way the viewer does: `model/` and
+  `render/*.ts` are pure geometry and layout, the `.tsx` files are the React surface. It ships
+  three entry points — the root, `/geometry`, which imports no React and touches no DOM, and
+  `/clearance`, the optional overlay — and a new file has to be reachable from one of them.
 - `packages/tool-scraper/src/vendors/<brand>/` are the vendor adapters; everything above them in
   `src/` is the shared core, and `src/node/` is the filesystem/CLI entry point that the library
   half deliberately does not depend on.
@@ -163,6 +168,7 @@ Use the package and bump that match the change:
 | `packages/ui/src/` or `packages/ui/tailwind-preset.cjs`                                                     | `@toolpath/ui`           |
 | `packages/viewer/src/`                                                                                      | `@toolpath/viewer`       |
 | `packages/sdk-typescript/src/`, `openapi/`, `codegen/typescript-fetch.yaml`, or `scripts/generate-sdks.mjs` | `@toolpath/api`          |
+| `packages/tool-drawing/src/`                                                                                | `@toolpath/tool-drawing` |
 | `packages/tool-scraper/src/`                                                                                | `@toolpath/tool-scraper` |
 
 - Public package manifest changes that alter exports, dependencies, peer dependencies, or shipped files

@@ -13,6 +13,8 @@ on:
       - packages/viewer/package.json
       - packages/sdk-typescript/src/**
       - packages/sdk-typescript/package.json
+      - packages/tool-drawing/src/**
+      - packages/tool-drawing/package.json
       - packages/tool-scraper/src/**
       - packages/tool-scraper/package.json
       - openapi/**
