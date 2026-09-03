@@ -24,6 +24,15 @@ export const SHEETS = {
     ink: '#3f4650',
     centre: '#15181c',
     dimension: '#606a76',
+    /**
+     * The dimension the reader is pointing at.
+     *
+     * **Not a colour the tool is already drawn in** (Paul, 2026-09-02): the
+     * flutes are gold and a struck section is red, so a highlight in either
+     * would read as a property of the metal rather than as a pointer. Blue is
+     * on neither the tool nor the holder, and it carries on both sheets.
+     */
+    accent: '#0284c7',
     body: '#c4c8ce',
     flutes: '#e6bf59',
     holder: '#9aa2ad',
@@ -35,6 +44,8 @@ export const SHEETS = {
     ink: '#c7cdd6',
     centre: '#e8ebef',
     dimension: '#8d97a4',
+    // Lighter than the light sheet's, to hold its own against the dark ground.
+    accent: '#38bdf8',
     body: '#5b626c',
     // The gold reads as gold on either ground, a shade deeper here so it does
     // not glare against the greys around it.

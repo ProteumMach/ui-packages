@@ -41,18 +41,25 @@
  * writes `1 1/2` and admits no hyphen at all. What it hands here is
  * {@link Measured}, which is the part they have in common.
  *
- * **`MM_PER_INCH` lives here and not in a vendor.** It was declared and
- * exported twice — `vendors/harvey/value.ts` and `vendors/regofix/scrape.ts`
- * — so `@toolpath/tool-scraper/vendors/harvey` and `.../vendors/regofix` each
- * published their own copy of 25.4. That is exactly what `conventions.CAD_COLUMN`
- * was moved up for, and what `tests/vendor-boundary.test.ts` now refuses by name.
+ * **`MM_PER_INCH` and `convertLength` are `@toolpath/tool-support`'s**, and are
+ * re-exported here under the names this package has always published.
+ *
+ * They were declared and exported twice inside this package alone —
+ * `vendors/harvey/value.ts` and `vendors/regofix/scrape.ts` — so
+ * `@toolpath/tool-scraper/vendors/harvey` and `.../vendors/regofix` each
+ * published their own copy of 25.4. `tests/vendor-boundary.test.ts` refuses that
+ * by name and moving the constant up here fixed it *within* this package, while
+ * a third copy went on standing in the application downstream. The domain
+ * package is where a constant every consumer shares can only be declared once,
+ * and `@toolpath/tool-support`'s own boundary test now holds the whole tree to
+ * one `25.4`.
  */
 
-import type { UnitSystem } from './conventions.js'
+import { convertLength, MM_PER_INCH, type UnitSystem } from '@toolpath/tool-support'
+
 import { consoleWarn, type Warn } from './scrape.js'
 
-/** Exact by definition: the inch has been 25.4 mm since 1959. */
-export const MM_PER_INCH = 25.4
+export { convertLength, MM_PER_INCH }
 
 /**
  * A decimal, a simple fraction or a mixed number — and nothing else.
@@ -85,12 +92,6 @@ export function fractionValue(token: string): number | null {
     denominator === undefined ? Number(numerator) : Number(numerator) / Number(denominator)
   const value = (whole === undefined ? 0 : Number(whole)) + part
   return Number.isFinite(value) ? value : null
-}
-
-/** `value`, converted from `from` to `to`. A no-op when they agree. */
-export function convertLength(value: number, from: UnitSystem, to: UnitSystem): number {
-  if (from === to) return value
-  return to === 'inches' ? value / MM_PER_INCH : value * MM_PER_INCH
 }
 
 /**

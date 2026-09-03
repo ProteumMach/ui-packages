@@ -31,6 +31,10 @@
       ],
       "project": ["src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}"]
     },
+    "packages/tool-support": {
+      "entry": ["src/index.ts", "tests/**/*.test.ts"],
+      "project": ["src/**/*.ts", "tests/**/*.ts"]
+    },
     "packages/ui": {
       "entry": ["src/index.ts", "tests/**/*.test.{ts,tsx}"],
       "project": ["src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}"]

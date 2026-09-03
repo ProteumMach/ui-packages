@@ -43,10 +43,37 @@
  * separately could supply a tool that claims a holder it does not have.
  */
 
-import { dimensionalColumn, type UnitSystem } from './conventions.js'
+import { GEOMETRY_FIELDS as DICTIONARY, type UnitSystem } from '@toolpath/tool-support'
+
+import { dimensionalColumn } from './conventions.js'
 import { ScraperConfigError } from './errors.js'
 import { recordGuid, type BrandName } from './identity.js'
 import type { FactSource } from './provenance.js'
+
+/**
+ * One canonical geometry name: what it measures, and whose name it is.
+ *
+ * **Declared here rather than re-exported from `@toolpath/tool-support`**, even
+ * though the dictionary's entries are the shared ones. The shared
+ * `GeometryField` carries a required `unit` and is `readonly` throughout, and
+ * this type has been published since 1.0: adopting it outright would stop a
+ * consumer that builds one of these — `{ definition, iso }` — from compiling,
+ * for no gain the values below do not already give. The entries *satisfy* the
+ * shared shape, so a field renamed upstream is still a compile error here.
+ */
+export interface GeometryField {
+  /**
+   * What the field measures, phrased so it can be quoted back at whoever
+   * mapped a column to the wrong one.
+   */
+  definition: string
+  /**
+   * The ISO 13399 code for this measurement, or `null` where the standard's
+   * counterpart has not been pinned against the dictionary. Equal to the
+   * canonical name itself on every field that *is* the standard's code.
+   */
+  iso: string | null
+}
 
 /** The kinds of cutting tool this package maps. */
 export type ToolKind = 'drill' | 'tap' | 'endmill'
@@ -94,21 +121,6 @@ export const UNSPECIFIED = 'unspecified'
  */
 export type MaterialGroupsSource = FactSource | typeof UNSPECIFIED
 
-/** One canonical geometry name: what it measures, and whose name it is. */
-export interface GeometryField {
-  /**
-   * What the field measures, phrased so it can be quoted back at whoever
-   * mapped a column to the wrong one.
-   */
-  definition: string
-  /**
-   * The ISO 13399 code for this measurement, or `null` where the standard's
-   * counterpart has not been pinned against the dictionary. Equal to the
-   * canonical name itself on every field that *is* the standard's code.
-   */
-  iso: string | null
-}
-
 /**
  * Canonical geometry fields an adapter may supply, and what each means.
  *
@@ -116,6 +128,26 @@ export interface GeometryField {
  * mapped a column to the wrong one, and each entry carries its ISO 13399 code
  * so the vocabulary's source is readable from the code rather than from a plan
  * document.
+ *
+ * ## What each entry says, and what this table says
+ *
+ * The definitions and ISO codes are `@toolpath/tool-support`'s — that is the
+ * dictionary, and it is shared because a code has to mean one thing in every
+ * package that reads one. **This is not that dictionary.** It is the narrower
+ * question only a scraper asks: which of those names an *adapter may map a
+ * vendor column to*.
+ *
+ * The two are not the same list and must not become one. The dictionary knows
+ * `LBH` and `LD`, which are derived from a tool and a holder downstream and
+ * which no vendor publishes; an adapter permitted to map a column to `LBH`
+ * could supply a tool that claims a stickout nobody set. It also knows `LSCN`,
+ * ISO's clamping-length minimum, which is a real vendor column the day a vendor
+ * prints one — and which is deliberately absent below until that day, because
+ * the load-time check's job is to refuse a name no scrape can fill.
+ *
+ * So each entry is an explicit pick out of the shared table rather than a
+ * spread of it: a name dropped from the dictionary is a compile error here, and
+ * a name added to the dictionary does not silently become mappable.
  *
  * **Seven of the ten are the standard's codes with the standard's meanings.**
  * The three that are not are Autodesk's, and each has an ISO counterpart
@@ -134,25 +166,16 @@ export interface GeometryField {
  * recognises it.
  */
 export const GEOMETRY_FIELDS = {
-  DC: { definition: 'cutting diameter', iso: 'DC' },
-  SFDM: { definition: 'shank diameter', iso: 'DMM' },
-  OAL: { definition: 'overall length', iso: 'OAL' },
-  LCF: {
-    definition: 'flute length — the length of the cutting edge',
-    iso: 'LCF',
-  },
-  RE: { definition: 'corner radius; 0 on a square-end tool', iso: 'RE' },
-  TP: { definition: 'thread pitch, in the tool’s own unit system', iso: 'TP' },
-  NOF: { definition: 'number of flutes', iso: 'NOF' },
-  SIG: { definition: 'point angle, degrees included', iso: 'SIG' },
-  'shoulder-length': {
-    definition: 'usable length below the full shank',
-    iso: null,
-  },
-  'shoulder-diameter': {
-    definition: 'diameter at the shoulder — the neck, where necked',
-    iso: null,
-  },
+  DC: DICTIONARY.DC,
+  SFDM: DICTIONARY.SFDM,
+  OAL: DICTIONARY.OAL,
+  LCF: DICTIONARY.LCF,
+  RE: DICTIONARY.RE,
+  TP: DICTIONARY.TP,
+  NOF: DICTIONARY.NOF,
+  SIG: DICTIONARY.SIG,
+  'shoulder-length': DICTIONARY['shoulder-length'],
+  'shoulder-diameter': DICTIONARY['shoulder-diameter'],
 } as const satisfies Record<string, GeometryField>
 
 /**

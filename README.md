@@ -16,6 +16,7 @@ machined, and what it may cost.
 | Build Toolpath-styled UI      | `@toolpath/ui`                  | [UI kit](packages/ui)                                              |
 | Collect vendor tool data      | `@toolpath/tool-scraper`        | [Tool scraper](packages/tool-scraper)                              |
 | Draw a tool and its holder    | `@toolpath/tool-drawing`        | [Tool drawing](packages/tool-drawing)                              |
+| Share the cutting-tool domain | `@toolpath/tool-support`        | [Tool support](packages/tool-support)                              |
 | See usage examples            | TypeScript, Python, or React    | [Examples](#examples)                                              |
 | Start a customer application  | Part Viewer template            | [toolpath-template](https://github.com/toolpath/toolpath-template) |
 | Call the API without an SDK   | HTTP, cURL, or another language | [API documentation](https://developers.toolpath.com)               |

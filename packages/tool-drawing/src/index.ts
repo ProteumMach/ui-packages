@@ -17,28 +17,15 @@ export type { Box, Extent, Frame, FrameOptions, Orientation, Padding } from './m
 export { frameFor, orientationFor, typeSizeFor } from './model/frame.js'
 export type {
   AngleDimension,
-  BandRoom,
-  DimensionFigure,
-  DimensionLayout,
-  FormatLength,
-  LabelBox,
+  DimensionLane,
+  LaneLayout,
+  LaneRoom,
   LengthDimension,
   Side,
   ToolDimensions,
   WidthDimension,
 } from './model/dimensions.js'
-export {
-  bandOffset,
-  bandRoom,
-  dimensionLabel,
-  dimensionLayout,
-  dimensionsFor,
-  figureHeight,
-  figureType,
-  formatMillimetres,
-  laneOffset,
-  stackLabels,
-} from './model/dimensions.js'
+export { dimensionsFor, laneLayout, laneOffset, laneRoom } from './model/dimensions.js'
 export type { DrawingContext } from './render/drawing-context.js'
 export { useDrawingContext } from './render/drawing-context.js'
 export type { Sheet, Theme } from './render/sheet.js'

@@ -1,4 +1,5 @@
-import { hasNeck } from './outline.js'
+import { hasNeck } from '@toolpath/tool-support'
+
 import type { ViewerAssembly } from './types.js'
 
 /**
@@ -14,10 +15,19 @@ import type { ViewerAssembly } from './types.js'
  * axis. Every length is measured **from the tip**, which is where a machinist
  * measures from and where every rule in the sheet measures from.
  *
- * Only stated numbers are dimensioned. A drawing that carries a figure the
+ * Only stated numbers are dimensioned. A drawing that carries a dimension the
  * vendor never published is worse than one that carries fewer — the note under
  * the drawing already names what was assumed, and a dimension line looks like a
  * measurement whatever the note says.
+ *
+ * ## Nothing here is lettered
+ *
+ * The drawing writes no numbers on itself (Paul, 2026-09-02). The figures were
+ * six two-line blocks fighting for the margin of a panel that already had the
+ * same six numbers in a table beside it, and the table is where a number can be
+ * read. What is left is the linework, and a way to say which line the reader is
+ * pointing at — so this model says which dimensions exist and where they run,
+ * and never what they are called or how they are written.
  *
  * ## Sides are `minus` and `plus`, not `left` and `right`
  *
@@ -35,6 +45,15 @@ export interface LengthDimension {
   /** From the tip, in millimetres — always 0 for now, kept for a dimension that is not. */
   readonly from: number
   readonly to: number
+  /**
+   * The other codes this same line answers to.
+   *
+   * Two codes are one span more often than they look — see
+   * {@link oneLinePerSpan} — and the line is drawn once, under `code`, rather
+   * than as two of exactly the same length in two lanes. Pointing at any of
+   * these names lights it.
+   */
+  readonly aliases?: ReadonlyArray<string>
   /**
    * Which line out from the stack this one runs in, 0 nearest.
    *
@@ -55,17 +74,18 @@ export interface WidthDimension {
 }
 
 /**
- * An angle called out with a leader rather than measured between two lines.
+ * An angle between two faces, drawn as the two faces extended.
  *
  * **A drill is its point** (Paul, 2026-09-01: "shouldn't a 2d rep of a drill be
  * showing me a tip angle?"). On a ⌀1 drill the cone is three tenths of a
- * millimetre tall — drawn to scale it is invisible, and the number is the only
- * way the drawing says 140° rather than 118°.
+ * millimetre tall — drawn to scale it is invisible — so the drawing runs the
+ * point's two flanks out past the tool and arcs between them, which is what a
+ * sheet does with an angle too small to letter between its own faces.
  */
 export interface AngleDimension {
   readonly code: string
   readonly degrees: number
-  /** Where the leader points: a radius from the axis and a height above the tip. */
+  /** Halfway up the cone's own flank: a radius from the axis and a height above the tip. */
   readonly at: { readonly r: number; readonly z: number }
 }
 
@@ -77,8 +97,41 @@ export interface ToolDimensions {
   readonly cornerRadius: number | null
 }
 
+/** Two lengths this close together are one measurement under two names. */
+const SAME = 1e-6
+
 /** Nothing to draw a dimension from. */
 const EMPTY: ToolDimensions = { lengths: [], widths: [], angles: [], cornerRadius: null }
+
+/**
+ * One line per span, whatever the span is called.
+ *
+ * Two codes are one measurement more often than they look. A shop that clamps
+ * to its own rule states the stickout and the below-holder length as the same
+ * number, and a tool stood out to its flutes states it a third time as the
+ * flute length. Drawn a code at a time those came out as identical ladders in
+ * two lanes — and with nothing lettered there is no telling one from the
+ * other (Paul, 2026-09-02).
+ *
+ * The first code named keeps the line, which puts the tool's own number ahead
+ * of the shop's chosen one, and the rest become its
+ * {@link LengthDimension.aliases} so that pointing at any of them lights it.
+ */
+const oneLinePerSpan = (
+  spans: ReadonlyArray<Omit<LengthDimension, 'lane'>>,
+): Array<Omit<LengthDimension, 'lane'>> =>
+  spans.reduce<Array<Omit<LengthDimension, 'lane'>>>((lines, span) => {
+    const index = lines.findIndex(
+      (each) => Math.abs(each.from - span.from) < SAME && Math.abs(each.to - span.to) < SAME,
+    )
+    if (index < 0) {
+      return [...lines, span]
+    }
+    const same = lines[index]!
+    return lines.map((each, at) =>
+      at === index ? { ...same, aliases: [...(same.aliases ?? []), span.code] } : each,
+    )
+  }, [])
 
 /**
  * The dimensions for one assembly.
@@ -114,7 +167,12 @@ export const dimensionsFor = (assembly: ViewerAssembly): ToolDimensions => {
     // On the shank, and above the holder nose where there is one: a width
     // measured inside the holder is measured across a face nobody can see.
     const shankFrom = necked && shoulderLength !== undefined ? shoulderLength : LCF
-    const shankTo = stickout ?? OAL ?? shankFrom
+    // Below the seated collet as well. It stands proud of the nose and is
+    // drawn as solid at its series diameter, so arrows struck under it measure
+    // across a face the collet is in front of.
+    const seated = holder?.colletProtrusion ?? null
+    const shankTo =
+      stickout !== null && seated !== null ? stickout - seated : (stickout ?? OAL ?? shankFrom)
     widths.push({
       code: 'SFDM',
       radius: SFDM / 2,
@@ -123,14 +181,27 @@ export const dimensionsFor = (assembly: ViewerAssembly): ToolDimensions => {
   }
 
   /** Every length this tool states, before they are put in lanes. */
-  const spans: Array<{ code: string; from: number; to: number }> = [
-    { code: 'LCF', from: 0, to: LCF },
-  ]
+  const spans: Array<Omit<LengthDimension, 'lane'>> = [{ code: 'LCF', from: 0, to: LCF }]
   if (necked && shoulderLength !== undefined) {
     spans.push({ code: 'shoulder-length', from: 0, to: shoulderLength })
   }
-  const below = tool.geometry.LBH
-  if (below !== undefined && below > 0) {
+  const below = tool.geometry.LBH !== undefined && tool.geometry.LBH > 0 ? tool.geometry.LBH : null
+  /**
+   * Whether the below-holder length is a length below the holder *as drawn*.
+   *
+   * It is the tool's own number and the stickout is the shop's, and where the
+   * shop stands the tool out less than the rule assumed, the top of `LBH` is
+   * inside the holder. A line to a face buried in the holder is the mistake
+   * the overall length is dropped for, and it reads worse here: the line runs
+   * visibly past the nose and into the holder body, so the drawing looks like
+   * it drew the assembly wrong (Paul, 2026-09-02).
+   *
+   * The drawing does not correct it — the assembly it is given is the assembly
+   * it draws, and a stickout is nobody's number but the caller's. It declines
+   * to dimension it.
+   */
+  const buried = below !== null && holder !== null && stickout !== null && below > stickout + SAME
+  if (below !== null && !buried) {
     // What the shop's clamping rule leaves below the holder: the reach the
     // tool has, which is the number half the rules are about (Paul,
     // 2026-09-01).
@@ -152,14 +223,13 @@ export const dimensionsFor = (assembly: ViewerAssembly): ToolDimensions => {
      */
   }
 
-  const lengths = spans
-    .slice()
+  const lengths = oneLinePerSpan(spans)
     .sort((a, b) => a.to - a.from - (b.to - b.from))
     .map((span, index) => ({ ...span, lane: index }))
 
   /**
-   * The point angle, on the tools that have a point: the leader lands halfway
-   * up the cone's own flank, which is where the angle is.
+   * The point angle, on the tools that have a point: `at` is halfway up the
+   * cone's own flank, which is where the angle is.
    */
   const SIG = tool.geometry.SIG
   const pointed =
@@ -183,273 +253,67 @@ export const dimensionsFor = (assembly: ViewerAssembly): ToolDimensions => {
   }
 }
 
-/** What a dimension is called on the drawing, where that is not its code. */
-const DIMENSION_LABEL: Readonly<Record<string, string>> = {
-  LBH: 'below holder',
-  'shoulder-length': 'shoulder',
-  'shoulder-diameter': 'shoulder ⌀',
-  stickout: 'stickout',
-  // A drill's included angle. "Tip angle" is what the table beside it calls
-  // the same number (Paul, 2026-09-01).
-  SIG: 'tip angle',
-}
-
-export const dimensionLabel = (code: string): string => DIMENSION_LABEL[code] ?? code
-
-/**
- * How a length is written out.
- *
- * A function rather than a unit, because a unit system is the application's:
- * this package has no opinion on whether a shop reads millimetres or inches,
- * and owning one would mean owning its rounding too. Millimetres in, a string
- * out; the default is only so the package draws something on its own.
- */
-export type FormatLength = (millimetres: number) => string
-
-export const formatMillimetres: FormatLength = (millimetres) =>
-  `${String(Math.round(millimetres * 100) / 100)} mm`
-
-/** One label's box on the drawing, before anything has been moved. */
-export interface LabelBox {
-  readonly key: string
-  /** The inboard edge across the axis, and how far the box reaches outward. */
-  readonly across: number
-  readonly width: number
-  /** The end nearest the tip, and how far the box reaches along the axis. */
-  readonly along: number
-  readonly height: number
-}
-
-/**
- * The same labels, moved apart until none covers another.
- *
- * **Because a dimension is only worth drawing if it can be read** (Paul,
- * 2026-09-01). A tool 50 mm long with 4 mm of flute puts its flute length, its
- * relief and its cutting diameter inside the bottom tenth of the drawing, and
- * three figures land on each other however carefully each one is placed. Each
- * label carries a box, so the boxes can be stacked: the one nearest the tip
- * keeps its place, and anything that would cover it moves **away from the
- * tip**, which is where the drawing has room.
- *
- * Pure arithmetic over rectangles — no measuring of text and no reading of the
- * DOM, so it runs the same on a server as in a browser.
- *
- * **Along the axis, not up the screen.** The original moved a clash "up",
- * which was the same direction only because the tool was always drawn
- * standing. Away from the tip is what that meant, and it is what holds when
- * the tool is laid on its side.
- */
-export const stackLabels = (
-  boxes: ReadonlyArray<LabelBox>,
-  gap = 0,
-  /**
-   * Boxes that cannot move: the drawing's own lines, so a figure rises clear
-   * of an extension line rather than sitting on it (Paul, 2026-09-01 — the
-   * figures moved in beside their own lanes, and the lines outboard of them
-   * cross those bands).
-   */
-  fixed: ReadonlyArray<LabelBox> = [],
-): Map<string, number> => {
-  const placed: Array<LabelBox> = [...fixed]
-  const moved = new Map<string, number>()
-  const clashes = (one: LabelBox, two: LabelBox): boolean =>
-    one.across < two.across + two.width &&
-    two.across < one.across + one.width &&
-    one.along < two.along + two.height + gap &&
-    two.along < one.along + one.height + gap
-  // Nearest the tip first: that label is the one nearest what it measures.
-  for (const box of [...boxes].sort((a, b) => a.along - b.along)) {
-    let along = box.along
-    let clash = true
-    while (clash) {
-      clash = false
-      for (const other of placed) {
-        if (clashes({ ...box, along }, other)) {
-          along = other.along + other.height + gap
-          clash = true
-          break
-        }
-      }
-    }
-    placed.push({ ...box, along })
-    moved.set(box.key, along)
-  }
-  return moved
-}
-
-/**
- * Where every figure on the drawing stands.
- *
- * **Each figure beside its own line, in the band just outboard of it** (Paul,
- * 2026-09-01: "I'd love to put SFDM, LCF and shoulder dia closer to the part —
- * like, inside the below holder and OAL lines"). One column in the far margin
- * put the number for a dimension at the tool's edge as far from it as the
- * number for the overall length, and the eye has to travel the width of the
- * sheet to pair them up. So the margin is a series of bands: the widths sit in
- * the first, just past their arrows, and each length's figure sits in the band
- * outboard of its own lane.
- *
- * A band is only as wide as the widest figure in it, because the room it takes
- * comes out of the tool.
- */
-
-/** Which flank of the tool a figure stands off. */
+/** Which flank of the tool a lane runs on. */
 export type Side = 'minus' | 'plus'
 
-/** The type a figure is set in, given the drawing's own size. */
-export const figureType = (fontSize: number): number => fontSize * 0.85
-
-/** How wide a figure of these lines is, set at that size. */
-const figureWidth = (lines: ReadonlyArray<string>, type: number): number =>
-  lines.length === 0 ? 0 : (Math.max(...lines.map((each) => each.length)) + 1) * type * 0.56
-
-/** One figure, and the band it stands in. */
-export interface DimensionFigure {
+/**
+ * One length's lane: which flank it runs on, and how far out along it.
+ *
+ * {@link LengthDimension.lane} numbers the lanes across the whole drawing,
+ * shortest innermost. Where both flanks are offered they alternate, so each
+ * flank carries its own run of lanes starting at 0 — and it is that per-flank
+ * number, not the global one, that says how far out the line is drawn.
+ */
+export interface DimensionLane {
   readonly code: string
   readonly side: Side
-  /** 0 is the band nearest the tool — the widths'; band `i + 1` is outboard of lane `i`. */
-  readonly band: number
-  /** The lane this figure's dimension runs in on its own side, or null for a width. */
-  readonly lane: number | null
-  readonly lines: ReadonlyArray<string>
-  /** How far the figure reaches perpendicular to the tool axis. Bands are sized by this. */
-  readonly across: number
-  /** How far it reaches parallel to the tool axis. The stacker moves figures along this. */
-  readonly along: number
+  readonly lane: number
+}
+
+export interface LaneLayout {
+  readonly lanes: ReadonlyArray<DimensionLane>
+  /** How many lanes each flank carries, which is the room that flank needs. */
+  readonly count: Readonly<Record<Side, number>>
 }
 
 /**
- * How tall a block of this many lines is, set at that type size.
+ * Which flank each length runs on, and its lane on that flank.
  *
- * The renderer sets type at {@link figureType} and leads it at 1.15, with half
- * a line of padding above and below; this is that sum, and the two have to
- * agree or a figure's box is not the size of the figure in it.
+ * **The drawing carries no figures**, so this is the whole of the layout: a
+ * lane is a place for a line, and a line needs nothing but room for itself.
+ * What replaced the bands is a plain ladder — the numbers live in the
+ * consumer's own table, and the drawing lights the line the reader is pointing
+ * at (Paul, 2026-09-02).
  */
-export const figureHeight = (lines: number, type: number): number =>
-  type * 0.45 * 2 + type * 1.15 * lines
-
-export interface DimensionLayout {
-  readonly figures: ReadonlyArray<DimensionFigure>
-  /** Per side, the width of every band, nearest the tool first. */
-  readonly bands: Readonly<Record<Side, ReadonlyArray<number>>>
+export const laneLayout = (model: ToolDimensions, sides: 'one' | 'both' = 'one'): LaneLayout => {
+  const lanes: Array<DimensionLane> = model.lengths.map((each) => ({
+    code: each.code,
+    side: sides === 'both' && each.lane % 2 === 1 ? 'plus' : 'minus',
+    lane: sides === 'both' ? Math.floor(each.lane / 2) : each.lane,
+  }))
+  const on = (side: Side) => lanes.filter((each) => each.side === side).length
+  return { lanes, count: { minus: on('minus'), plus: on('plus') } }
 }
 
-/** The room a side's bands take, measured out from the edge of the stack. */
-export interface BandRoom {
+/** The room one flank's lines take, measured out from the edge of the stack. */
+export interface LaneRoom {
   /** How far the width dimensions' arrows reach past the tool. */
   readonly arrow: number
-  /** The clearance between a band and the line beside it. */
+  /** The clearance between the arrows and the first lane. */
   readonly gap: number
+  /** From one lane to the next. */
+  readonly step: number
 }
 
-/** Where a band's inboard edge is: the offset a figure in it reads outward from. */
-export const bandOffset = (bands: ReadonlyArray<number>, band: number, room: BandRoom): number => {
-  let at = room.arrow + room.gap
-  for (let index = 0; index < band; index += 1) {
-    at += (bands[index] ?? 0) + room.gap * 2
-  }
-  return at
-}
-
-/** Where a lane's line runs: just outboard of the band that carries its figure. */
-export const laneOffset = (bands: ReadonlyArray<number>, lane: number, room: BandRoom): number =>
-  bandOffset(bands, lane, room) + (bands[lane] ?? 0) + room.gap
-
-/** Everything one side needs, out to the far edge of its last band. */
-export const bandRoom = (bands: ReadonlyArray<number>, room: BandRoom): number =>
-  bands.length === 0
-    ? 0
-    : bandOffset(bands, bands.length - 1, room) + (bands[bands.length - 1] ?? 0)
-
-/** What one figure reads: the name, the number, and a corner radius under it. */
-const linesOf = (
-  model: ToolDimensions,
-  format: FormatLength,
-): Array<{ code: string; lines: Array<string> }> => [
-  ...model.lengths.map((each) => ({
-    code: each.code,
-    lines: [dimensionLabel(each.code), format(each.to - each.from)],
-  })),
-  ...model.angles.map((each) => ({
-    code: each.code,
-    lines: [dimensionLabel(each.code), `${String(each.degrees)}°`],
-  })),
-  ...model.widths.map((each) => ({
-    code: each.code,
-    // Some labels carry the diameter sign already; none carries it twice.
-    lines: [
-      dimensionLabel(each.code).includes('⌀')
-        ? dimensionLabel(each.code)
-        : `${dimensionLabel(each.code)} ⌀`,
-      format(each.radius * 2),
-      // The corner radius belongs to the tip's diameter, and reads under it
-      // rather than beside it.
-      ...(each.at === 0 && model.cornerRadius !== null ? [`RE ${format(model.cornerRadius)}`] : []),
-    ],
-  })),
-]
+/** Where a lane's line runs, out from the edge of the stack. */
+export const laneOffset = (lane: number, room: LaneRoom): number =>
+  room.arrow + room.gap + lane * room.step
 
 /**
- * Every figure, on the side and in the band it belongs to.
+ * Everything one flank needs, out to its outermost line.
  *
- * The sides alternate — lengths by lane, widths by their own order — so
- * neither margin runs away with the whole drawing while the other stands
- * empty. Where the drawing has something beside it, everything stays on the
- * one flank.
+ * Never less than the arrows, because a width is dimensioned from outside on
+ * **both** flanks whether or not a length runs up either of them.
  */
-export const dimensionLayout = (
-  model: ToolDimensions,
-  format: FormatLength,
-  fontSize: number,
-  sides: 'one' | 'both' = 'one',
-  /**
-   * **Whether horizontal text runs parallel to the tool axis.**
-   *
-   * The one fact about the drawing's orientation that this model cannot do
-   * without, and it is here rather than in the renderer so that it is stated
-   * once, in a pure function, with a test on it.
-   *
-   * Everything else in this package is orientation-agnostic because a
-   * millimetre is a millimetre whichever way the axis runs. Type is the
-   * exception: **text does not rotate.** A figure two lines deep and twelve
-   * characters wide is wide on the screen either way, so when the tool is laid
-   * along the screen's width that figure reaches mostly *along* the tool, and
-   * when the tool stands up it reaches *across* it. The bands are sized on the
-   * across measure, so which of the two the type contributes decides how much
-   * room the margins take — and getting it backwards pads the wrong axis by a
-   * factor of about five.
-   */
-  textAlongAxis = false,
-): DimensionLayout => {
-  const type = figureType(fontSize)
-  const said = new Map(linesOf(model, format).map((each) => [each.code, each.lines]))
-  const extents = (lines: ReadonlyArray<string>) => {
-    const wide = figureWidth(lines, type)
-    const deep = figureHeight(lines.length, type)
-    return textAlongAxis ? { across: deep, along: wide } : { across: wide, along: deep }
-  }
-  const across = [...model.widths, ...model.angles]
-  const figures: Array<DimensionFigure> = [
-    ...across.map((each, index) => {
-      const side: Side = sides === 'both' && index % 2 === 1 ? 'plus' : 'minus'
-      const lines = said.get(each.code) ?? []
-      return { code: each.code, side, band: 0, lane: null, lines, ...extents(lines) }
-    }),
-    ...model.lengths.map((each) => {
-      const side: Side = sides === 'both' && each.lane % 2 === 1 ? 'plus' : 'minus'
-      const lane = sides === 'both' ? Math.floor(each.lane / 2) : each.lane
-      const lines = said.get(each.code) ?? []
-      return { code: each.code, side, band: lane + 1, lane, lines, ...extents(lines) }
-    }),
-  ]
-
-  const bandsOn = (side: Side): Array<number> => {
-    const mine = figures.filter((each) => each.side === side)
-    const count = Math.max(0, ...mine.map((each) => each.band)) + 1
-    return Array.from({ length: mine.length === 0 ? 0 : count }, (_, band) =>
-      Math.max(0, ...mine.filter((each) => each.band === band).map((each) => each.across)),
-    )
-  }
-
-  return { figures, bands: { minus: bandsOn('minus'), plus: bandsOn('plus') } }
-}
+export const laneRoom = (lanes: number, room: LaneRoom): number =>
+  lanes === 0 ? room.arrow : laneOffset(lanes - 1, room)

@@ -1,7 +1,7 @@
 # Toolpath UI Packages Agent Guide
 
 This repository publishes libraries. It is not an application: nothing here is deployed, and
-every meaningful change lands in somebody else's `node_modules`. Five npm packages and one
+every meaningful change lands in somebody else's `node_modules`. Six npm packages and one
 PyPI package ship from this tree, alongside the examples that prove they work and the
 generation pipeline that keeps two of them honest against the API.
 
@@ -18,6 +18,7 @@ cost for everyone downstream. Those are the risks worth spending review attentio
 | `@toolpath/api`          | `packages/sdk-typescript/` | npm — generated TypeScript SDK     |
 | `@toolpath/tool-drawing` | `packages/tool-drawing/`   | npm — 2D tool/holder elevation     |
 | `@toolpath/tool-scraper` | `packages/tool-scraper/`   | npm — vendor tool-catalog scraping |
+| `@toolpath/tool-support` | `packages/tool-support/`   | npm — the cutting-tool domain      |
 | `toolpath`               | `packages/sdk-python/`     | PyPI — generated Python SDK        |
 
 `examples/typescript`, `examples/python`, and `examples/react-viewer` are workspace members but
@@ -43,6 +44,11 @@ are never published. They exist to exercise a package the way a consumer would.
 - `packages/tool-scraper/src/vendors/<brand>/` are the vendor adapters; everything above them in
   `src/` is the shared core, and `src/node/` is the filesystem/CLI entry point that the library
   half deliberately does not depend on.
+- `packages/tool-support/src/` is the cutting-tool domain — what a tool, holder, collet and
+  assembly are, and the arithmetic that follows. **It depends on nothing and every arrow points
+  into it**: no runtime dependency, no peer, no React, no DOM, no `fs`, no `@toolpath/api`. That is
+  the whole design, and it is what lets a Node ingest script, a server route and a React renderer
+  share one answer. `tests/boundary.test.ts` is the sensor.
 - `packages/viewer/fixtures/` holds captured Engine responses, kept byte-identical to what the
   API returned. Do not reformat them.
 - `docs/` holds written plans, not steering. `docs/BOOTSTRAPPING-NPM-PACKAGES.md` is the one
@@ -107,6 +113,8 @@ judgment rule starts being violated, give it a check rather than restating it he
 | A scraper vendor adapter imports no other vendor                       | `pnpm test` (`vendor-boundary`)   |
 | Only a composition root reaches into `src/vendors/`                    | `pnpm test` (`vendor-boundary`)   |
 | Every scraper vendor directory has a `scrape.ts`                       | `pnpm test` (`vendor-boundary`)   |
+| `@toolpath/tool-support` imports nothing and declares no dependency    | `pnpm test` (`boundary`)          |
+| One `25.4` in the whole tree                                           | `pnpm test` (`boundary`)          |
 | `@toolpath/ui` ships its theme, `dist`, and `src` in the tarball       | `pnpm test` (`test-ui-package`)   |
 | `@toolpath/ui` theme tokens and the built bundle agree                 | `pnpm test` (`tailwind-preset`)   |
 | `@toolpath/tool-scraper` resolves and its errors are `instanceof`-safe | `pnpm test` (`packaging`)         |
@@ -170,6 +178,7 @@ Use the package and bump that match the change:
 | `packages/sdk-typescript/src/`, `openapi/`, `codegen/typescript-fetch.yaml`, or `scripts/generate-sdks.mjs` | `@toolpath/api`          |
 | `packages/tool-drawing/src/`                                                                                | `@toolpath/tool-drawing` |
 | `packages/tool-scraper/src/`                                                                                | `@toolpath/tool-scraper` |
+| `packages/tool-support/src/`                                                                                | `@toolpath/tool-support` |
 
 - Public package manifest changes that alter exports, dependencies, peer dependencies, or shipped files
   also require the relevant package Changeset.

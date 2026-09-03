@@ -40,6 +40,10 @@ const releaseSensitivePaths = [
     packageName: '@toolpath/tool-scraper',
     paths: ['packages/tool-scraper/src/'],
   },
+  {
+    packageName: '@toolpath/tool-support',
+    paths: ['packages/tool-support/src/'],
+  },
 ]
 
 const affectedPackages = releaseSensitivePaths

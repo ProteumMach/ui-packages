@@ -1,16 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  bandOffset,
-  bandRoom,
-  dimensionLabel,
-  dimensionLayout,
-  dimensionsFor,
-  figureHeight,
-  figureType,
-  laneOffset,
-  stackLabels,
-} from '../src/index.js'
-import type { BandRoom, ViewerAssembly, ViewerHolder, ViewerTool } from '../src/index.js'
+import { dimensionsFor, laneLayout, laneOffset, laneRoom } from '../src/index.js'
+import type { LaneRoom, ViewerAssembly, ViewerHolder, ViewerTool } from '../src/index.js'
 
 const tool = (geometry: Record<string, number>, form = 'flat end mill'): ViewerTool => ({
   form,
@@ -129,6 +119,57 @@ describe('what the holder adds, and what it takes away', () => {
     expect(codes(dimensionsFor(assembly(45, null)).lengths)).toEqual(['LCF', 'stickout'])
   })
 
+  /**
+   * The stickout and the below-holder length are the same span from the tip
+   * whenever the shop clamps to its own rule, and the drawing drew both: two
+   * lines of exactly the same length, in two lanes, on opposite flanks.
+   */
+  it('draws one line where the stickout and the below-holder length are one number', () => {
+    const clamped = tool({ DC: 12, LCF: 30, OAL: 80, SFDM: 12, LBH: 45 })
+    const { lengths } = dimensionsFor({ tool: clamped, holder: holder(98.4), stickout: 45 })
+
+    expect(codes(lengths)).toEqual(['LCF', 'LBH'])
+    expect(lengths.find((each) => each.code === 'LBH')?.aliases).toEqual(['stickout'])
+  })
+
+  /**
+   * And whatever the two codes are: a tool stood out to its flutes states the
+   * same span as its flute length, which drew a third identical ladder.
+   */
+  it('collapses any two lengths that are the same span, the tool’s code first', () => {
+    const { lengths } = dimensionsFor({ tool: plain, holder: holder(98.4), stickout: 30 })
+
+    expect(codes(lengths)).toEqual(['LCF'])
+    expect(lengths[0]?.aliases).toEqual(['stickout'])
+  })
+
+  /** Two numbers stay two lines: the tool stands out further than it reaches. */
+  it('keeps them apart where they are different numbers', () => {
+    const proud = tool({ DC: 12, LCF: 30, OAL: 80, SFDM: 12, LBH: 40 })
+    const { lengths } = dimensionsFor({ tool: proud, holder: holder(98.4), stickout: 45 })
+
+    expect(codes(lengths)).toEqual(['LCF', 'LBH', 'stickout'])
+    expect(lengths.every((each) => each.aliases === undefined)).toBe(true)
+  })
+
+  /**
+   * The stickout is the shop's number and `LBH` is the tool's. Where the tool
+   * is stood out less than the clamping rule assumed, the top of `LBH` is
+   * inside the holder — and the line ran visibly past the nose into the holder
+   * body, which reads as a drawing that got the assembly wrong.
+   */
+  it('declines to dimension a below-holder length that ends inside the holder', () => {
+    const proud = tool({ DC: 12, LCF: 30, OAL: 80, SFDM: 12, LBH: 50 })
+
+    expect(
+      codes(dimensionsFor({ tool: proud, holder: holder(98.4), stickout: 32 }).lengths),
+    ).toEqual(['LCF', 'stickout'])
+    // Below the nose it is a face on the drawing, and it is dimensioned.
+    expect(
+      codes(dimensionsFor({ tool: proud, holder: holder(98.4), stickout: 60 }).lengths),
+    ).toEqual(['LCF', 'LBH', 'stickout'])
+  })
+
   it('measures the shank above the nose, not inside the holder', () => {
     const { widths } = dimensionsFor(assembly(45))
     const shank = widths.find((each) => each.code === 'SFDM')
@@ -136,62 +177,26 @@ describe('what the holder adds, and what it takes away', () => {
     expect(shank?.at).toBeGreaterThan(30)
     expect(shank?.at).toBeLessThanOrEqual(45)
   })
-})
 
-describe('what a dimension is called', () => {
-  it('keeps a code that is already a name, and names the ones that are not', () => {
-    expect(dimensionLabel('LCF')).toBe('LCF')
-    expect(dimensionLabel('shoulder-length')).toBe('shoulder')
-  })
-})
+  /**
+   * The seated collet stands proud of the nose and is drawn as solid at its
+   * series diameter, so a width struck under it measures across a face the
+   * collet is in front of.
+   */
+  it('keeps the shank width clear of the seated collet', () => {
+    const seated: ViewerHolder = { ...holder(98.4), colletProtrusion: 10 }
+    const { widths } = dimensionsFor({ tool: plain, holder: seated, stickout: 45 })
+    const shank = widths.find((each) => each.code === 'SFDM')
 
-/**
- * The stacker moves a clash **away from the tip**, which is what "up" meant
- * back when the tool was always drawn standing. So the numbers here run the
- * other way from the drawing this was ported from: `along` grows away from the
- * tip, where screen `y` grew toward it.
- */
-describe('labels that would cover each other', () => {
-  const box = (key: string, across: number, along: number) => ({
-    key,
-    across,
-    width: 10,
-    along,
-    height: 4,
-  })
-
-  it('stacks overlapping boxes away from the tip', () => {
-    const placed = stackLabels([box('a', 0, 100), box('b', 2, 102)])
-
-    expect(placed.get('a')).toBe(100)
-    expect(placed.get('b')).toBe(104)
-  })
-
-  it('leaves boxes that do not overlap where they are', () => {
-    const placed = stackLabels([box('a', 0, 100), box('b', 40, 102), box('c', 0, 120)])
-
-    expect(placed.get('b')).toBe(102)
-    expect(placed.get('c')).toBe(120)
-  })
-
-  /** Three in a heap end up in a column, in the order they were nearest. */
-  it('stacks a heap of three', () => {
-    const placed = stackLabels([box('a', 0, 100), box('b', 1, 101), box('c', 2, 102)])
-
-    expect([placed.get('a'), placed.get('b'), placed.get('c')]).toEqual([100, 104, 108])
-  })
-
-  it('rises clear of a box that cannot move', () => {
-    const placed = stackLabels([box('a', 0, 100)], 0, [box('line', 0, 98)])
-
-    expect(placed.get('a')).toBe(102)
+    expect(shank?.at).toBeLessThanOrEqual(35)
   })
 })
 
 /**
  * **A drill is its point** (Paul, 2026-09-01: "shouldn't a 2d rep of a drill be
  * showing me a tip angle?"). On a ⌀1 drill the cone is three tenths of a
- * millimetre tall, so the number is the only way the drawing says 140°.
+ * millimetre tall, so the drawing runs the point's own two flanks out past the
+ * tool and arcs between them rather than lettering a number nobody can place.
  */
 describe('the tip angle', () => {
   it('calls out a drill’s stated tip angle, on the flank it is between', () => {
@@ -206,89 +211,65 @@ describe('the tip angle', () => {
     expect(dimensionsFor(alone(tool({ DC: 10, LCF: 40, SIG: 140 }))).angles).toEqual([])
     expect(dimensionsFor(alone(tool({ DC: 10, LCF: 40 }, 'drill'))).angles).toEqual([])
   })
-
-  /** Called what the table beside it calls it (Paul, 2026-09-01). */
-  it('letters it “tip angle”, the way the measurement table does', () => {
-    expect(dimensionLabel('SIG')).toBe('tip angle')
-  })
 })
 
-const format = (mm: number) => `${String(Math.round(mm * 100) / 100)} mm`
-
-describe('the bands the figures stand in', () => {
+/**
+ * **The drawing letters nothing** (Paul, 2026-09-02), so a lane is a place for
+ * a line and nothing else. What used to be a band sized by the widest figure
+ * in it is a plain ladder, and the only question left is which flank a length
+ * runs up and how far out.
+ */
+describe('the lanes the lines run in', () => {
   const model = dimensionsFor(alone(necked))
 
-  it('puts the widths in the first band and each length outboard of its own lane', () => {
-    const layout = dimensionLayout(model, format, 12)
-    const band = new Map(layout.figures.map((each) => [each.code, each.band]))
+  it('keeps every lane on one flank unless both are offered', () => {
+    const one = laneLayout(model, 'one')
 
-    expect(band.get('DC')).toBe(0)
-    expect(band.get('shoulder-diameter')).toBe(0)
-    expect(band.get('LCF')).toBe(1)
-    expect(band.get('shoulder-length')).toBe(2)
-    expect(band.get('OAL')).toBe(3)
-  })
-
-  it('keeps everything on one flank unless both are offered', () => {
-    const one = dimensionLayout(model, format, 12, 'one')
-    expect(one.figures.every((each) => each.side === 'minus')).toBe(true)
-    expect(one.bands.plus).toEqual([])
-
-    const both = dimensionLayout(model, format, 12, 'both')
-    expect(both.figures.some((each) => each.side === 'plus')).toBe(true)
-    expect(both.bands.plus.length).toBeGreaterThan(0)
-  })
-
-  it('sizes a band by the widest figure in it, because that room comes out of the tool', () => {
-    const layout = dimensionLayout(model, format, 12)
-    for (const [index, width] of layout.bands.minus.entries()) {
-      const inBand = layout.figures.filter((each) => each.side === 'minus' && each.band === index)
-      expect(width).toBe(Math.max(...inBand.map((each) => each.across)))
-    }
+    expect(one.lanes.every((each) => each.side === 'minus')).toBe(true)
+    expect(one.count).toEqual({ minus: 3, plus: 0 })
+    expect(one.lanes.map((each) => each.lane)).toEqual([0, 1, 2])
   })
 
   /**
-   * **Text is the one thing in the drawing that does not rotate.** A figure
-   * twelve characters wide and two lines deep is wide on the screen whichever
-   * way the tool runs, so when the tool is laid along the sheet that figure
-   * reaches mostly along the tool, and the bands — which are measured across
-   * it — become as thin as the type is tall.
+   * Alternating, so neither margin runs away with the drawing while the other
+   * stands empty — and each flank numbers its own lanes from the tool out.
    */
-  it('swaps a figure’s two extents when the type reads along the axis', () => {
-    const upright = dimensionLayout(model, format, 12, 'one', false)
-    const laid = dimensionLayout(model, format, 12, 'one', true)
-    const of = (layout: typeof upright, code: string) =>
-      layout.figures.find((each) => each.code === code)!
+  it('alternates the flanks where both are offered, and renumbers each one', () => {
+    const both = laneLayout(model, 'both')
 
-    expect(of(laid, 'LCF').across).toBe(of(upright, 'LCF').along)
-    expect(of(laid, 'LCF').along).toBe(of(upright, 'LCF').across)
-    // And the bands follow the across measure, so they are much thinner.
-    expect(Math.max(...laid.bands.minus)).toBeLessThan(Math.max(...upright.bands.minus))
+    expect(both.lanes).toEqual([
+      { code: 'LCF', side: 'minus', lane: 0 },
+      { code: 'shoulder-length', side: 'plus', lane: 0 },
+      { code: 'OAL', side: 'minus', lane: 1 },
+    ])
+    expect(both.count).toEqual({ minus: 2, plus: 1 })
   })
 
-  it('measures a figure’s depth the way the renderer sets it', () => {
-    const layout = dimensionLayout(model, format, 12)
-    const type = figureType(12)
-    const dc = layout.figures.find((each) => each.code === 'DC')!
+  it('lays no lane for a tool it dimensions nothing on', () => {
+    const nothing = laneLayout(dimensionsFor(alone(tool({ OAL: 80 }))))
 
-    expect(dc.along).toBe(figureHeight(dc.lines.length, type))
+    expect(nothing.lanes).toEqual([])
+    expect(nothing.count).toEqual({ minus: 0, plus: 0 })
   })
 })
 
-describe('the room a side’s bands take', () => {
-  const room: BandRoom = { arrow: 10, gap: 2 }
+describe('the room a flank’s lines take', () => {
+  const room: LaneRoom = { arrow: 10, gap: 2, step: 4 }
 
-  it('starts past the arrows and steps out one band at a time', () => {
-    expect(bandOffset([4, 6], 0, room)).toBe(12)
-    expect(bandOffset([4, 6], 1, room)).toBe(12 + 4 + 4)
+  it('starts past the arrows and steps out one lane at a time', () => {
+    expect(laneOffset(0, room)).toBe(12)
+    expect(laneOffset(2, room)).toBe(20)
   })
 
-  it('runs a lane just outboard of the band that carries its figure', () => {
-    expect(laneOffset([4, 6], 0, room)).toBe(12 + 4 + 2)
+  it('reaches to the outermost line', () => {
+    expect(laneRoom(3, room)).toBe(20)
   })
 
-  it('reaches to the far edge of the last band, and is nothing where there are none', () => {
-    expect(bandRoom([4, 6], room)).toBe(12 + 4 + 4 + 6)
-    expect(bandRoom([], room)).toBe(0)
+  /**
+   * A width is dimensioned from outside on **both** flanks, so a flank with no
+   * length running up it still has the arrows standing off it.
+   */
+  it('still leaves room for the arrows on a flank with no lines', () => {
+    expect(laneRoom(0, room)).toBe(10)
   })
 })

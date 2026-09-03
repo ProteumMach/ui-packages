@@ -1,33 +1,31 @@
-import type { Extent, Frame, Padding } from '../model/frame.js'
+import type { Frame, Padding } from '../model/frame.js'
+import { radiusAt, type Outline } from '../model/outline.js'
 import { AWAY_FROM_TIP, TOWARD_MINUS, TOWARD_PLUS, TOWARD_TIP, arrowhead } from './arrows.js'
 import {
-  bandOffset,
-  figureType,
   laneOffset,
-  stackLabels,
-  type BandRoom,
-  type DimensionFigure,
-  type DimensionLayout,
+  type DimensionLane,
+  type LaneLayout,
+  type LaneRoom,
   type Side,
   type ToolDimensions,
 } from '../model/dimensions.js'
 
 /**
- * Dimensions, drawn the way a drawing draws them.
+ * Dimensions, drawn the way a drawing draws them — and lettered nowhere.
  *
- * **Every figure lives in a margin, never inside the drawing** (Paul,
- * 2026-09-01, after three goes at placing them among the lines). Anywhere
- * inside there is something to land on — the tool, a leader, a lane line,
- * another figure — and a rule of the form "beside its own line, unless"
- * produced exactly the smudge it was written to avoid.
+ * **The numbers came off the sheet** (Paul, 2026-09-02). They were six
+ * two-line figures in the margin of a panel that carries the same six numbers
+ * in a table an inch away, and the whole of the margin machinery — bands,
+ * leaders, opaque backing boxes, a stacker that moved a figure away from the
+ * tip until it covered nothing — existed to fit type that did not need to be
+ * there. What is drawn now is the linework: extension lines, dimension lines,
+ * arrowheads, and the point angle's own two flanks.
  *
- * **But beside its own line.** The margin is a series of bands rather than one
- * column: the widths stand in the first, just past their arrows, and each
- * length's figure stands in the band outboard of its own lane, so the number
- * for the flute length is at the flute length rather than out beside the
- * overall length (Paul, 2026-09-01). `model/dimensions.ts` works out the
- * bands; this draws them, and keeps a figure off the extension lines that
- * cross its band by stacking it clear of them.
+ * **Which line is which is answered by pointing at it.** The reader hovers a
+ * number in the consumer's table and the line for it lights in the sheet's
+ * accent; hovering a line reports its code back, so the table can light the
+ * number. Both directions key on the ISO 13399 code — `DC`, `LCF`, `OAL`,
+ * `SFDM`, `LBH` — which the drawing and the table already had in common.
  *
  * **A width is dimensioned from outside.** A line drawn across a ⌀6 shank at
  * this scale is a line drawn *over the tool*, so the two arrows stand outside
@@ -37,31 +35,48 @@ import {
  * ## Everything is placed in millimetres, and mapped last
  *
  * This took a screen-space frame — an `x(r)` and a `y(z)` — which is the same
- * thing as assuming the tool stands upright. Every placement here is now in
- * the outline's own space, radius and height, and reaches the sheet only
- * through `toX`/`toY`. Arrowheads are built from a direction in that space
- * rather than from `'up' | 'down' | 'left' | 'right'`, and the stacker moves a
- * clash *away from the tip* rather than *up*.
+ * thing as assuming the tool stands upright. Every placement here is in the
+ * outline's own space, radius and height, and reaches the sheet only through
+ * `toX`/`toY`. Arrowheads are built from a direction in that space rather than
+ * from `'up' | 'down' | 'left' | 'right'`.
  */
 
 export interface DimensionLinesProps {
   readonly model: ToolDimensions
-  readonly layout: DimensionLayout
+  readonly layout: LaneLayout
   readonly frame: Frame
-  readonly outline: Extent
-  readonly room: BandRoom
+  /**
+   * The whole stack, not just its extent: an extension line starts at the
+   * solid it measures, and only the segments say where that is at a height.
+   */
+  readonly outline: Outline
+  readonly room: LaneRoom
   /**
    * The chrome that was asked for, in pixels.
    *
    * The frame may have granted less — it caps chrome so annotation cannot
    * starve the drawing — and everything here is placed in the margin the frame
    * actually gave, scaled back in the same proportion. Drawn at the full
-   * request against a capped margin, the outermost figures hang off the sheet.
+   * request against a capped margin, the outermost lines hang off the sheet.
    */
   readonly requested: Padding
   readonly ink: string
-  readonly ground: string
+  /** What a highlighted dimension is drawn in. */
+  readonly accent: string
+  /** The codes to draw in the accent. Empty is the ordinary drawing. */
+  readonly highlight: ReadonlySet<string>
+  /** Told the code under the pointer, and `null` when it leaves. */
+  readonly onHover?: (code: string | null) => void
 }
+
+/**
+ * How much heavier a highlighted line is drawn.
+ *
+ * Colour alone is not the highlight: a reader who cannot tell the accent from
+ * the ink still sees which line thickened, and a thin line in a new colour is
+ * easy to miss on a busy sheet either way.
+ */
+const LIT_WEIGHT = 1.8
 
 export const DimensionLines = ({
   model,
@@ -71,13 +86,12 @@ export const DimensionLines = ({
   room,
   requested,
   ink,
-  ground,
+  accent,
+  highlight,
+  onHover,
 }: DimensionLinesProps) => {
   const { fontSize, scale } = frame
   const head = fontSize * 0.9
-  const type = figureType(fontSize)
-  const lineHeight = type * 1.15
-  const inset = type * 0.45
 
   /** A length in pixels, as the millimetres the drawing is drawn in. */
   const mm = (pixels: number) => pixels / scale
@@ -90,106 +104,106 @@ export const DimensionLines = ({
   }
   const at = (r: number, z: number) => `${frame.toX(r, z).toFixed(2)},${frame.toY(r, z).toFixed(2)}`
 
-  /** The edge of the drawn tool on one flank: where an extension line starts. */
-  const edgeAt = (side: Side) => sign(side) * outline.radius
+  /**
+   * Where an extension line starts: a little clear of the solid at that
+   * height, on the flank the line runs up.
+   *
+   * **The solid at that height, not the widest thing drawn.** `outline.radius`
+   * is the flange on an assembly with a holder, twenty millimetres out from
+   * the shank being measured, and a line drawn from there starts in the margin
+   * and points at nothing (Paul, 2026-09-02).
+   */
+  const clearance = fontSize * 0.35
+  const edgeAt = (side: Side, z: number) => sign(side) * (radiusAt(outline, z) + clearance)
   /** Where a lane's line runs, as a signed radius. */
-  const laneAt = (lane: number, side: Side) =>
-    sign(side) * (outline.radius + mm(laneOffset(layout.bands[side], lane, room) * granted(side)))
-  /** A band's inboard edge, which is where its figures read outward from. */
-  const bandAt = (band: number, side: Side) =>
-    sign(side) * (outline.radius + mm(bandOffset(layout.bands[side], band, room) * granted(side)))
-
-  const placeOf = new Map(layout.figures.map((each) => [each.code, each]))
-
-  /** Where a figure's leader starts: the thing on the tool that it names. */
-  const wants = (figure: DimensionFigure): { r: number; z: number } => {
-    if (figure.lane === null) {
-      const angle = model.angles.find((each) => each.code === figure.code)
-      if (angle) {
-        // A leader onto the flank itself: the angle is between two faces, and
-        // there is no room to draw it between them on a ⌀1 drill.
-        return { r: angle.at.r * sign(figure.side), z: angle.at.z }
-      }
-      const width = model.widths.find((each) => each.code === figure.code)
-      return { r: (width?.radius ?? 0) * sign(figure.side), z: width?.at ?? 0 }
-    }
-    const length = model.lengths.find((each) => each.code === figure.code)
-    return {
-      r: laneAt(figure.lane, figure.side),
-      /**
-       * **At the top of its dimension, not the middle of it** (Paul,
-       * 2026-09-01). A figure halfway down a 50 mm dimension is level with
-       * nothing on the tool; at the top it is level with the arrow it belongs
-       * to.
-       */
-      z: Math.max(length?.from ?? 0, length?.to ?? 0),
-    }
-  }
-
-  /** One figure's box, in millimetres: inboard edge across, and low end along. */
-  const boxOf = (figure: DimensionFigure) => {
-    const inboard = bandAt(figure.band, figure.side)
-    const across = mm(figure.across * granted(figure.side))
-    const along = mm(figure.along)
-    return {
-      // Outward from the band's inboard edge, on this flank.
-      from: inboard,
-      to: inboard + sign(figure.side) * across,
-      across,
-      along,
-    }
-  }
+  const laneAt = (lane: DimensionLane) =>
+    sign(lane.side) * (outline.radius + mm(laneOffset(lane.lane, room) * granted(lane.side)))
 
   /**
-   * The lines a figure must not sit on: every extension line, which runs from
-   * the tool out to its own lane and so crosses the bands inboard of it.
+   * How far a width's arrows stand off the faces they measure.
    *
-   * They are given to the stacker as boxes that cannot move, so a figure with
-   * nowhere to sit rises until it is clear rather than landing on one.
+   * Clamped to the room the ladder actually left them. A width is dimensioned
+   * from outside, and out at the silhouette's own edge — the tool alone — the
+   * lanes reserve a full arrow's length for exactly that. With a holder the
+   * width being measured is a ⌀3 shank inside a ⌀46 flange, the arrows come
+   * nowhere near the edge, and the lanes reserve nothing for them; this is
+   * what keeps them short of the innermost line in the case between.
    */
-  const obstacles = model.lengths.flatMap((each) => {
-    const place = placeOf.get(each.code)
-    if (place === undefined || place.lane === null) {
-      return []
-    }
-    const lane = laneAt(place.lane, place.side)
-    const edge = edgeAt(place.side)
-    const thickness = mm(figureType(fontSize) * 0.7 * scale)
-    return [each.from, each.to].map((height, index) => ({
-      key: `line-${each.code}-${String(index)}`,
-      across: Math.min(lane, edge),
-      width: Math.abs(lane - edge),
-      along: height - thickness / 2,
-      height: thickness,
-    }))
-  })
+  const standFor = (radius: number) =>
+    Math.max(head * 0.9, Math.min(head * 2.4, outline.radius - radius + mm(laneOffset(0, room))))
 
-  /** Where each figure ends up, once none covers another or a line. */
-  const placed = stackLabels(
-    layout.figures.map((figure) => {
-      const box = boxOf(figure)
-      const start = wants(figure)
-      return {
-        key: figure.code,
-        across: Math.min(box.from, box.to),
-        width: box.across,
-        along: start.z,
-        height: box.along,
-      }
-    }),
-    mm(type * 0.5 * scale),
-    obstacles,
-  )
+  const laneOf = new Map(layout.lanes.map((each) => [each.code, each]))
+
+  /**
+   * The codes drawn in the accent, with a line's other names folded in.
+   *
+   * A length can answer to more than one code — the stickout and the
+   * below-holder length are one line where they are one number — so a table
+   * lighting either name lights it.
+   */
+  const litCodes = new Set([
+    ...highlight,
+    ...model.lengths
+      .filter((each) => (each.aliases ?? []).some((code) => highlight.has(code)))
+      .map((each) => each.code),
+  ])
+  const lit = (code: string) => litCodes.has(code)
+  const inkFor = (code: string) => (lit(code) ? accent : ink)
+  const weightFor = (code: string, weight: number) =>
+    fontSize * weight * (lit(code) ? LIT_WEIGHT : 1)
+  const fadeFor = (code: string, opacity: number) => (lit(code) ? 1 : opacity)
+
+  /**
+   * What a group carries so it can be pointed at.
+   *
+   * Handlers only where the consumer wants them: a drawing nobody is pointing
+   * at should not put a cursor or a hit target on a line.
+   */
+  const pointing = (code: string) =>
+    onHover === undefined
+      ? {}
+      : {
+          onPointerEnter: () => {
+            onHover(code)
+          },
+          onPointerLeave: () => {
+            onHover(null)
+          },
+          style: { cursor: 'pointer' },
+        }
+
+  /**
+   * A line's hit target: the same run, drawn wide and in nothing.
+   *
+   * A dimension line is a fraction of a millimetre of ink and no pointer finds
+   * it. This is that line at type width, invisible, and only present when
+   * somebody is listening.
+   */
+  const hit = fontSize * 1.3
+  const grab = (points: string) =>
+    onHover === undefined ? null : (
+      <polyline
+        points={points}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={hit}
+        strokeLinecap="round"
+      />
+    )
+
+  /** Highlighted last, so an accented line is never drawn under a plain one. */
+  const byLight = <T extends { code: string }>(each: ReadonlyArray<T>): Array<T> =>
+    [...each].sort((one, two) => Number(lit(one.code)) - Number(lit(two.code)))
 
   return (
     <g data-dimensions>
-      {model.lengths.map((each) => {
-        const place = placeOf.get(each.code)
-        if (place === undefined || place.lane === null) {
+      {byLight(model.lengths).map((each) => {
+        const place = laneOf.get(each.code)
+        if (place === undefined) {
           return null
         }
-        const lane = laneAt(place.lane, place.side)
-        const edge = edgeAt(place.side)
+        const lane = laneAt(place)
+        const edge = { from: edgeAt(place.side, each.from), to: edgeAt(place.side, each.to) }
         /**
          * Closer together than the arrows are long, they meet nose to nose —
          * so they go outside the line and point back in, which is what a
@@ -197,41 +211,49 @@ export const DimensionLines = ({
          */
         const inside = Math.abs(each.to - each.from) >= head * 2.6
         const reach = head * 2.2
+        const from = inside ? each.from : each.from - reach
+        const to = inside ? each.to : each.to + reach
         return (
-          <g key={each.code} data-dimension={each.code}>
+          <g
+            key={each.code}
+            data-dimension={each.code}
+            {...(lit(each.code) ? { 'data-lit': 'true' } : {})}
+            {...pointing(each.code)}
+          >
+            {grab(`${at(lane, from)} ${at(lane, to)}`)}
             <line
               x1={frame.toX(lane, each.from)}
               y1={frame.toY(lane, each.from)}
-              x2={frame.toX(edge, each.from)}
-              y2={frame.toY(edge, each.from)}
-              stroke={ink}
-              strokeOpacity={0.4}
-              strokeWidth={fontSize * 0.05}
+              x2={frame.toX(edge.from, each.from)}
+              y2={frame.toY(edge.from, each.from)}
+              stroke={inkFor(each.code)}
+              strokeOpacity={fadeFor(each.code, 0.4)}
+              strokeWidth={weightFor(each.code, 0.05)}
             />
             <line
               x1={frame.toX(lane, each.to)}
               y1={frame.toY(lane, each.to)}
-              x2={frame.toX(edge, each.to)}
-              y2={frame.toY(edge, each.to)}
-              stroke={ink}
-              strokeOpacity={0.4}
-              strokeWidth={fontSize * 0.05}
+              x2={frame.toX(edge.to, each.to)}
+              y2={frame.toY(edge.to, each.to)}
+              stroke={inkFor(each.code)}
+              strokeOpacity={fadeFor(each.code, 0.4)}
+              strokeWidth={weightFor(each.code, 0.05)}
             />
             <line
-              x1={frame.toX(lane, inside ? each.from : each.from - reach)}
-              y1={frame.toY(lane, inside ? each.from : each.from - reach)}
-              x2={frame.toX(lane, inside ? each.to : each.to + reach)}
-              y2={frame.toY(lane, inside ? each.to : each.to + reach)}
-              stroke={ink}
-              strokeWidth={fontSize * 0.07}
+              x1={frame.toX(lane, from)}
+              y1={frame.toY(lane, from)}
+              x2={frame.toX(lane, to)}
+              y2={frame.toY(lane, to)}
+              stroke={inkFor(each.code)}
+              strokeWidth={weightFor(each.code, 0.07)}
             />
             <polygon
               points={arrowhead(lane, each.from, inside ? TOWARD_TIP : AWAY_FROM_TIP, head, frame)}
-              fill={ink}
+              fill={inkFor(each.code)}
             />
             <polygon
               points={arrowhead(lane, each.to, inside ? AWAY_FROM_TIP : TOWARD_TIP, head, frame)}
-              fill={ink}
+              fill={inkFor(each.code)}
             />
           </g>
         )
@@ -241,105 +263,116 @@ export const DimensionLines = ({
         A width, dimensioned from outside: two barbs standing off the faces
         they measure, pointing in. Nothing is drawn across the tool.
       */}
-      {model.widths.map((each) => {
-        const stand = head * 2.4
+      {byLight(model.widths).map((each) => {
+        const stand = standFor(each.radius)
         return (
-          <g key={each.code} data-dimension={each.code}>
+          <g
+            key={each.code}
+            data-dimension={each.code}
+            {...(lit(each.code) ? { 'data-lit': 'true' } : {})}
+            {...pointing(each.code)}
+          >
+            {grab(`${at(-each.radius - stand, each.at)} ${at(-each.radius, each.at)}`)}
+            {grab(`${at(each.radius, each.at)} ${at(each.radius + stand, each.at)}`)}
             <line
               x1={frame.toX(-each.radius - stand, each.at)}
               y1={frame.toY(-each.radius - stand, each.at)}
               x2={frame.toX(-each.radius, each.at)}
               y2={frame.toY(-each.radius, each.at)}
-              stroke={ink}
-              strokeWidth={fontSize * 0.07}
+              stroke={inkFor(each.code)}
+              strokeWidth={weightFor(each.code, 0.07)}
             />
             <polygon
               points={arrowhead(-each.radius, each.at, TOWARD_PLUS, head, frame)}
-              fill={ink}
+              fill={inkFor(each.code)}
             />
             <line
               x1={frame.toX(each.radius, each.at)}
               y1={frame.toY(each.radius, each.at)}
               x2={frame.toX(each.radius + stand, each.at)}
               y2={frame.toY(each.radius + stand, each.at)}
-              stroke={ink}
-              strokeWidth={fontSize * 0.07}
+              stroke={inkFor(each.code)}
+              strokeWidth={weightFor(each.code, 0.07)}
             />
             <polygon
               points={arrowhead(each.radius, each.at, TOWARD_MINUS, head, frame)}
-              fill={ink}
+              fill={inkFor(each.code)}
             />
           </g>
         )
       })}
 
       {/*
-        The figures, each in its own band with a leader back to the line it
-        belongs to. Drawn last, so nothing is drawn over them.
+        The point angle: the cone's own two flanks, run out past the tool, and
+        an arc between them.
+
+        **The flanks are extended rather than lettered** (Paul, 2026-09-02,
+        with the figures gone). On a ⌀1 drill the cone is three tenths of a
+        millimetre tall, so an arc struck inside it would be invisible; run the
+        faces out to a readable length first and the same angle is drawn at a
+        size that can be seen, which is what a sheet does with a small angle.
       */}
-      {layout.figures.map((figure) => {
-        const box = boxOf(figure)
-        const start = wants(figure)
-        const low = placed.get(figure.code) ?? start.z
-        // The box, mapped: two opposite corners in millimetres become a
-        // rectangle on the sheet, whichever way the axis runs.
-        const one = { x: frame.toX(box.from, low), y: frame.toY(box.from, low) }
-        const two = {
-          x: frame.toX(box.to, low + box.along),
-          y: frame.toY(box.to, low + box.along),
-        }
-        const rect = {
-          x: Math.min(one.x, two.x),
-          y: Math.min(one.y, two.y),
-          width: Math.abs(one.x - two.x),
-          height: Math.abs(one.y - two.y),
-        }
-        // The leader turns inboard of the band, where no figure stands.
-        const turn = box.from - sign(figure.side) * mm(type * 0.5 * scale)
-        const middleZ = low + box.along / 2
-        /**
-         * Which way the type reads out of the band.
-         *
-         * Asked of the frame rather than assumed: on a tool drawn along the
-         * sheet both flanks sit at the same place across it, and the honest
-         * answer there is centred. Nothing here branches on orientation — it
-         * compares where the mapping actually put two points.
-         */
-        const anchorX = frame.toX(box.from, middleZ)
-        const axisX = frame.toX(0, middleZ)
-        const apart = Math.abs(anchorX - axisX) > mm(1)
-        const textAnchor = apart ? (anchorX < axisX ? 'end' : 'start') : 'middle'
-        const textX = apart ? anchorX : rect.x + rect.width / 2
+      {byLight(model.angles).map((each) => {
+        const half = ((each.degrees / 2) * Math.PI) / 180
+        // The cone's own flank, from `at` — which sits halfway up it.
+        const flank = Math.hypot(each.at.r * 2, each.at.z * 2)
+        const reach = Math.max(flank * 1.5, head * 3)
+        const ray = (towards: number) => ({
+          r: towards * reach * Math.sin(half),
+          z: reach * Math.cos(half),
+        })
+        const minus = ray(-1)
+        const plus = ray(1)
+        // Sampled rather than struck as an SVG arc: a sweep flag has to know
+        // which way the frame laid the tool, and a polyline does not.
+        const radius = reach * 0.62
+        const arc = Array.from({ length: 17 }, (_, index) => {
+          const angle = -half + (2 * half * index) / 16
+          return at(radius * Math.sin(angle), radius * Math.cos(angle))
+        }).join(' ')
         return (
-          <g key={`figure-${figure.code}`} data-figure={figure.code}>
+          <g
+            key={each.code}
+            data-dimension={each.code}
+            {...(lit(each.code) ? { 'data-lit': 'true' } : {})}
+            {...pointing(each.code)}
+          >
+            {grab(arc)}
+            {grab(`${at(minus.r, minus.z)} ${at(0, 0)} ${at(plus.r, plus.z)}`)}
             <polyline
-              points={`${at(start.r, start.z)} ${at(turn, start.z)} ${at(turn, middleZ)}`}
+              points={`${at(minus.r, minus.z)} ${at(0, 0)} ${at(plus.r, plus.z)}`}
               fill="none"
-              stroke={ink}
-              strokeOpacity={0.35}
-              strokeWidth={fontSize * 0.05}
+              stroke={inkFor(each.code)}
+              strokeOpacity={fadeFor(each.code, 0.5)}
+              strokeWidth={weightFor(each.code, 0.05)}
             />
-            <rect
-              x={rect.x}
-              y={rect.y}
-              width={rect.width}
-              height={rect.height}
-              fill={ground}
-              rx={type * 0.2}
+            <polyline
+              points={arc}
+              fill="none"
+              stroke={inkFor(each.code)}
+              strokeWidth={weightFor(each.code, 0.07)}
             />
-            {figure.lines.map((line, index) => (
-              <text
-                key={line}
-                x={textX}
-                y={rect.y + inset + type * 0.85 + lineHeight * index}
-                fontSize={type}
-                textAnchor={textAnchor}
-                fill={ink}
-                fontFamily="ui-monospace, monospace"
-              >
-                {line}
-              </text>
-            ))}
+            {/* Along the arc at each end, the way an angle's arrows run. */}
+            <polygon
+              points={arrowhead(
+                radius * Math.sin(-half),
+                radius * Math.cos(half),
+                { dr: -Math.cos(half), dz: -Math.sin(half) },
+                head * 0.8,
+                frame,
+              )}
+              fill={inkFor(each.code)}
+            />
+            <polygon
+              points={arrowhead(
+                radius * Math.sin(half),
+                radius * Math.cos(half),
+                { dr: Math.cos(half), dz: -Math.sin(half) },
+                head * 0.8,
+                frame,
+              )}
+              fill={inkFor(each.code)}
+            />
           </g>
         )
       })}
