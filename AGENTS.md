@@ -94,6 +94,11 @@ Two things about `pnpm test` are worth knowing before reading its output:
   passing one.
 - It then runs `scripts/test-ui-package.mjs`, which is not a unit test: it runs `npm pack` on
   `packages/ui` and asserts the tarball's contents. A file that stops shipping fails here.
+- It finishes with `scripts/check-release-build-order.mjs`, which reads `release:npm` and the
+  workspace graph and proves the first builds every published package, and builds each one before
+  the packages that import it. `release:npm` states its order by hand and runs only on `main`
+  after a release pull request merges, so without this its first execution is the release it
+  breaks.
 
 ## Rules with a sensor
 
@@ -102,26 +107,27 @@ without one is a preference a reviewer carries in their head, and agents drift o
 longer a session runs. This table is deliberately short and deliberately honest: when a
 judgment rule starts being violated, give it a check rather than restating it here.
 
-| Rule                                                                   | Proven by                         |
-| ---------------------------------------------------------------------- | --------------------------------- |
-| No component defined inside another component                          | `pnpm lint`                       |
-| Complete React hook dependency arrays                                  | `pnpm lint`                       |
-| Python style in `packages/sdk-python` and `examples/python`            | `pnpm lint` (Ruff)                |
-| Workflow YAML style                                                    | `pnpm lint` (yamllint)            |
-| The generated SDK sources match a fresh generation                     | `pnpm generate:check`             |
-| `openapi/openapi.json` matches its recorded hash                       | `pnpm openapi:verify`             |
-| A scraper vendor adapter imports no other vendor                       | `pnpm test` (`vendor-boundary`)   |
-| Only a composition root reaches into `src/vendors/`                    | `pnpm test` (`vendor-boundary`)   |
-| Every scraper vendor directory has a `scrape.ts`                       | `pnpm test` (`vendor-boundary`)   |
-| `@toolpath/tool-support` imports nothing and declares no dependency    | `pnpm test` (`boundary`)          |
-| One `25.4` in the whole tree                                           | `pnpm test` (`boundary`)          |
-| `@toolpath/ui` ships its theme, `dist`, and `src` in the tarball       | `pnpm test` (`test-ui-package`)   |
-| `@toolpath/ui` theme tokens and the built bundle agree                 | `pnpm test` (`tailwind-preset`)   |
-| `@toolpath/tool-scraper` resolves and its errors are `instanceof`-safe | `pnpm test` (`packaging`)         |
-| No unreferenced export, file, or dependency                            | `pnpm knip`                       |
-| A change under a package's `src/` carries a Changeset                  | CI (`release-intent.yml`)         |
-| Formatting                                                             | Prettier, via the pre-commit hook |
-| TypeScript style beyond the above                                      | judgment                          |
+| Rule                                                                   | Proven by                           |
+| ---------------------------------------------------------------------- | ----------------------------------- |
+| No component defined inside another component                          | `pnpm lint`                         |
+| Complete React hook dependency arrays                                  | `pnpm lint`                         |
+| Python style in `packages/sdk-python` and `examples/python`            | `pnpm lint` (Ruff)                  |
+| Workflow YAML style                                                    | `pnpm lint` (yamllint)              |
+| The generated SDK sources match a fresh generation                     | `pnpm generate:check`               |
+| `openapi/openapi.json` matches its recorded hash                       | `pnpm openapi:verify`               |
+| A scraper vendor adapter imports no other vendor                       | `pnpm test` (`vendor-boundary`)     |
+| Only a composition root reaches into `src/vendors/`                    | `pnpm test` (`vendor-boundary`)     |
+| Every scraper vendor directory has a `scrape.ts`                       | `pnpm test` (`vendor-boundary`)     |
+| `@toolpath/tool-support` imports nothing and declares no dependency    | `pnpm test` (`boundary`)            |
+| One `25.4` in the whole tree                                           | `pnpm test` (`boundary`)            |
+| `release:npm` builds a package before the ones that import it          | `pnpm test` (`release-build-order`) |
+| `@toolpath/ui` ships its theme, `dist`, and `src` in the tarball       | `pnpm test` (`test-ui-package`)     |
+| `@toolpath/ui` theme tokens and the built bundle agree                 | `pnpm test` (`tailwind-preset`)     |
+| `@toolpath/tool-scraper` resolves and its errors are `instanceof`-safe | `pnpm test` (`packaging`)           |
+| No unreferenced export, file, or dependency                            | `pnpm knip`                         |
+| A change under a package's `src/` carries a Changeset                  | CI (`release-intent.yml`)           |
+| Formatting                                                             | Prettier, via the pre-commit hook   |
+| TypeScript style beyond the above                                      | judgment                            |
 
 What the sensors cannot carry:
 
