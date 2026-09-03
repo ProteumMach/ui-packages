@@ -1,5 +1,88 @@
 # @toolpath/tool-scraper
 
+## 2.3.0
+
+### Minor Changes
+
+- a4b5204: Take the units, provenance and geometry vocabulary from `@toolpath/tool-support`
+  instead of declaring it.
+
+  Every name this package published keeps its name and its meaning:
+  - `UnitSystem` is now the shared type. The same two strings were spelled two
+    other ways downstream, with a lookup table between them on ingest.
+  - `MM_PER_INCH` and `convertLength` are re-exported from the domain package.
+    Moving the constant into this package's core stopped two of its own subpaths
+    shipping a copy each; it did nothing about the third copy standing downstream,
+    and `@toolpath/tool-support` now holds the whole tree to one `25.4`.
+  - `SOURCES` and `FactSource` are the shared `PROVENANCE` and `Provenance` under
+    this package's own names, so the order an assumptions document is read in
+    cannot drift from the vocabulary a drawing marks a derived dimension by.
+  - `GEOMETRY_FIELDS` takes each field's definition and ISO code from the shared
+    dictionary, one explicit pick at a time. **The mappable names are unchanged:**
+    still the same ten, seven ISO and three Autodesk's. The dictionary also knows
+    `LBH`, `LD` and `LSCN`, and none of them is mappable — an adapter permitted to
+    map a column to `LBH` could supply a tool claiming a stickout nobody set.
+
+  `GeometryField` stays this package's own interface, unchanged. The shared one
+  carries a required `unit` and is `readonly` throughout, and adopting it outright
+  would have stopped a consumer that builds one — `{ definition, iso }` — from
+  compiling. The entries still `satisfies` the shared shape, so a field renamed
+  upstream is a compile error here, and each entry's `unit` is readable off
+  `GEOMETRY_FIELDS` for a consumer that wants it.
+
+  `HolderRecord`, `ColletRecord` and `ToolRecord` do not move. They are the record
+  seam — what a vendor published, under a guid this package minted — rather than
+  the domain shape.
+
+  `@toolpath/tool-support` is a new runtime dependency. It takes no dependencies
+  and no peers of its own.
+
+- a4b5204: Retire the arithmetic that was written twice.
+
+  Four functions had two copies each, in packages that could not import one
+  another, and each copy carried a note saying it must agree with its twin. Only
+  one of the four had a test comparing them, and nothing enforced the rest.
+
+  `@toolpath/tool-support` now publishes all four:
+  - **`hasNeck`** — whether the section between the flutes and the shank is a neck
+    to draw and to sweep. One copy drew the picture and the other decided the
+    verdict: _"If the rule ever changes, it changes in both places or the picture
+    and the verdict disagree about the same tool."_
+  - **`shankOf`** and **`Shank`** — whether the shank behind the flutes is reduced
+    against the cut. A different question from `hasNeck`, and both are needed: a
+    relief wider than the cut is a neck to draw and not a reduced shank.
+  - **`heightAt`** — the tallest material within an offset of the cut. The
+    clearance verdict and the drawn staircase both read it, and neither could
+    depend on the other.
+  - **`belowGageLine`** — the measured silhouette from the spindle face out, with
+    the crossing interpolated rather than snapped to the nearest vertex.
+
+  `@toolpath/tool-drawing` takes `hasNeck` and `heightAt` from there. `ReachCurve`
+  is now the shared type — still declared structurally, so a curve off a report
+  still satisfies it with no adapter and the overlay still pulls in no Toolpath
+  schema. `heightAt`, `ReachCurve`, `wallFaceAt`, `Margins` and `NO_MARGINS` all
+  stay exported from `/clearance` unchanged.
+
+  `@toolpath/tool-scraper` takes `ProfileDatum` and `ProfilePoint` from there.
+  `HolderProfile`, `ProfilesDocument` and `PROFILES_VERSION` do not move: a
+  measurement record carries the gauge lengths and the taper class a scrape
+  resolved, and its version tracks that document's shape rather than the shape of
+  one silhouette.
+
+  A new test in `@toolpath/tool-drawing` asserts the remaining half of the
+  gage-line pair — that trimming a silhouette at the spindle face and splitting it
+  there interpolate the same crossing. That was a note in both files and is now a
+  check, in the only package that can see both sides.
+
+### Patch Changes
+
+- Updated dependencies [a4b5204]
+- Updated dependencies [a4b5204]
+- Updated dependencies [a4b5204]
+- Updated dependencies [a4b5204]
+- Updated dependencies [a4b5204]
+  - @toolpath/tool-support@0.1.0
+
 ## 2.2.0
 
 ### Minor Changes
