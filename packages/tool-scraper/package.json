@@ -87,6 +87,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@toolpath/tool-support": "workspace:^",
     "htmlparser2": "12.0.0"
   },
   "devDependencies": {

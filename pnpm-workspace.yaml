@@ -4,5 +4,6 @@ packages:
   - packages/sdk-typescript
   - packages/tool-drawing
   - packages/tool-scraper
+  - packages/tool-support
   - packages/ui
   - packages/viewer

@@ -1,6 +1,6 @@
-import { act, render } from '@testing-library/react'
+import { act, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ToolDrawing } from '../src/index.js'
+import { SHEETS, ToolDrawing } from '../src/index.js'
 import type { ViewerAssembly, ViewerHolderProfile } from '../src/index.js'
 
 const assembly: ViewerAssembly = {
@@ -420,26 +420,53 @@ describe('the dimensions', () => {
   })
 
   /**
-   * **The padding seam.** The bands' room is stated in pixels and settled
+   * **An extension line starts at the solid it measures.** The lane itself
+   * runs outside the whole view, which is what a sheet does — but the line
+   * that carries the eye to it began at `Outline.radius`, and with a holder
+   * that is the widest thing anywhere in the stack. On this assembly it is the
+   * ⌀28 nose over a ⌀6 shank, so every extension line started eleven
+   * millimetres out in the margin and pointed at nothing.
+   */
+  it('carries a length’s extension line back to the tool, not to the holder', () => {
+    const container = drawnWith({ dimensions: true })
+    // A square panel is drawn along its width, so a radius is the sheet's y.
+    const extension = container.querySelector('[data-dimension="LCF"] line')!
+    const radius = (name: string) => Math.abs(Number(extension.getAttribute(name)))
+
+    // The ⌀6 shank, and a hair clear of it — not the ⌀28 nose.
+    expect(radius('y2')).toBeGreaterThan(3)
+    expect(radius('y2')).toBeLessThan(5)
+    /**
+     * And the lane it runs out to sits just past the silhouette rather than an
+     * arrow's length beyond it: a width dimensioned here is the cutter and the
+     * shank, nowhere near the edge, so the ladder reserves the arrows no room
+     * out at the nose.
+     */
+    expect(radius('y1')).toBeGreaterThan(14)
+    expect(radius('y1')).toBeLessThan(16)
+  })
+
+  /**
+   * **The padding seam.** The lanes' room is stated in pixels and settled
    * before the frame exists, so asking for it cannot change the scale that
    * would change it back. What it must do is actually buy room: the drawing
    * with dimensions on is framed wider than the same drawing without.
    */
-  it('buys the bands their room out of the frame, not out of the scale', () => {
+  it('buys the lanes their room out of the frame, not out of the scale', () => {
     const bare = viewBoxOf(drawnWith({}))
     const dimensioned = viewBoxOf(drawnWith({ dimensions: true }))
 
-    // A square panel is drawn along its width, so the bands take their room
+    // A square panel is drawn along its width, so the lanes take their room
     // across it — which is the sheet's height.
     expect(dimensioned.height).toBeGreaterThan(bare.height)
   })
 
   /**
    * And asymmetrically, which is why the seam had to widen from one number:
-   * with figures on both flanks each side takes what its own bands need, and
-   * those differ.
+   * with lanes on both flanks each side takes what its own lines need, and an
+   * odd count of lengths leaves those different.
    */
-  it('gives each flank the room its own bands need', () => {
+  it('gives each flank the room its own lines need', () => {
     const one = viewBoxOf(drawnWith({ dimensions: true, dimensionSides: 'one' }))
     const both = viewBoxOf(drawnWith({ dimensions: true, dimensionSides: 'both' }))
 
@@ -449,152 +476,119 @@ describe('the dimensions', () => {
     expect(Math.abs(both.minY + both.height / 2)).toBeLessThan(Math.abs(one.minY + one.height / 2))
   })
 
-  it('writes lengths through the formatter the application passes', () => {
-    const container = drawnWith({
-      dimensions: true,
-      formatLength: (mm: number) => `${String(mm)}!!`,
-    })
+  /**
+   * **The drawing letters nothing** (Paul, 2026-09-02). The numbers are in the
+   * consumer's own table an inch away, and six two-line figures fighting for
+   * the margin said them a second time, worse.
+   */
+  it('writes no number on the sheet', () => {
+    const container = drawnWith({ dimensions: true, dimensionSides: 'both' })
+    const inside = container.querySelector('svg')!
 
-    expect(container.textContent).toMatch(/13!!/)
+    expect(inside.querySelectorAll('text')).toHaveLength(0)
+    expect(inside.querySelector('[data-figure]')).toBeNull()
   })
 })
 
 /**
- * **"They need to be layed out in a way that NEVER OVERLAP THE MODEL, A
- * LEADER, OTHER TEXT, OR ANOTHER DIMENSION"** (Paul, 2026-09-01, with three
- * screenshots of figures written over each other). Three goes at placing
- * figures among the lines each produced a smudge somewhere, so this is a check
- * rather than a rule somebody remembers.
- *
- * Run in **both** orientations, because the rule is about the drawing and not
- * about which way it happens to be laid.
+ * **Which line is which is said by pointing at it** (Paul, 2026-09-02). Both
+ * directions key on the ISO 13399 code, which the drawing and the consumer's
+ * table already had in common.
  */
-describe('figures that can be read', () => {
+describe('the dimension the reader is pointing at', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     StubResizeObserver.latest = null
   })
 
-  const boxes = (container: HTMLElement) =>
-    [...container.querySelectorAll('[data-figure] rect')].map((each) => ({
-      x: Number(each.getAttribute('x')),
-      y: Number(each.getAttribute('y')),
-      width: Number(each.getAttribute('width')),
-      height: Number(each.getAttribute('height')),
-    }))
+  const lit = (container: HTMLElement) =>
+    [...container.querySelectorAll('[data-lit="true"]')].map((each) =>
+      each.getAttribute('data-dimension'),
+    )
 
-  const apart = (
-    one: { x: number; y: number; width: number; height: number },
-    two: { x: number; y: number; width: number; height: number },
-  ) =>
-    one.x + one.width <= two.x + 1e-9 ||
-    two.x + two.width <= one.x + 1e-9 ||
-    one.y + one.height <= two.y + 1e-9 ||
-    two.y + two.height <= one.y + 1e-9
+  it('lights the one it is told to, and nothing else', () => {
+    const container = drawnWith({ dimensions: true, highlight: 'LCF' })
 
-  const panels: Array<[string, number, number]> = [
-    ['laid along a wide panel', 1200, 400],
-    ['stood up in a tall panel', 400, 1200],
-  ]
+    expect(lit(container)).toEqual(['LCF'])
+  })
 
-  for (const [what, width, height] of panels) {
-    describe(what, () => {
-      const drawn = () => drawnWith({ dimensions: true, dimensionSides: 'both' }, width, height)
+  it('takes several at once', () => {
+    const container = drawnWith({ dimensions: true, highlight: ['DC', 'LCF'] })
 
-      it('never lets one figure cover another', () => {
-        const found = boxes(drawn())
-        expect(found.length).toBeGreaterThan(3)
+    expect(lit(container).sort()).toEqual(['DC', 'LCF'])
+  })
 
-        for (const [index, one] of found.entries()) {
-          for (const two of found.slice(index + 1)) {
-            expect(apart(one, two)).toBe(true)
-          }
-        }
-      })
+  /**
+   * The table carries numbers the drawing has no line for — L/D and the flute
+   * count — and pointing at one of those must light nothing rather than throw.
+   */
+  it('lights nothing for a code it does not dimension', () => {
+    expect(lit(drawnWith({ dimensions: true, highlight: 'LD' }))).toEqual([])
+    expect(lit(drawnWith({ dimensions: true }))).toEqual([])
+  })
 
-      /** And in the margin: past the tool, never over it. */
-      it('keeps every figure outside the tool, and on the sheet', () => {
-        const container = drawn()
-        const view = viewBoxOf(container)
-        const points = [...container.querySelectorAll('[data-part]')].flatMap((each) =>
-          each
-            .getAttribute('points')!
-            .split(' ')
-            .map((pair) => pair.split(',').map(Number)),
-        )
-        const tool = {
-          x: Math.min(...points.map((each) => each[0]!)),
-          y: Math.min(...points.map((each) => each[1]!)),
-          width:
-            Math.max(...points.map((each) => each[0]!)) -
-            Math.min(...points.map((each) => each[0]!)),
-          height:
-            Math.max(...points.map((each) => each[1]!)) -
-            Math.min(...points.map((each) => each[1]!)),
-        }
+  /**
+   * One line answers to both its names. Where the shop clamps to its own rule
+   * the stickout and the below-holder length are one number, drawn once — and
+   * a table lighting either of them lights it.
+   */
+  it('lights the one line two codes name', () => {
+    const clamped = {
+      ...assembly,
+      tool: { ...assembly.tool, geometry: { ...assembly.tool.geometry, LBH: 25 } },
+    }
+    const drawn = (highlight: string) => {
+      vi.stubGlobal('ResizeObserver', StubResizeObserver)
+      const { container } = render(
+        <ToolDrawing assembly={clamped} dimensions highlight={highlight} />,
+      )
+      StubResizeObserver.latest!.measure(900, 900)
+      return container
+    }
 
-        for (const box of boxes(container)) {
-          expect(apart(box, tool)).toBe(true)
-          expect(box.x).toBeGreaterThanOrEqual(view.minX - 1e-6)
-          expect(box.x + box.width).toBeLessThanOrEqual(view.minX + view.width + 1e-6)
-          expect(box.y).toBeGreaterThanOrEqual(view.minY - 1e-6)
-          expect(box.y + box.height).toBeLessThanOrEqual(view.minY + view.height + 1e-6)
-        }
-      })
+    expect(lit(drawn('LBH'))).toEqual(['LBH'])
+    expect(lit(drawn('stickout'))).toEqual(['LBH'])
+  })
 
-      /**
-       * **Beside its own line, and off every other one** (Paul, 2026-09-01).
-       * Moving the figures in among the lanes is only worth doing if they stay
-       * clear of the extension lines that cross those bands.
-       */
-      it('keeps every figure off the dimension lines', () => {
-        const container = drawn()
-        const lines = [...container.querySelectorAll('[data-dimension] line')].map((each) => ({
-          x1: Number(each.getAttribute('x1')),
-          y1: Number(each.getAttribute('y1')),
-          x2: Number(each.getAttribute('x2')),
-          y2: Number(each.getAttribute('y2')),
-        }))
-        expect(lines.length).toBeGreaterThan(4)
+  /** In the sheet's accent, and heavier — colour alone is not the highlight. */
+  it('draws it in the accent, and thicker than the same line unlit', () => {
+    const line = (container: HTMLElement) => container.querySelector('[data-dimension="LCF"] line')!
+    const plain = line(drawnWith({ dimensions: true }))
+    const hot = line(drawnWith({ dimensions: true, highlight: 'LCF' }))
 
-        for (const box of boxes(container)) {
-          for (const line of lines) {
-            const across =
-              Math.min(line.x1, line.x2) < box.x + box.width && Math.max(line.x1, line.x2) > box.x
-            const down =
-              Math.min(line.y1, line.y2) < box.y + box.height && Math.max(line.y1, line.y2) > box.y
-            expect(across && down).toBe(false)
-          }
-        }
-      })
+    expect(hot.getAttribute('stroke')).toBe(SHEETS.dark.accent)
+    expect(plain.getAttribute('stroke')).toBe(SHEETS.dark.dimension)
+    expect(Number(hot.getAttribute('stroke-width'))).toBeGreaterThan(
+      Number(plain.getAttribute('stroke-width')),
+    )
+  })
 
-      /**
-       * **"SFDM and shoulder diameter should use outward leaders, not lines
-       * over the tool"** (Paul, 2026-09-01): a ⌀6 shank at this scale has no
-       * room for a dimension line inside it, so the arrows stand outside and
-       * point in.
-       */
-      it('draws no width dimension across the tool', () => {
-        const container = drawn()
-        const centre = container.querySelector('[data-centreline]')!
-        const vertical =
-          Math.abs(Number(centre.getAttribute('x1')) - Number(centre.getAttribute('x2'))) < 1e-9
-        // The axis is wherever the centreline runs; a width must stay on one
-        // side of it, whichever way that is.
-        const off = (element: Element, end: '1' | '2') =>
-          vertical
-            ? Number(element.getAttribute(`x${end}`)) - Number(centre.getAttribute('x1'))
-            : Number(element.getAttribute(`y${end}`)) - Number(centre.getAttribute('y1'))
-
-        for (const code of ['DC', 'SFDM']) {
-          const lines = container.querySelectorAll(`[data-dimension="${code}"] line`)
-          expect(lines.length).toBeGreaterThan(0)
-          for (const line of lines) {
-            expect(Math.sign(off(line, '1')) === Math.sign(off(line, '2'))).toBe(true)
-            expect(off(line, '1')).not.toBe(0)
-          }
-        }
-      })
+  it('reports the code under the pointer, and the leaving of it', () => {
+    const told: Array<string | null> = []
+    const container = drawnWith({
+      dimensions: true,
+      onDimensionHover: (code: string | null) => told.push(code),
     })
-  }
+    const group = container.querySelector('[data-dimension="LCF"]')!
+
+    fireEvent.pointerEnter(group)
+    fireEvent.pointerLeave(group)
+
+    expect(told).toEqual(['LCF', null])
+  })
+
+  /**
+   * A dimension line is a fraction of a millimetre of ink, so each one carries
+   * a wide invisible run to be caught by — but only where somebody is
+   * listening, so a drawing nobody is pointing at stays inert.
+   */
+  it('puts hit targets on the lines only for a consumer that listens', () => {
+    const targets = (container: HTMLElement) =>
+      container.querySelectorAll('[data-dimensions] [stroke="transparent"]')
+
+    expect(targets(drawnWith({ dimensions: true })).length).toBe(0)
+    expect(
+      targets(drawnWith({ dimensions: true, onDimensionHover: () => undefined })).length,
+    ).toBeGreaterThan(0)
+  })
 })

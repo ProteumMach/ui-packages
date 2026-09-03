@@ -41,11 +41,22 @@
  * for the canonical side of that line.
  */
 
+import type { UnitSystem } from '@toolpath/tool-support'
+
 import { ScraperConfigError } from './errors.js'
 import type { BrandName } from './identity.js'
 
-/** Which unit system a family's dimensional columns are published in. */
-export type UnitSystem = 'millimeters' | 'inches'
+/**
+ * Which unit system a family's dimensional columns are published in.
+ *
+ * `@toolpath/tool-support`'s, re-exported under the name this package has
+ * always published. The same two strings were declared here and spelled two
+ * other ways downstream — `'metric' | 'inch'`, and a display unit `'mm' | 'in'`
+ * — with a lookup table between them on ingest, which is where a metric family
+ * quietly becomes an inch one. This spelling won because a scrape originates
+ * the fact.
+ */
+export type { UnitSystem } from '@toolpath/tool-support'
 
 /**
  * The suffix a dimensional column carries, per unit system.

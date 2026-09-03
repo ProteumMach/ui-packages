@@ -48,6 +48,9 @@
     "check-types": "tsc --noEmit",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@toolpath/tool-support": "workspace:^"
+  },
   "peerDependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

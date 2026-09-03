@@ -14,6 +14,12 @@ in 3D; this one draws a catalog tool in 2D.
 npm install @toolpath/tool-drawing react react-dom
 ```
 
+Its one runtime dependency is [`@toolpath/tool-support`](../tool-support), the
+shared cutting-tool domain, which itself depends on nothing. `Provenance`,
+`ViewerTool`, `ViewerHolder` and `ViewerHolderProfile` are aliases of its types
+and are re-exported here, so a consumer that also uses `@toolpath/tool-support`
+gets the same types and needs no adapter between them.
+
 ## Exports
 
 | Entry point                        | What it is                                              |
@@ -24,6 +30,7 @@ npm install @toolpath/tool-drawing react react-dom
 
 `/geometry` is pure and server-safe: it touches no DOM and imports no React, so
 a Node server can measure an assembly without paying for a renderer.
+`tests/subpaths.test.ts` asserts that from the import graph.
 
 ## Geometry
 
@@ -92,13 +99,47 @@ as a plausible cylinder.
 ## Dimensions
 
 ```tsx
-<ToolDrawing assembly={assembly} dimensions dimensionSides="both" formatLength={inches} />
+<ToolDrawing
+  assembly={assembly}
+  dimensions
+  dimensionSides="both"
+  highlight={hovered}
+  onDimensionHover={setHovered}
+/>
 ```
 
 Every stated length and width, each in its own lane, nested shortest-innermost
-so no two lines cross, with each figure in the band just outboard of its own
-lane. Only stated numbers are dimensioned. `formatLength` is yours, because the
-unit a shop reads in is the application's.
+so no two lines cross. Only stated numbers are dimensioned.
+
+**The drawing letters none of them.** The numbers belong in your own table,
+where they can be read; six two-line figures fighting for the margin said the
+same numbers a second time and worse. Which line is which is answered by
+pointing at it instead:
+
+- `highlight` names the dimension or dimensions to draw in the sheet's accent,
+  by ISO 13399 code — `DC`, `LCF`, `OAL`, `SFDM`, `LBH`, `stickout`, `SIG`, and
+  the two `shoulder-` codes. A code the tool does not dimension highlights
+  nothing.
+- `onDimensionHover` is told the code under the pointer and `null` when it
+  leaves, so your table can be lit from the drawing as well as the other way
+  about. Passing it puts hit targets on the lines; leaving it off draws none.
+
+Where two codes are one span the drawing carries one line, not two. A shop that
+clamps to its own rule states the stickout and the below-holder length as the
+same number, and a tool stood out to its flutes states it again as the flute
+length; with nothing lettered, identical lines in two lanes cannot be told
+apart. The first code named keeps the line — the tool's own number ahead of the
+shop's — and the others light it too. Hover reports the code the line is drawn
+under.
+
+**The stickout is yours.** `assembly.stickout` is where the holder nose goes,
+and nothing here derives it — pass `LBH` as the stickout if standing the tool
+out to its below-holder length is the rule you want drawn. Where the two
+disagree and `LBH` ends up inside the holder, it is not dimensioned: the
+drawing will not run a line to a face it has drawn a holder over.
+
+A highlighted line is drawn in the accent **and heavier**, so the highlight
+survives a reader who cannot tell the two colours apart.
 
 ## Clearance overlay
 

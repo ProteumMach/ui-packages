@@ -35,6 +35,8 @@
  * collet sits inside the nut, which the holder's own envelope already includes.
  */
 
+import type { ProfileDatum, ProfilePoint } from '@toolpath/tool-support'
+
 import { ScraperConfigError, VendorResponseError } from './errors.js'
 import type { HolderRecord } from './holding.js'
 import type { BrandName } from './identity.js'
@@ -131,8 +133,12 @@ export interface MeasuredHolder {
   readonly options: ImportOptions
 }
 
-/** One vertex of a silhouette: `[z, r]`, both in millimetres. */
-export type ProfilePoint = readonly [z: number, r: number]
+/**
+ * One vertex of a silhouette: `[z, r]`, both in millimetres.
+ *
+ * `@toolpath/tool-support`'s, re-exported under this package's own name.
+ */
+export type { ProfilePoint } from '@toolpath/tool-support'
 
 /**
  * What `z = 0` means on a profile.
@@ -147,8 +153,13 @@ export type ProfilePoint = readonly [z: number, r: number]
  * implementation put it. One `datum` over a batch is only true while every
  * holder in it has a taper, and the first Capto or straight-shank holder makes
  * the document's own header wrong about some of its entries.
+ *
+ * `@toolpath/tool-support`'s, re-exported under this package's own name. It was
+ * declared here, in the drawing package, and in the application between them —
+ * three copies of two strings, one of which decides whether a consumer may
+ * print a gauge length at all.
  */
-export type ProfileDatum = 'gage-line' | 'nose'
+export type { ProfileDatum } from '@toolpath/tool-support'
 
 /** One holder's measured silhouette, and how far it agrees with the vendor. */
 export interface HolderProfile {

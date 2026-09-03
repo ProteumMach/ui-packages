@@ -1,3 +1,5 @@
+import { hasNeck } from '@toolpath/tool-support'
+
 import { isHolderProfile } from './types.js'
 import type {
   Provenance,
@@ -86,23 +88,6 @@ const arc = (
       z: exact(centre.z + radius * Math.sin(angle)),
     }
   })
-
-/**
- * Whether the section between the flutes and the shank is a neck to draw: a
- * stated shoulder past the flutes, narrower than the shank. A collet cannot
- * close on it, so the tool stands out to its shoulder at least. A shoulder as
- * wide as the shank is still a relief the drawing shows, but it is plain shank.
- */
-export const hasNeck = (tool: ViewerTool): boolean => {
-  const { LCF, SFDM, DC } = tool.geometry
-  const shoulder = tool.geometry['shoulder-length']
-  const relief = tool.geometry['shoulder-diameter']
-  if (shoulder === undefined || relief === undefined || LCF === undefined || shoulder <= LCF) {
-    return false
-  }
-  const shank = SFDM ?? DC
-  return shank === undefined ? true : relief < shank - EPSILON
-}
 
 /**
  * The cutting end of the tool, by what the tool is.
@@ -506,3 +491,41 @@ export const assemblyOutline = (assembly: ViewerAssembly): Outline | null => {
   const radius = Math.max(...segments.flatMap((segment) => segment.points.map((point) => point.r)))
   return { segments, height: top, radius }
 }
+
+/** Where one edge of the silhouette sits at a height, or `null` if it is not there. */
+const edgeRadius = (from: OutlinePoint, to: OutlinePoint, z: number): number | null => {
+  const low = Math.min(from.z, to.z)
+  const high = Math.max(from.z, to.z)
+  if (z < low - EPSILON || z > high + EPSILON) {
+    return null
+  }
+  // A step is two vertices at one height: the wider of them is the edge there.
+  if (high - low <= EPSILON) {
+    return Math.max(from.r, to.r)
+  }
+  return from.r + ((z - from.z) / (to.z - from.z)) * (to.r - from.r)
+}
+
+/**
+ * The widest the drawing reaches at one height.
+ *
+ * **Where an extension line starts.** A dimension line runs outside the whole
+ * view, which is what a sheet does, but the line that carries the eye to it
+ * starts at the solid being measured — and {@link Outline.radius} is the widest
+ * thing *anywhere* in the stack. With a holder those are twenty millimetres
+ * apart: a ⌀46 flange over a ⌀3 shank, so every extension line began in empty
+ * margin and pointed at nothing (Paul, 2026-09-02).
+ *
+ * Zero where nothing is drawn — past either end of the stack, and on the axis
+ * at the point of a drill.
+ */
+export const radiusAt = (outline: Outline, z: number): number =>
+  Math.max(
+    0,
+    ...outline.segments.flatMap((segment) =>
+      segment.points
+        .slice(1)
+        .map((point, index) => edgeRadius(segment.points[index]!, point, z))
+        .filter((radius): radius is number => radius !== null),
+    ),
+  )

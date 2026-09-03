@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { assemblyOutline } from '../model/outline.js'
-import { frameFor, orientationFor, typeSizeFor, type Box, type Padding } from '../model/frame.js'
-import {
-  bandRoom,
-  dimensionLayout,
-  dimensionsFor,
-  formatMillimetres,
-  type BandRoom,
-  type FormatLength,
-} from '../model/dimensions.js'
+import { frameFor, typeSizeFor, type Box, type Padding } from '../model/frame.js'
+import { dimensionsFor, laneLayout, laneRoom, type LaneRoom } from '../model/dimensions.js'
 import { isHolderProfile } from '../model/types.js'
 import type { ViewerAssembly } from '../model/types.js'
 import { SHEETS, assumedNames, sectionFill, type Theme } from './sheet.js'
@@ -45,6 +38,10 @@ export interface ToolDrawingProps {
   /**
    * Draw the dimensions: every stated length and width, on the tool.
    *
+   * Lines only — the drawing letters none of them (Paul, 2026-09-02). Which
+   * line is which is said by {@link ToolDrawingProps.highlight}, from the
+   * consumer's own table of numbers.
+   *
    * Off by default, because the drawing is also used small — on a card beside
    * a list, where a dimension line is noise. The panel that has room turns it
    * on (Paul, 2026-09-01).
@@ -60,12 +57,25 @@ export interface ToolDrawingProps {
    */
   readonly dimensionSides?: 'one' | 'both'
   /**
-   * How a length is written out. Millimetres in, a string out.
+   * The dimension or dimensions drawn in the sheet's accent, by ISO 13399 code
+   * — `DC`, `LCF`, `OAL`, `SFDM`, `LBH`, `stickout`, `SIG`, and the two
+   * `shoulder-` codes.
    *
-   * The application's, because the unit a shop reads in is the application's
-   * and owning one would mean owning its rounding too.
+   * **The drawing letters nothing**, so this is how a reader is told which
+   * line is which (Paul, 2026-09-02): the consumer's own table of numbers
+   * lights the line for the number under the reader's pointer. A code that
+   * this tool does not dimension highlights nothing, which is what should
+   * happen when the table carries a number the drawing has no line for.
    */
-  readonly formatLength?: FormatLength
+  readonly highlight?: string | ReadonlyArray<string> | null
+  /**
+   * The code under the pointer, and `null` when it leaves — so the table can
+   * be lit from the drawing as well as the other way about.
+   *
+   * Passing it puts hit targets on the lines; leaving it off draws none, and
+   * the drawing stays inert.
+   */
+  readonly onDimensionHover?: (code: string | null) => void
   /**
    * Extra room for chrome around the drawing, in pixels, on top of whatever
    * the dimension bands ask for.
@@ -121,7 +131,8 @@ export const ToolDrawing = ({
   caption,
   dimensions = false,
   dimensionSides = 'one',
-  formatLength = formatMillimetres,
+  highlight = null,
+  onDimensionHover,
   padding = DEFAULT_PADDING,
   collisions,
   verdict,
@@ -197,27 +208,41 @@ export const ToolDrawing = ({
   /**
    * **The padding seam.**
    *
-   * The bands are measured in type, and the type size is settled by the panel
-   * alone — so a band's width in *pixels* does not depend on the scale, and
+   * The lanes are measured in type, and the type size is settled by the panel
+   * alone — so a lane's offset in *pixels* does not depend on the scale, and
    * asking for the room they need cannot change the answer. That is the whole
    * reason padding is stated in pixels: in millimetres it would depend on the
    * scale, which depends on the padding, and the arithmetic would chase its
-   * own tail. So the order is: measure the panel, size the type, lay the bands
+   * own tail. So the order is: measure the panel, size the type, lay the lanes
    * out, total them, and only then build the frame.
    */
   const typePx = typeSizeFor(box)
   const model = dimensions ? dimensionsFor(assembly) : null
-  const room: BandRoom = { arrow: typePx * 0.9 * 2.4, gap: typePx * 0.5 }
-  const layout =
-    model === null
-      ? null
-      : dimensionLayout(
-          model,
-          formatLength,
-          typePx,
-          dimensionSides,
-          orientationFor(box) === 'horizontal',
-        )
+  /**
+   * Whether the width arrows reach the edge of the drawing, which is the only
+   * case where the lanes have to stand clear of them.
+   *
+   * On the tool alone the widest width dimensioned *is* the silhouette's
+   * widest radius, the arrows stand off it, and the innermost lane has to
+   * begin past them. With a holder the widths are the cutter and the shank,
+   * twenty millimetres inside a flange, and the arrow's length reserved out at
+   * the flange was margin nothing was ever drawn in — a third of the panel's
+   * short axis on a small tool in a tall panel, paid for out of the scale.
+   *
+   * A comparison of two radii in millimetres, so it needs no scale and the
+   * padding seam below stays a straight line.
+   */
+  const widthsReachEdge =
+    model !== null && model.widths.some((each) => each.radius >= outline.radius - 1e-6)
+  const room: LaneRoom = {
+    arrow: widthsReachEdge ? typePx * 0.9 * 2.4 : 0,
+    gap: typePx * 0.6,
+    step: typePx * 1.1,
+  }
+  const layout = model === null ? null : laneLayout(model, dimensionSides)
+  const lit = new Set(
+    highlight === null ? [] : typeof highlight === 'string' ? [highlight] : highlight,
+  )
   const asked: Padding =
     typeof padding === 'number'
       ? { minus: padding, plus: padding, along: padding }
@@ -230,12 +255,12 @@ export const ToolDrawing = ({
     layout === null
       ? asked
       : {
-          minus: asked.minus + bandRoom(layout.bands.minus, room) + room.gap,
-          plus: asked.plus + bandRoom(layout.bands.plus, room) + room.gap,
-          // Headroom for one figure's depth past each end: the stacker moves a
-          // clash away from the tip, so the outermost figure of a crowded tool
-          // ends up past the top of what it measures.
-          along: asked.along + Math.max(0, ...layout.figures.map((each) => each.along)),
+          minus: asked.minus + laneRoom(layout.count.minus, room) + room.gap,
+          plus: asked.plus + laneRoom(layout.count.plus, room) + room.gap,
+          // Headroom for the arrows of a dimension too short to hold them:
+          // those stand outside the line and point back in, so they reach past
+          // the end of what they measure.
+          along: asked.along + typePx * 0.9 * 3.2,
         }
 
   const frame = frameFor(outline, box, { padding: chrome })
@@ -377,7 +402,9 @@ export const ToolDrawing = ({
             room={room}
             requested={chrome}
             ink={sheet.dimension}
-            ground={sheet.ground}
+            accent={sheet.accent}
+            highlight={lit}
+            {...(onDimensionHover === undefined ? {} : { onHover: onDimensionHover })}
           />
         ) : null}
 

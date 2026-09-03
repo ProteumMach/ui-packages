@@ -15,6 +15,7 @@ packages/sdk-python/*.egg-info/
 packages/sdk-python/uv.lock
 packages/tool-drawing/dist/
 packages/tool-scraper/dist/
+packages/tool-support/dist/
 packages/ui/dist/
 packages/viewer/dist/
 examples/react/dist/

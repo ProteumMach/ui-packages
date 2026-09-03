@@ -1,24 +1,28 @@
 /**
  * The feature's reach curve, and how the drawing reads it.
  *
- * **Declared structurally, on purpose.** The shape is exactly what
- * `@toolpath/part-contracts` calls a `ReachCurve`, and naming it here rather
- * than importing it is one of the three senses in which this overlay stays
- * optional: a consumer that draws a tool alone pulls in no Toolpath schema.
- * A `ReachCurve` from the API satisfies this by structure, with no adapter.
+ * **Still declared structurally, one package up.** `@toolpath/tool-support`
+ * names the shape and imports no Toolpath schema to do it, which is one of the
+ * three senses in which this overlay stays optional: a consumer that draws a
+ * tool alone pulls in no OpenAPI contract. A `ReachCurve` off a report
+ * satisfies it by structure, with no adapter, exactly as before.
  */
 
+import { heightAt, type ReachCurve } from '@toolpath/tool-support'
+
 /**
- * The worst-case material around a feature, as a staircase.
+ * The worst-case material around a feature, as a staircase, and the reading of
+ * it that the drawn staircase is drawn from.
  *
- * Read as "material within `horizontalOffset[i]` of the cut rises to
- * `verticalOffset[i]`". Both are in millimetres; the offsets run outward from
- * the cutting edge and the heights up from the bottom of the feature.
+ * Both were declared here until `@toolpath/tool-support` existed, and
+ * {@link heightAt} in particular had a twin: the clearance *verdict* reads the
+ * same curve, that decision has a dozen callers that never draw anything, and
+ * it must not end up behind a dependency on React. Neither copy could import
+ * the other, so there were two, and each carried a note saying they had to
+ * agree exactly. They now are the same function.
  */
-export interface ReachCurve {
-  readonly horizontalOffset: ReadonlyArray<number>
-  readonly verticalOffset: ReadonlyArray<number>
-}
+export { heightAt }
+export type { ReachCurve }
 
 /** Room the shop wants kept between the stack and the part, in millimetres. */
 export interface Margins {
@@ -30,31 +34,6 @@ export const NO_MARGINS: Margins = { radial: 0, axial: 0 }
 
 /** A hair, as the sweep's own tolerance: a gap a femtometre under the room wanted is the room wanted. */
 export const GAP_TOLERANCE = 1e-6
-
-/**
- * The tallest material within `offset` mm of the cut, above the feature's bottom.
- *
- * **The one piece of the verdict's own arithmetic that had to travel.** The
- * decision — whether an assembly clears — stays with the catalog's
- * tool-selection engine, which has a dozen callers that never draw anything.
- * This is not that decision: it is the reading of the curve that the drawn
- * staircase is drawn from, and the gaps this overlay dimensions are measured
- * against. It is here because {@link tightestGaps} cannot be written without
- * it, and it must keep agreeing with whatever draws the material profile — the
- * rise comes at the *start* of each run, so everything out to a knot is
- * already as tall as that knot says.
- */
-export const heightAt = (curve: ReachCurve, offset: number): number => {
-  // "Material within h[i] rises to v[i]": for an offset between knots the
-  // material could be anywhere out to the next knot, so the next knot's height
-  // is the bound. Past the last knot the curve clamps.
-  for (let index = 0; index < curve.horizontalOffset.length; index += 1) {
-    if ((curve.horizontalOffset[index] ?? 0) >= offset) {
-      return curve.verticalOffset[index] ?? 0
-    }
-  }
-  return curve.verticalOffset[curve.verticalOffset.length - 1] ?? 0
-}
 
 /**
  * Where the wall face stands at a given height, as an offset from the cut:

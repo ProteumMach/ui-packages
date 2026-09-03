@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { assemblyOutline } from '../src/geometry/index.js'
+import { radiusAt } from '../src/model/outline.js'
 import type {
   ViewerAssembly,
   ViewerHolder,
@@ -460,5 +461,42 @@ describe('a holder drawn as its own model measures it', () => {
 
     const derived: ViewerHolderProfile = { ...profile, provenance: { points: 'derived' } }
     expect(drawn({ holder: derived }).segments.at(-1)?.provenance).toBe('derived')
+  })
+})
+
+/**
+ * **Where an extension line starts.** A dimension line runs outside the whole
+ * view; the line that carries the eye to it starts at the solid being
+ * measured, and on an assembly that solid is nowhere near `Outline.radius`.
+ */
+describe('the widest the drawing reaches at one height', () => {
+  it('reads the solid at that height rather than the widest thing drawn', () => {
+    const outline = drawn()
+
+    // The shank, not the ⌀10 nose twelve millimetres outside it.
+    expect(radiusAt(outline, 15)).toBe(3)
+    expect(radiusAt(outline, 25)).toBe(5)
+    expect(outline.radius).toBe(5)
+  })
+
+  it('follows a sloped face between two vertices', () => {
+    // A drill's cone: half a millimetre up a ⌀6 point at 90° is a ⌀1 face.
+    const cone = drawn({
+      tool: tool({ form: 'drill', geometry: { DC: 6, LCF: 13, OAL: 57, SFDM: 6, SIG: 90 } }),
+    })
+
+    expect(radiusAt(cone, 0)).toBe(0)
+    expect(radiusAt(cone, 0.5)).toBeCloseTo(0.5, 6)
+    expect(radiusAt(cone, 3)).toBe(3)
+  })
+
+  it('takes the wider face where the solid steps', () => {
+    // The flutes meet the nose at the stickout: the step is the nose's own.
+    expect(radiusAt(drawn(), 19)).toBe(5)
+  })
+
+  it('is zero past either end of the stack, where nothing is drawn', () => {
+    expect(radiusAt(drawn(), -1)).toBe(0)
+    expect(radiusAt(drawn(), 1000)).toBe(0)
   })
 })

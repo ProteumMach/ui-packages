@@ -45,6 +45,8 @@
  * compiler while citing nothing.
  */
 
+import { PROVENANCE, type Provenance } from '@toolpath/tool-support'
+
 import { ScraperConfigError } from './errors.js'
 import { compare } from './order.js'
 
@@ -58,10 +60,17 @@ export type FactValue = string | number | boolean
  * before the guesses and finishes on the ones only a person stands behind —
  * `derived` first, then `assumed`. (`vendor-stated` leads the order but is
  * filtered out of that document entirely; see {@link assumptions}.)
+ *
+ * **`@toolpath/tool-support`'s `PROVENANCE`**, re-exported under this package's
+ * own name. The order is load-bearing here and is the shared list's, so the
+ * ordering that document is read in cannot drift from the vocabulary a drawing
+ * marks a derived dimension by. Three identical declarations of these three
+ * strings stood before it — this one, the drawing's `Provenance`, and the
+ * application's.
  */
-export const SOURCES = ['vendor-stated', 'derived', 'assumed'] as const
+export const SOURCES = PROVENANCE
 
-export type FactSource = (typeof SOURCES)[number]
+export type FactSource = Provenance
 
 /**
  * One per-family constant, with its provenance.
