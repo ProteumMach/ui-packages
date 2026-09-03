@@ -242,4 +242,17 @@ describe('gridSpec', () => {
     expect(spec.extent % spec.step).toBeCloseTo(0, 9)
     expect(spec.extent * 2).toBeGreaterThan(50.8)
   })
+
+  /**
+   * `useContentBox` is empty until the scene has been measured. An empty `Box3`
+   * measures as zero size at the origin but its `min` is still at +Infinity, so
+   * the spec is a tiny grid on a plane at infinity — geometry three.js cannot
+   * bound ("Computed radius is NaN"). That is why `Grid` draws nothing until
+   * the box is real.
+   */
+  it('puts the plane at infinity for an unmeasured scene', () => {
+    const spec = gridSpec(new Box3())
+
+    expect(spec.z).toBe(Number.POSITIVE_INFINITY)
+  })
 })

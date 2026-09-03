@@ -40,7 +40,11 @@ export const Grid = ({ step, extent, color, opacity = 0.35 }: GridProps) => {
   const theme = resolveTheme()
   const box = useContentBox()
 
+  // Nothing to size against until the scene has been measured: `useContentBox`
+  // hands back an empty box on the first frame, and a grid sized from one is
+  // built at infinity — three.js logs "Computed radius is NaN" for it.
   const geometry = useMemo(() => {
+    if (box.isEmpty()) return null
     const spec = gridSpec(box)
     const cell = step ?? spec.step
     return gridGeometry({
@@ -52,7 +56,9 @@ export const Grid = ({ step, extent, color, opacity = 0.35 }: GridProps) => {
     })
   }, [box, extent, step])
 
-  useEffect(() => () => geometry.dispose(), [geometry])
+  useEffect(() => () => geometry?.dispose(), [geometry])
+
+  if (!geometry) return null
 
   return (
     <lineSegments geometry={geometry} renderOrder={-1} raycast={() => null} userData={FURNITURE}>
