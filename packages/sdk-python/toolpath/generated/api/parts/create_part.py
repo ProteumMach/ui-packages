@@ -83,7 +83,10 @@ def sync_detailed(
     """Create a part upload
 
     Args:
-        filename (str | Unset):  Example: part.step.
+        filename (str | Unset): Name of the CAD file you are about to upload. The extension
+            selects the reader, so it must match the file you send: `.step`/`.stp`, `.x_t`/`.x_b`,
+            `.sldprt`, `.catpart`, `.prt`, or `.igs`/`.iges`. Omitting it stores the upload as
+            `.step`, which fails processing for any other format. Example: part.step.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -112,7 +115,10 @@ def sync(
     """Create a part upload
 
     Args:
-        filename (str | Unset):  Example: part.step.
+        filename (str | Unset): Name of the CAD file you are about to upload. The extension
+            selects the reader, so it must match the file you send: `.step`/`.stp`, `.x_t`/`.x_b`,
+            `.sldprt`, `.catpart`, `.prt`, or `.igs`/`.iges`. Omitting it stores the upload as
+            `.step`, which fails processing for any other format. Example: part.step.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -136,7 +142,10 @@ async def asyncio_detailed(
     """Create a part upload
 
     Args:
-        filename (str | Unset):  Example: part.step.
+        filename (str | Unset): Name of the CAD file you are about to upload. The extension
+            selects the reader, so it must match the file you send: `.step`/`.stp`, `.x_t`/`.x_b`,
+            `.sldprt`, `.catpart`, `.prt`, or `.igs`/`.iges`. Omitting it stores the upload as
+            `.step`, which fails processing for any other format. Example: part.step.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -163,7 +172,10 @@ async def asyncio(
     """Create a part upload
 
     Args:
-        filename (str | Unset):  Example: part.step.
+        filename (str | Unset): Name of the CAD file you are about to upload. The extension
+            selects the reader, so it must match the file you send: `.step`/`.stp`, `.x_t`/`.x_b`,
+            `.sldprt`, `.catpart`, `.prt`, or `.igs`/`.iges`. Omitting it stores the upload as
+            `.step`, which fails processing for any other format. Example: part.step.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
