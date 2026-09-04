@@ -7,7 +7,7 @@ import React, {
   useLayoutEffect,
   useRef,
 } from 'react'
-import { cn } from '../helpers'
+import { cn } from '../common'
 import { ArrowElbowDownLeftIcon } from '@phosphor-icons/react'
 import { Input } from '../input'
 

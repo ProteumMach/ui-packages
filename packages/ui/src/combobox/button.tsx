@@ -1,5 +1,5 @@
 import React, { FC, ReactNode, SVGProps } from 'react'
-import { cn } from '../helpers'
+import { cn } from '../common'
 import { CaretUpDownIcon } from '@phosphor-icons/react'
 import { useCombobox } from './combobox-context'
 import { Icon } from './icon'

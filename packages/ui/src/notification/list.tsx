@@ -1,6 +1,6 @@
 import React from 'react'
 import { Toast, ToastObject } from '@base-ui/react'
-import { cn } from '../helpers'
+import { cn } from '../common'
 import { IconButton } from '../icon-button'
 import { XIcon } from '@phosphor-icons/react'
 import { useNotificationToastManager } from './provider'

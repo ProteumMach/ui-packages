@@ -7,7 +7,7 @@ import React, {
   useState,
 } from 'react'
 import { Popover, type PopoverRootChangeEventDetails } from '@base-ui/react/popover'
-import { cn } from '../helpers'
+import { cn } from '../common'
 import { XIcon } from '@phosphor-icons/react'
 import { useDismissedCallouts } from './use-dismissed-callouts'
 
