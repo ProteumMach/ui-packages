@@ -25,6 +25,14 @@ bootstrap publish. This is the only manual publish; do not add an npm token to t
 4. Merge the release-metadata PR. CI recognizes that version as already published. Every later
    release uses trusted publishing automatically.
 
+**Bootstrap before merging, and give the registry a minute.** The release run starts the moment
+the PR merges, and `changeset publish` decides what to publish from `npm info`, whose response is
+cached at the edge for a short while after a first publish. Merging first, or merging within about
+a minute of the bootstrap, gets a 404 for a package that exists: the run then tries to publish a
+version npm already has and fails with `E403 You cannot publish over the previously published
+versions`. Nothing is wrong when that happens and nothing needs republishing — re-run the failed
+release job once `npm view <package> version` answers.
+
 The bootstrap command refuses to publish version `0.0.0` or a package with a repository URL that
 does not match `origin`. If its version is already published, it skips publishing and only sets up
 trusted publishing.
