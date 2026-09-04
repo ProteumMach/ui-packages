@@ -17,64 +17,61 @@ import type { Vec2 } from './Vec2.js'
 import { Vec2FromJSON, Vec2FromJSONTyped, Vec2ToJSON, Vec2ToJSONTyped } from './Vec2.js'
 
 /**
- * A countersink read as a cone of revolution: the circle its bevel starts from and the
- * one it opens to.
+ * Where a feature is at its tightest: one place its clearance reaches the minimum, as the
+ * disc that measures it.
+ *
+ * The disc fits in the space the clearance was measured in and touches the feature
+ * boundary, so a cylinder of `diameter` standing at `center` and spanning the datasheet's
+ * `zMin`..`zMax` is exactly the widest tool that reaches the boundary there — which is what
+ * makes these drawable. Same tool frame as the rest of the datasheet; mm.
  * @export
- * @interface SinkFacts
+ * @interface PinchPoint
  */
-export interface SinkFacts {
+export interface PinchPoint {
   /**
-   * Where the cone's axis crosses the plane the contours are read in (the tool
-   * frame's) — the sink's position across the part, not along the tool.
+   * The disc's center, across the part rather than along the tool.
    * @type {Vec2}
-   * @memberof SinkFacts
+   * @memberof PinchPoint
    */
   center: Vec2
   /**
-   * Radius of the circle the bevel starts from, at its lower edge — the pilot hole.
+   * The disc's diameter, which is the clearance there — the datasheet's minimum
+   * clearance diameter, up to the tolerance it was measured at.
    * @type {number}
-   * @memberof SinkFacts
+   * @memberof PinchPoint
    */
-  innerRadius: number
-  /**
-   * Radius it has opened to at the upper edge.
-   * @type {number}
-   * @memberof SinkFacts
-   */
-  outerRadius: number
+  diameter: number
 }
 
 /**
- * Check if a given object implements the SinkFacts interface.
+ * Check if a given object implements the PinchPoint interface.
  */
-export function instanceOfSinkFacts(value: object): value is SinkFacts {
+export function instanceOfPinchPoint(value: object): value is PinchPoint {
   if (!('center' in value) || value['center'] === undefined) return false
-  if (!('innerRadius' in value) || value['innerRadius'] === undefined) return false
-  if (!('outerRadius' in value) || value['outerRadius'] === undefined) return false
+  if (!('diameter' in value) || value['diameter'] === undefined) return false
   return true
 }
 
-export function SinkFactsFromJSON(json: any): SinkFacts {
-  return SinkFactsFromJSONTyped(json, false)
+export function PinchPointFromJSON(json: any): PinchPoint {
+  return PinchPointFromJSONTyped(json, false)
 }
 
-export function SinkFactsFromJSONTyped(json: any, ignoreDiscriminator: boolean): SinkFacts {
+export function PinchPointFromJSONTyped(json: any, ignoreDiscriminator: boolean): PinchPoint {
   if (json == null) {
     return json
   }
   return {
     center: Vec2FromJSON(json['center']),
-    innerRadius: json['innerRadius'],
-    outerRadius: json['outerRadius'],
+    diameter: json['diameter'],
   }
 }
 
-export function SinkFactsToJSON(json: any): SinkFacts {
-  return SinkFactsToJSONTyped(json, false)
+export function PinchPointToJSON(json: any): PinchPoint {
+  return PinchPointToJSONTyped(json, false)
 }
 
-export function SinkFactsToJSONTyped(
-  value?: SinkFacts | null,
+export function PinchPointToJSONTyped(
+  value?: PinchPoint | null,
   ignoreDiscriminator: boolean = false,
 ): any {
   if (value == null) {
@@ -83,7 +80,6 @@ export function SinkFactsToJSONTyped(
 
   return {
     center: Vec2ToJSON(value['center']),
-    innerRadius: value['innerRadius'],
-    outerRadius: value['outerRadius'],
+    diameter: value['diameter'],
   }
 }

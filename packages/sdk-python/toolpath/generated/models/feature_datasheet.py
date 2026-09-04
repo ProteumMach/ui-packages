@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from ..models.dovetail_facts import DovetailFacts
     from ..models.face_facts import FaceFacts
     from ..models.hole_facts import HoleFacts
+    from ..models.pinch_point import PinchPoint
     from ..models.pocket_facts import PocketFacts
     from ..models.profile_facts import ProfileFacts
     from ..models.reach_curve import ReachCurve
@@ -80,6 +81,19 @@ class FeatureDatasheet:
                 says what a pass sweeps, and the picture there for how the two families differ. A bucket is
                 zero where the feature has no such surface. Areas are of the meshed regions, so a curved
                 surface reads a shade under its exact area.
+            pinch_points (list[PinchPoint] | Unset): The places the feature is at its tightest: where the clearance reaches
+                the minimum
+                `cd` reports, one disc per stretch of the feature that reaches it, tightest first
+                and never more than ten.
+
+                The counterpart of a bound rather than another bound: what these answer is *where*
+                the clearance minimum was decided, which the number itself cannot. A drawing is the
+                audience, which is why the list is capped — a feature can tie in dozens of places,
+                and the eleventh disc tells a reader nothing the first ten did not.
+
+                Empty for the kinds whose clearance is not measured off a single medial axis — a
+                hole, a facing pass, the undercut and layered kinds — so empty is "nowhere to point
+                at", never "nowhere is tight".
     """
 
     feature_type: FeatureType
@@ -110,6 +124,7 @@ class FeatureDatasheet:
     floorish_area: float | Unset = UNSET
     wallish_area: float | Unset = UNSET
     areas: SurfaceAreas | Unset = UNSET
+    pinch_points: list[PinchPoint] | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.boss_facts import BossFacts
@@ -178,6 +193,13 @@ class FeatureDatasheet:
         if not isinstance(self.areas, Unset):
             areas = self.areas.to_dict()
 
+        pinch_points: list[dict[str, Any]] | Unset = UNSET
+        if not isinstance(self.pinch_points, Unset):
+            pinch_points = []
+            for pinch_points_item_data in self.pinch_points:
+                pinch_points_item = pinch_points_item_data.to_dict()
+                pinch_points.append(pinch_points_item)
+
         field_dict: dict[str, Any] = {}
 
         field_dict.update(
@@ -204,6 +226,8 @@ class FeatureDatasheet:
             field_dict["wallishArea"] = wallish_area
         if areas is not UNSET:
             field_dict["areas"] = areas
+        if pinch_points is not UNSET:
+            field_dict["pinchPoints"] = pinch_points
 
         return field_dict
 
@@ -214,6 +238,7 @@ class FeatureDatasheet:
         from ..models.dovetail_facts import DovetailFacts
         from ..models.face_facts import FaceFacts
         from ..models.hole_facts import HoleFacts
+        from ..models.pinch_point import PinchPoint
         from ..models.pocket_facts import PocketFacts
         from ..models.profile_facts import ProfileFacts
         from ..models.reach_curve import ReachCurve
@@ -355,6 +380,15 @@ class FeatureDatasheet:
         else:
             areas = SurfaceAreas.from_dict(_areas)
 
+        _pinch_points = d.pop("pinchPoints", UNSET)
+        pinch_points: list[PinchPoint] | Unset = UNSET
+        if _pinch_points is not UNSET:
+            pinch_points = []
+            for pinch_points_item_data in _pinch_points:
+                pinch_points_item = PinchPoint.from_dict(pinch_points_item_data)
+
+                pinch_points.append(pinch_points_item)
+
         feature_datasheet = cls(
             feature_type=feature_type,
             z_min=z_min,
@@ -373,6 +407,7 @@ class FeatureDatasheet:
             floorish_area=floorish_area,
             wallish_area=wallish_area,
             areas=areas,
+            pinch_points=pinch_points,
         )
 
         return feature_datasheet

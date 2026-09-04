@@ -54,6 +54,7 @@ from .part_feature_machining_direction import PartFeatureMachiningDirection
 from .part_features_response import PartFeaturesResponse
 from .part_response import PartResponse
 from .part_response_units import PartResponseUnits
+from .pinch_point import PinchPoint
 from .pocket_facts import PocketFacts
 from .problem_details import ProblemDetails
 from .profile_facts import ProfileFacts
@@ -144,6 +145,7 @@ __all__ = (
     "PartFeaturesResponse",
     "PartResponse",
     "PartResponseUnits",
+    "PinchPoint",
     "PocketFacts",
     "ProblemDetails",
     "ProfileFacts",
