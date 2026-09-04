@@ -11,15 +11,16 @@ cost for everyone downstream. Those are the risks worth spending review attentio
 
 ## What ships
 
-| Package                  | Source                     | Published as                       |
-| ------------------------ | -------------------------- | ---------------------------------- |
-| `@toolpath/ui`           | `packages/ui/`             | npm — React component kit + theme  |
-| `@toolpath/viewer`       | `packages/viewer/`         | npm — three.js/R3F part viewer     |
-| `@toolpath/api`          | `packages/sdk-typescript/` | npm — generated TypeScript SDK     |
-| `@toolpath/tool-drawing` | `packages/tool-drawing/`   | npm — 2D tool/holder elevation     |
-| `@toolpath/tool-scraper` | `packages/tool-scraper/`   | npm — vendor tool-catalog scraping |
-| `@toolpath/tool-support` | `packages/tool-support/`   | npm — the cutting-tool domain      |
-| `toolpath`               | `packages/sdk-python/`     | PyPI — generated Python SDK        |
+| Package                  | Source                     | Published as                          |
+| ------------------------ | -------------------------- | ------------------------------------- |
+| `@toolpath/ui`           | `packages/ui/`             | npm — React component kit + theme     |
+| `@toolpath/app-support`  | `packages/app-support/`    | npm — the logic an application reuses |
+| `@toolpath/viewer`       | `packages/viewer/`         | npm — three.js/R3F part viewer        |
+| `@toolpath/api`          | `packages/sdk-typescript/` | npm — generated TypeScript SDK        |
+| `@toolpath/tool-drawing` | `packages/tool-drawing/`   | npm — 2D tool/holder elevation        |
+| `@toolpath/tool-scraper` | `packages/tool-scraper/`   | npm — vendor tool-catalog scraping    |
+| `@toolpath/tool-support` | `packages/tool-support/`   | npm — the cutting-tool domain         |
+| `toolpath`               | `packages/sdk-python/`     | PyPI — generated Python SDK           |
 
 `examples/typescript`, `examples/python`, and `examples/react-viewer` are workspace members but
 are never published. They exist to exercise a package the way a consumer would.
@@ -37,6 +38,19 @@ are never published. They exist to exercise a package the way a consumer would.
 - `packages/viewer/src/model/` and `src/render/` are pure — geometry, selection, camera, theme.
   The `.tsx` files at `packages/viewer/src/` are the React surface over them. New behavior that
   can be pure belongs in `model/` or `render/`, where it is cheap to test without a canvas.
+- `packages/ui/src/` is **styling and display, and nothing else**. It is the component kit
+  [Storybook](https://storybook.staging.toolpath.com) documents: a resource for reusable UI
+  elements and a guide for building them. Every directory under it is one component's — its
+  `.tsx`, and the hooks and helpers that component needs. Code that persists a preference,
+  reads a route, calls an API or holds application state does not belong here however small it
+  is, and a directory with no `.tsx` in it is that code arriving. It goes to
+  `packages/app-support/` instead.
+- `packages/app-support/src/` is the other half: the logic every Toolpath application was
+  otherwise going to write for itself — preferences, contexts, route helpers. It ships two entry
+  points, the root, which **imports no React** so a server route can read a stored value without
+  bundling a renderer, and `/react` for the hooks and contexts. Its one runtime dependency is
+  `@toolpath/tool-support`, and it never imports `@toolpath/ui`: the kit renders, this decides.
+  `tests/boundary.test.ts` is the sensor for both claims.
 - `packages/tool-drawing/src/` splits the same way the viewer does: `model/` and
   `render/*.ts` are pure geometry and layout, the `.tsx` files are the React surface. It ships
   three entry points — the root, `/geometry`, which imports no React and touches no DOM, and
@@ -119,6 +133,8 @@ judgment rule starts being violated, give it a check rather than restating it he
 | Only a composition root reaches into `src/vendors/`                    | `pnpm test` (`vendor-boundary`)     |
 | Every scraper vendor directory has a `scrape.ts`                       | `pnpm test` (`vendor-boundary`)     |
 | `@toolpath/tool-support` imports nothing and declares no dependency    | `pnpm test` (`boundary`)            |
+| `@toolpath/app-support`'s root entry imports no React                  | `pnpm test` (`boundary`)            |
+| `@toolpath/app-support` never imports `@toolpath/ui`                   | `pnpm test` (`boundary`)            |
 | One `25.4` in the whole tree                                           | `pnpm test` (`boundary`)            |
 | `release:npm` builds a package before the ones that import it          | `pnpm test` (`release-build-order`) |
 | `@toolpath/ui` ships its theme, `dist`, and `src` in the tarball       | `pnpm test` (`test-ui-package`)     |
@@ -153,8 +169,8 @@ What the sensors cannot carry:
   `exports` map points at `dist/`; an entry point added to a manifest needs its `src/` counterpart
   added there too, or knip will call a whole live module dead.
 - **The Changeset check watches `src/` and not the manifests.** `scripts/check-release-intent.mjs`
-  lists `packages/ui/src/`, `packages/ui/tailwind-preset.cjs`, `packages/viewer/src/`,
-  `packages/tool-scraper/src/`, `packages/sdk-typescript/src/`, `openapi/`,
+  lists `packages/ui/src/`, `packages/ui/tailwind-preset.cjs`, `packages/app-support/src/`,
+  `packages/viewer/src/`, `packages/tool-scraper/src/`, `packages/sdk-typescript/src/`, `openapi/`,
   `codegen/typescript-fetch.yaml`, and `scripts/generate-sdks.mjs`. A `package.json` change that
   alters `exports`, `files`, `engines`, or a dependency is consumer-visible and needs a Changeset
   under the rules below, but no check will ask for one. That part is judgment until the script's
@@ -180,6 +196,7 @@ Use the package and bump that match the change:
 | Changed area                                                                                                | Package                  |
 | ----------------------------------------------------------------------------------------------------------- | ------------------------ |
 | `packages/ui/src/` or `packages/ui/tailwind-preset.cjs`                                                     | `@toolpath/ui`           |
+| `packages/app-support/src/`                                                                                 | `@toolpath/app-support`  |
 | `packages/viewer/src/`                                                                                      | `@toolpath/viewer`       |
 | `packages/sdk-typescript/src/`, `openapi/`, `codegen/typescript-fetch.yaml`, or `scripts/generate-sdks.mjs` | `@toolpath/api`          |
 | `packages/tool-drawing/src/`                                                                                | `@toolpath/tool-drawing` |
