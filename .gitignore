@@ -8,6 +8,7 @@ __pycache__/
 *.pyc
 .ruff_cache/
 .pytest_cache/
+packages/app-support/dist/
 packages/sdk-typescript/dist/
 packages/sdk-python/build/
 packages/sdk-python/dist/

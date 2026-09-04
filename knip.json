@@ -6,6 +6,10 @@
       "entry": ["scripts/*.mjs"],
       "project": ["scripts/**/*.mjs"]
     },
+    "packages/app-support": {
+      "entry": ["src/index.ts", "src/react/index.ts", "tests/**/*.test.{ts,tsx}"],
+      "project": ["src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}"]
+    },
     "packages/sdk-typescript": {
       "project": ["src/**/*.ts"],
       "ignore": ["src/generated/**"]
