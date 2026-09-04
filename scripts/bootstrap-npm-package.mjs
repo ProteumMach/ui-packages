@@ -93,7 +93,17 @@ if (publishedVersion) {
   )
 } else {
   await run('pnpm', ['build'], directory)
-  await run('npm', ['publish', '--access', 'public'], directory)
+  // pnpm, not npm. A workspace dependency is written `workspace:^` in the
+  // manifest and has to be rewritten to a real range at pack time: pnpm does
+  // that, npm publishes the protocol verbatim, and the result installs with
+  // EUNSUPPORTEDPROTOCOL for everyone. `changeset publish` goes through pnpm
+  // for the same reason, and this is the one publish in the repository that
+  // does not — so it is the one that has to say so.
+  //
+  // Git checks are off because this runs on the Changesets release-metadata
+  // branch by design, and pnpm otherwise refuses to publish from anything but
+  // the default branch.
+  await run('pnpm', ['publish', '--access', 'public', '--no-git-checks'], directory)
 }
 
 let trusts = []
