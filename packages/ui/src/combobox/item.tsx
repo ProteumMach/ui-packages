@@ -4,7 +4,7 @@ import {
   ComboboxItemProps as BaseComboboxItemProps,
 } from '@base-ui/react'
 import { useCombobox } from './combobox-context'
-import { cn } from '../helpers'
+import { cn } from '../common'
 import { ArrowElbowDownLeftIcon } from '@phosphor-icons/react'
 import { Tooltip } from '../tooltip/tooltip'
 

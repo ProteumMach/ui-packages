@@ -1,5 +1,5 @@
 import React, { Dispatch, HTMLAttributes, MouseEvent, ReactNode, Ref } from 'react'
-import { cn } from '../helpers'
+import { cn } from '../common'
 import { Link } from '../link'
 import { AnimatedEllipsis } from './animated-ellipsis'
 

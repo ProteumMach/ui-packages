@@ -1,5 +1,5 @@
 import React, { FC } from 'react'
-import { cn } from '../helpers'
+import { cn } from '../common'
 import { CaretRightIcon } from '@phosphor-icons/react'
 
 export type PaginationMetadata = {

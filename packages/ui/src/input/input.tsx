@@ -10,7 +10,7 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import { cn } from '../helpers'
+import { cn } from '../common'
 import { IconButton } from '../icon-button'
 import { CheckIcon, CopyIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 import { Tooltip } from '../tooltip'

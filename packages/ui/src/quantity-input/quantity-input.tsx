@@ -1,5 +1,5 @@
 import React, { ChangeEvent, MouseEvent, Ref } from 'react'
-import { cn } from '../helpers'
+import { cn } from '../common'
 import { MinusIcon, PlusIcon } from '@phosphor-icons/react'
 
 export type QuantityInputProps = {
