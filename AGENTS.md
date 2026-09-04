@@ -113,7 +113,11 @@ Two things about `pnpm test` are worth knowing before reading its output:
   the packages that import it. `release:npm` states its order by hand and runs only on `main`
   after a release pull request merges, so without this its first execution is the release it
   breaks.
-- Last is `scripts/check-bootstrap-publish.mjs`, which proves the one manual publish in the
+- `scripts/check-release-trigger.mjs` reads the release workflow's push path filter and proves
+  it runs on `.changeset/**` and on every published package's `src/**` and manifest. The filter is
+  a roster, and it fails silently: the merge succeeds, CI is green, and nothing publishes. A pull
+  request whose only release-relevant content was a Changeset used to do exactly that.
+- Also here is `scripts/check-bootstrap-publish.mjs`, which proves the one manual publish in the
   repository goes through pnpm. Only pnpm rewrites a `workspace:` range to a real one at pack
   time, and the bootstrap runs once per package, by hand, for a package npm has never seen — so
   its first execution is the publish it breaks, permanently, because npm will not accept a second
@@ -143,6 +147,7 @@ judgment rule starts being violated, give it a check rather than restating it he
 | One `25.4` in the whole tree                                           | `pnpm test` (`boundary`)            |
 | `release:npm` builds a package before the ones that import it          | `pnpm test` (`release-build-order`) |
 | The bootstrap publish rewrites `workspace:` ranges, as pnpm does       | `pnpm test` (`bootstrap-publish`)   |
+| A Changeset on `main` starts a release run                             | `pnpm test` (`release-trigger`)     |
 | `@toolpath/ui` ships its theme, `dist`, and `src` in the tarball       | `pnpm test` (`test-ui-package`)     |
 | `@toolpath/ui` theme tokens and the built bundle agree                 | `pnpm test` (`tailwind-preset`)     |
 | `@toolpath/tool-scraper` resolves and its errors are `instanceof`-safe | `pnpm test` (`packaging`)           |
