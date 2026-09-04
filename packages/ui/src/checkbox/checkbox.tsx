@@ -1,6 +1,6 @@
 import React, { useRef } from 'react'
 import { Checkbox as BaseCheckbox, CheckboxRootProps } from '@base-ui/react'
-import { cn } from '../helpers'
+import { cn } from '../common'
 import { CheckIcon, MinusIcon } from '@phosphor-icons/react'
 
 export interface CheckboxChangeEvent {

@@ -1,7 +1,7 @@
 import React, { ReactNode } from 'react'
 import { Toast } from '@base-ui/react'
 import { Button } from '../button'
-import { cn } from '../helpers'
+import { cn } from '../common'
 import { IconButton } from '../icon-button'
 import { CircleNotchIcon, XIcon } from '@phosphor-icons/react'
 import { useToastManager } from './provider'

@@ -1,6 +1,6 @@
 import React from 'react'
 import { TableNode } from '@table-library/react-table-library/types/table'
-import { cn } from '../helpers'
+import { cn } from '../common'
 import { CaretRightIcon } from '@phosphor-icons/react'
 import { useRow } from './row-context'
 import { useTable } from './table-context'

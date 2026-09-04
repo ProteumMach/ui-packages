@@ -4,7 +4,7 @@ import {
   MenuSubmenuTriggerProps as BaseMenuSubmenuTriggerProps,
   ContextMenu,
 } from '@base-ui/react'
-import { cn } from '../helpers'
+import { cn } from '../common'
 import { CaretRightIcon } from '@phosphor-icons/react'
 import { useMenu } from './menu-context'
 
